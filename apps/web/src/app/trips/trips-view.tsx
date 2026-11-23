@@ -49,6 +49,7 @@ import {
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
 import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
+import { resolveTravelDaysContext } from "@/modules/tripsage-chat/tripsage-access-leg";
 import { TripsageAccessLegCard } from "@/components/tripsage-chat/tripsage-access-leg-card";
 import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
@@ -820,6 +821,17 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
     );
     return accessPins.at(-1)?.leg ?? null;
   }, [isOwner, trip.pinnedItems]);
+  const hasTravelDays = useMemo(
+    () =>
+      Boolean(
+        accessLeg
+        && resolveTravelDaysContext({
+          accessLeg,
+          originLabel: trip.journey?.journey.origin?.label ?? null,
+        }),
+      ),
+    [accessLeg, trip.journey?.journey.origin?.label],
+  );
   const nonAccessPins = useMemo(
     () => (trip.pinnedItems ?? []).filter((item) => item.kind !== "ACCESS"),
     [trip.pinnedItems],
@@ -1278,7 +1290,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
       )}
 
       {/* Interactive Day Switcher Tabs */}
-      {(trip.days.length > 1 || Boolean(accessLeg)) && (
+      {(trip.days.length > 1 || hasTravelDays) && (
         <TravelerDayTabs
           sticky
           useTabRole={false}
@@ -1295,7 +1307,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
           }
           tabs={[
             { id: "all", label: "Tất cả", count: trip.days.length, kind: "all" } satisfies TravelerDayTabItem,
-            ...(accessLeg
+            ...(hasTravelDays
               ? [
                   {
                     id: "travel-outbound",
@@ -1314,7 +1326,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 kind: "trip",
               }),
             ),
-            ...(accessLeg
+            ...(hasTravelDays
               ? [
                   {
                     id: "travel-return",

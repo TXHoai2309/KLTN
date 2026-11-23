@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { createIdempotencyKey } from "@/lib/mutation-client";
 import type { QaContext } from "@/modules/ai/qa-contract";
 import { conversationMetaPartSchema } from "@/modules/tripsage-chat/assistant-conversation-contract";
-import { accessLegPartSchema, isCurrentAccessLeg, reconcileAccessPins } from "@/modules/tripsage-chat/tripsage-access-leg";
+import { accessLegPartSchema, isCurrentAccessLeg, reconcileAccessPins, resolveTravelDaysContext } from "@/modules/tripsage-chat/tripsage-access-leg";
 import { resolveBudgetSavingsChips } from "@/modules/tripsage-chat/tripsage-cost";
 import { buildTripsageChatBody, summarizeItinerary } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { classifyChatError, createTripsageChatFetch } from "@/modules/tripsage-chat/tripsage-chat-errors";
@@ -218,13 +218,16 @@ export function TripsageChatClient({
   const { turns: resultTurns, latestBudgetMessageId } = useMemo(() => readTripsageResultTurns(messages), [messages]);
   const state = useMemo(() => readConversationState(messages, data => parseItineraryPart(data) !== null), [messages]);
   const lastItineraryMessageId = state.lastItineraryMessageId;
-  // A home city away from the trip's start means travel days exist even before the way there is planned.
-  const travelDays = useMemo(() => {
-    const homeCity = state.tripInfo?.homeCity?.trim();
-    const hubName = state.journey?.origin?.label;
-    const bare = (text: string) => text.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/gu, "d").replace(/^(tp\.?|thanh pho)\s*/u, "");
-    return homeCity && hubName && !bare(hubName).includes(bare(homeCity)) ? { homeCity, hubName } : null;
-  }, [state.tripInfo?.homeCity, state.journey?.origin?.label]);
+  // Bug 4: only show "Ngày đi / Ngày về" when an access leg exists OR origin is a fixed hub in a different city from homeCity.
+  const travelDays = useMemo(
+    () =>
+      resolveTravelDaysContext({
+        accessLeg: state.accessLeg?.data ?? null,
+        homeCity: state.tripInfo?.homeCity,
+        originLabel: state.journey?.origin?.label,
+      }),
+    [state.accessLeg?.data, state.tripInfo?.homeCity, state.journey?.origin?.label],
+  );
   // Schema parsing creates a fresh object; keep it stable between message updates
   // so the lodging synchronization effect cannot trigger itself on every render.
   const itineraryRef = useRef<ReturnType<typeof parseItineraryPart>>(null);

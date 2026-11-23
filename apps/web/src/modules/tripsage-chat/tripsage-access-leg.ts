@@ -295,6 +295,29 @@ export function reconcileAccessPins<T extends { kind: string }>(
 
 export const isHubOrigin = (label: string | undefined) => TRIP_HUBS.some(hub => hub.name === label);
 
+/**
+ * Bug 4: single source of truth for showing "Ngày đi / Ngày về" tabs on both `/assistant` and `/trips/[id]`.
+ * Shown ONLY when:
+ *   (a) a current access leg exists, OR
+ *   (b) origin is a fixed hub (`isHubOrigin`) AND `homeCity` is a different city from that hub.
+ * A concrete local origin inside the traveler's home city (e.g. "Cầu Giấy" when homeCity is "Hà Nội") has NO travel days.
+ */
+export function resolveTravelDaysContext(input: {
+  accessLeg?: AccessLegPart | null;
+  homeCity?: string | null;
+  originLabel?: string | null;
+}): { homeCity: string; hubName: string } | null {
+  if (input.accessLeg) {
+    return { homeCity: input.accessLeg.homeCity, hubName: input.accessLeg.hubName };
+  }
+  const homeCity = input.homeCity?.trim();
+  const originLabel = input.originLabel?.trim();
+  if (!homeCity || !originLabel) return null;
+  if (!isHubOrigin(originLabel)) return null;
+  if (sameAccessPlace(homeCity, originLabel)) return null;
+  return { homeCity, hubName: originLabel };
+}
+
 /** Returns true when driving from the current origin eats too much of Day 1 and a closer hub should be offered. */
 export function shouldSuggestHub(result: PlannerResult): boolean {
   if (isHubOrigin(result.requirement.journey?.origin?.label)) return false;

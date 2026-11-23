@@ -9,6 +9,7 @@ import {
   formatAccessLegCostBasis,
   isCurrentAccessLeg,
   reconcileAccessPins,
+  resolveTravelDaysContext,
   type AccessLegInput,
 } from "./tripsage-access-leg";
 import { estimateTripCost } from "./tripsage-cost";
@@ -107,5 +108,48 @@ describe("Ticket 05: current access leg parity (PARITY BR-1..BR-5, AC-1, AC-2)",
     // Generating leg2 later does not mutate the already-saved snapshot
     expect(savedSnapshot[0]?.kind === "ACCESS" && savedSnapshot[0].leg.id).toBe(leg1.id);
     expect(savedSnapshot[0]?.kind === "ACCESS" && savedSnapshot[0].leg.totalVnd).toBe(56_000_000);
+  });
+
+  it("Bug 4: suppresses Ngày đi / Ngày về for local self-drive origins inside homeCity (Cầu Giấy, Hà Nội), while keeping them for far homeCity via fixed hub", () => {
+    // Local self-drive from Cầu Giấy when homeCity is Hà Nội -> NO travel days
+    expect(
+      resolveTravelDaysContext({
+        accessLeg: null,
+        homeCity: "Hà Nội",
+        originLabel: "Cầu Giấy",
+      }),
+    ).toBeNull();
+    expect(
+      resolveTravelDaysContext({
+        accessLeg: null,
+        homeCity: "Hà Nội",
+        originLabel: "Quận Cầu Giấy, Hà Nội",
+      }),
+    ).toBeNull();
+    // Fixed hub Hà Nội when homeCity is Hà Nội -> NO travel days
+    expect(
+      resolveTravelDaysContext({
+        accessLeg: null,
+        homeCity: "Hà Nội",
+        originLabel: "Hà Nội (bến xe Mỹ Đình)",
+      }),
+    ).toBeNull();
+    // Far homeCity (Đà Nẵng) via fixed hub TP Hà Giang without accessLeg yet -> SHOW travel days
+    expect(
+      resolveTravelDaysContext({
+        accessLeg: null,
+        homeCity: "Đà Nẵng",
+        originLabel: "TP Hà Giang (bến xe phía Nam)",
+      }),
+    ).toEqual({ homeCity: "Đà Nẵng", hubName: "TP Hà Giang (bến xe phía Nam)" });
+    // Active access leg -> SHOW travel days
+    const leg = buildAccessLeg(ESTIMATE_INPUT, "TP Hồ Chí Minh", 4);
+    expect(
+      resolveTravelDaysContext({
+        accessLeg: leg,
+        homeCity: "TP Hồ Chí Minh",
+        originLabel: "TP Hà Giang (bến xe phía Nam)",
+      }),
+    ).toEqual({ homeCity: "TP Hồ Chí Minh", hubName: "TP Hà Giang (bến xe phía Nam)" });
   });
 });
