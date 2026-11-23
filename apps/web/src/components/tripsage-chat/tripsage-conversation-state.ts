@@ -131,7 +131,7 @@ export function readConversationState(messages: readonly Message[], isItinerary:
         }
       } else if (part.type === "data-itinerary" && isItinerary(part.data)) {
         lastItineraryMessageId = message.id; itineraryStale = false; timeline = null; suggestions = [];
-        itineraryTravelers = tripInfo?.travelers ?? 2;
+        itineraryTravelers = tripInfo?.travelers ?? null;
         const days = Array.isArray((part.data as { days?: unknown[] } | null)?.days) ? (part.data as { days: unknown[] }).days.length : 0;
         latestItineraryDays = days;
         chosenLodgings = days > 0 ? pruneChosenLodgings(chosenLodgings, days) : {};

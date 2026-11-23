@@ -121,8 +121,9 @@ describe("Ticket 06: timeline and long day-1 hubHint fixes", () => {
     const day1 = timeline.days[0]!;
     const overnight = day1.items.find(item => item.kind === "OVERNIGHT")!;
     expect(overnight.startMinute).not.toBe(650);
-    // Bug D: generic province placeholder "khu vực Hà Giang" falls back to the last stop name instead of province name.
-    expect(overnight.label).toBe("Nghỉ đêm khu vực Điểm sáng sớm");
+    // Bug 9: generic province placeholder "khu vực Hà Giang" resolves to the nearest commune/town (TP Hà Giang at 22.82, 104.98), never the stop name or province placeholder.
+    expect(overnight.label).toBe("Nghỉ đêm khu vực TP Hà Giang");
+    expect(overnight.label).not.toBe("Nghỉ đêm khu vực Điểm sáng sớm");
     expect(overnight.label).not.toBe("Nghỉ đêm khu vực Hà Giang");
     expect(overnight.label.toLowerCase()).not.toContain("khu vực khu vực");
     expect(day1.items.some(item => item.label.toLowerCase().includes("tự do buổi chiều"))).toBe(true);
