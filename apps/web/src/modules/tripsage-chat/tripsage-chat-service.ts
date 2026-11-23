@@ -6,14 +6,15 @@ import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-
 import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
 import { INTEREST_OPTIONS, PACE_OPTIONS, TRANSPORT_OPTIONS } from "../trip-requirement/trip-requirement-contract";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
-import { journeyPartSchema, originCandidatesPartSchema, resolveEffectiveJourney, sourcesPartSchema, tripInfoSchema, tripsageItinerarySummarySchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
+import { journeyPartSchema, originCandidatesPartSchema, quickRepliesPartSchema, resolveEffectiveJourney, sourcesPartSchema, tripInfoSchema, tripsageItinerarySummarySchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import { assistantOfferedHub, FIXED_HUB_CANDIDATES, verifyOriginCandidatesToken, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { tripsageProviderOptions } from "./tripsage-chat-provider";
 import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { PlacesSearch } from "./tripsage-places";
 import { buildDayTimeline, suggestionSchema, timelinePartSchema, type TimelineSuggestion } from "./tripsage-timeline";
-import { costPartSchema } from "./tripsage-cost";
-import { accessLegPartSchema, type AccessLegPart } from "./tripsage-access-leg";
+import { costPartSchema, type CostPart } from "./tripsage-cost";
+import { accessLegPartSchema, shouldSuggestHub, type AccessLegPart } from "./tripsage-access-leg";
+import { blockingAssumedFields } from "../trip-validation/trip-proposal-contract";
 import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type LocalKnowledge, type OriginLookup, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
@@ -33,7 +34,7 @@ const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khá
 /** Persona and conversation flow (ADR-42 §5 / ADR-43 §2–4, §7): one tour-guide assistant for both Hà Giang Q&A and itinerary planning. */
 const PERSONA_INSTRUCTIONS = [
   "Bạn là người dẫn tour Hà Giang giàu kinh nghiệm, nói chuyện tự nhiên, ấm áp, có hồn như một người bạn am hiểu vùng núi, ở cả phần hỏi đáp du lịch lẫn lập hành trình; không máy móc, không lặp khuôn. Luôn trả lời bằng tiếng Việt.",
-  "Quy tắc giọng văn: (1) Mỗi vấn đề hoặc lời xin lỗi chỉ nói MỘT lần trong cả cuộc trò chuyện; không xin lỗi lặp lại, không nhắc lại lỗi đã xử lý ở lượt trước. (2) Mỗi tin trả lời chứa TỐI ĐA MỘT câu hỏi; mọi câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ, sở thích) chuyển thành nút suggestReplies thay vì hỏi thêm trong lời văn. (3) Không lặp lại thông tin người dùng vừa nêu; đi thẳng vào kết quả hoặc bước tiếp theo. (4) Cảnh báo kiểm tra lịch trình nói TỐI ĐA MỘT câu ngắn vì thẻ lịch đã hiển thị chi tiết đạt/cần xem lại.",
+  "Quy tắc giọng văn: (1) Mỗi vấn đề hoặc lời xin lỗi chỉ nói MỘT lần trong cả cuộc trò chuyện; không xin lỗi lặp lại, không nhắc lại lỗi đã xử lý ở lượt trước. (2) Mỗi tin trả lời chứa TỐI ĐA MỘT câu hỏi; mọi câu hỏi kết thúc lượt mà người dùng cần chọn phương án ĐỀU PHẢI đi kèm suggestReplies gồm 2–4 nút bấm cụ thể (mỗi nút <= 40 ký tự), và mọi câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ, sở thích) chuyển thành nút suggestReplies thay vì hỏi thêm trong lời văn. (3) Không lặp lại thông tin người dùng vừa nêu; đi thẳng vào kết quả hoặc bước tiếp theo. (4) Cảnh báo kiểm tra lịch trình nói TỐI ĐA MỘT câu ngắn vì thẻ lịch đã hiển thị chi tiết đạt/cần xem lại.",
   "Trình bày bằng markdown dễ đọc: đoạn ngắn, không in đậm cả câu (chỉ **in đậm** một cụm số liệu hoặc tên riêng khi thật cần), danh sách gạch đầu dòng hoặc đánh số, tiêu đề nhỏ (###) khi câu trả lời dài, bảng khi so sánh. Không dùng HTML, không chèn ảnh, không chèn đường link.",
   "Phân biệt 3 trường hợp ý định của người dùng (ADR-43 §2, ADR-44): (A) Mở đầu nói thẳng muốn đi hoặc muốn lập lịch (ví dụ 'tôi muốn lập hành trình Hà Giang', 'đi Hà Giang 4 ngày', 'lên lịch 3 ngày bằng xe máy') → KHÔNG hỏi lại 'bạn có muốn lập lịch không' và KHÔNG dừng lại để hỏi đủ thông tin trước; ghi ngay những gì người dùng đã nói (nếu có) bằng recordTripInfo, rồi lập ngay một bản nháp giả định trong cùng lượt (listDestinations rồi proposeItinerary — nếu chưa có số ngày thì chọn lịch 4 ngày, hệ thống tự điền giả định: điểm tập kết Hà Nội, 4 ngày 3 đêm, xe máy, thứ Bảy gần nhất). Sau bản nháp, viết đúng một dòng nêu rõ giả định ('Mình đang giả định: ...'), nhắc chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (đi từ đâu hoặc ngày nào), và đưa các giả định còn lại thành suggestReplies. (B) Đang hỏi đáp về một địa điểm rồi chuyển sang muốn lập lịch (ví dụ vừa hỏi về Cột cờ Lũng Cú rồi nhắn 'lên lịch đi') → xác nhận ý định lập lịch bằng một câu tự nhiên nêu rõ những gì bạn đã hiểu (đi Hà Giang và đưa địa điểm vừa hỏi làm điểm bắt buộc), đồng thời gọi listDestinations để lấy đúng id và ghi mustIncludeDestinationIds bằng recordTripInfo (tối đa 4 điểm), rồi hỏi gộp thông tin còn thiếu. (C) Câu hỏi chung hoặc mơ hồ (ví dụ 'Hà Giang có gì chơi?', 'mùa nào đẹp?', 'đèo Mã Pí Lèng thế nào?') → trả lời hỏi đáp trước bằng lookupLocalKnowledge, rồi cuối câu mới mời nhẹ xem có muốn lên lịch không (kèm suggestReplies); chưa gọi proposeItinerary.",
   "Với lời chào ngắn ('hi', 'hello', 'chào bạn'...): chào lại tự nhiên, nếu đang có chuyến đi hoặc lịch trình trong ngữ cảnh thì nhắc ngắn gọn chuyến đang lập và hỏi 1 câu để tiếp tục. Với yêu cầu thay đổi mơ hồ ('tôi muốn thay đổi', 'sửa giúp mình'...): hỏi đúng 1 câu 'Bạn muốn đổi phần nào?' kèm suggestReplies ('Đổi ngày đi', 'Đổi số ngày', 'Đổi điểm đến', 'Đổi nơi xuất phát').",
@@ -411,6 +412,74 @@ const capNotice = (reason: string, hasItinerary: boolean) => `${reason} ${hasIti
 export type TripsageChatTurnLimits = { maxSteps: number; totalMs: number; maxProposals: number; maxPlacesCalls: number; maxWebSearchCalls: number; maxFetchPageCalls: number };
 
 /** Streams progress (`data-status`), Vietnamese prose and the structured `data-itinerary` part. The itinerary is never model text. */
+export type FallbackQuickRepliesInput = {
+  text: string;
+  hasEmittedQuickReplies: boolean;
+  hasOriginCandidates: boolean;
+  itinerary: PlannerResult | null;
+  cost: CostPart | null;
+  accessLeg: AccessLegPart | null;
+  tripInfo: TripsageTripInfo | null;
+};
+
+/**
+ * Point 4: deterministic server-side fallback quick replies when a turn ends with a choice question ("?")
+ * without calling `suggestReplies`. Every option maps to an action the assistant can actually execute.
+ */
+export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): string[] | null {
+  if (input.hasEmittedQuickReplies || input.hasOriginCandidates) return null;
+  const trimmed = input.text.trim();
+  if (!trimmed || !/[?？]\s*$/u.test(trimmed)) return null;
+
+  const lines = trimmed.split(/\r?\n/u).map(l => l.trim()).filter(Boolean);
+  const questionLine = lines.at(-1) ?? trimmed;
+
+  const pick = (candidates: readonly string[]): string[] | null => {
+    const parsed = quickRepliesPartSchema.safeParse({ replies: [...candidates] });
+    return parsed.success ? parsed.data.replies : null;
+  };
+
+  if (input.cost?.isIncomplete || (input.accessLeg?.missingPriceSegments?.length ?? 0) > 0) {
+    return pick(["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"]);
+  }
+
+  if (input.cost?.withinCap === false && (input.cost.overBy ?? 0) > 0) {
+    return pick(["Bớt 1 ngày", "Homestay tiết kiệm hơn", "Giữ nguyên lịch này"]);
+  }
+
+  const hasLongDriveIssue =
+    Boolean(input.itinerary && shouldSuggestHub(input.itinerary))
+    || Boolean(input.itinerary?.warnings.some(w => w.code === "LONG_DRIVING_DAY"))
+    || /ch[aặ]ng\s*(?:đ[uư][oờ]ng\s*)?d[aà]i|qu[aá]\s*d[aà]i|ch[aạ]y\s*xe\s*d[aà]i/iu.test(questionLine);
+  if (hasLongDriveIssue) {
+    return pick(["Thêm 1 ngày", "Xuất phát sớm hơn (05:30)", "Nghỉ đêm giữa đường ở TP Hà Giang", "Giữ nguyên"]);
+  }
+
+  const hasEmptyDay = Boolean(
+    input.itinerary?.days.some(
+      day => day.stops.length === 0 && day.journeyDayKind !== "OUTBOUND_ONLY" && day.journeyDayKind !== "RETURN_ONLY",
+    ),
+  );
+  if (hasEmptyDay) {
+    return pick(["Thêm điểm vào ngày trống", "Giảm số ngày", "Giữ nguyên"]);
+  }
+
+  if (input.itinerary?.checks.some(check => check.status === "VIOLATION")) {
+    return pick(["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Thêm 1 ngày", "Giữ nguyên"]);
+  }
+
+  const assumedBlocking = blockingAssumedFields(input.tripInfo?.assumedFields ?? input.itinerary?.assumedFields);
+  if (assumedBlocking.length > 0) {
+    return pick(["Đổi nơi xuất phát", "Đổi ngày đi", "Đổi số ngày", "Dùng thông tin này"]);
+  }
+
+  if (input.itinerary) {
+    return pick(["Xem bảng chi phí", "Đổi điểm dừng", "Thêm 1 ngày"]);
+  }
+
+  return null;
+}
+
 export function streamTripsageChat(input: {
   model: LanguageModel;
   messages: ModelMessage[];
@@ -453,6 +522,12 @@ export function streamTripsageChat(input: {
       let flightsPart = 0;
       let suggestionsPart = 0;
       let hotelsPart = 0;
+      let emittedQuickReplies = false;
+      let emittedOriginCandidates = false;
+      let latestEmittedItinerary: PlannerResult | null = null;
+      let latestEmittedCost: CostPart | null = null;
+      let latestEmittedAccessLeg: AccessLegPart | null = null;
+      let latestEmittedTripInfo: TripsageTripInfo | null = null;
       // Collect only schema-validated display parts for assistant message persistence (ADR-43 §6).
       // Raw tool outputs, origin candidates, system context, and transient status are never recorded.
       const recordedDataParts: { type: string; id?: string; data: unknown }[] = [];
@@ -483,6 +558,7 @@ export function streamTripsageChat(input: {
         emitAccessLeg: leg => {
           const parsed = accessLegPartSchema.safeParse(leg);
           if (parsed.success) {
+            latestEmittedAccessLeg = parsed.data;
             const part = { type: "data-access-leg" as const, id: "access-leg", data: parsed.data };
             writer.write(part);
             recordDataPart(part);
@@ -491,17 +567,25 @@ export function streamTripsageChat(input: {
         emitCost: cost => {
           const parsed = costPartSchema.safeParse(cost);
           if (parsed.success) {
+            latestEmittedCost = parsed.data;
             const part = { type: "data-cost" as const, id: "cost", data: parsed.data };
             writer.write(part);
             recordDataPart(part);
           }
         },
         emitTripInfo: tripInfo => {
+          latestEmittedTripInfo = tripInfo;
           const part = { type: "data-trip-info" as const, id: "trip-info", data: { tripInfo } };
           writer.write(part);
           recordDataPart(part);
         },
-        emitOriginCandidates: data => { const parsed = originCandidatesPartSchema.safeParse(data); if (parsed.success) writer.write({ type: "data-origin-candidates", id: "origin-candidates", data: parsed.data }); },
+        emitOriginCandidates: data => {
+          const parsed = originCandidatesPartSchema.safeParse(data);
+          if (parsed.success) {
+            emittedOriginCandidates = true;
+            writer.write({ type: "data-origin-candidates", id: "origin-candidates", data: parsed.data });
+          }
+        },
         emitJourney: journey => {
           const parsed = journeyPartSchema.safeParse({ journey });
           if (!parsed.success) return;
@@ -509,7 +593,14 @@ export function streamTripsageChat(input: {
           writer.write(part);
           recordDataPart(part); // sanitizeStoredParts keeps it only for a fixed-hub origin
         },
-        emitQuickReplies: replies => writer.write({ type: "data-quick-replies", id: "quick-replies", data: { replies } }),
+        emitQuickReplies: replies => {
+          const parsed = quickRepliesPartSchema.safeParse({ replies });
+          if (!parsed.success) return;
+          emittedQuickReplies = true;
+          const part = { type: "data-quick-replies" as const, id: "quick-replies", data: parsed.data };
+          writer.write(part);
+          recordDataPart(part);
+        },
         emitSources: sources => {
           const parsed = sourcesPartSchema.safeParse({ sources });
           if (parsed.success) {
@@ -539,6 +630,7 @@ export function streamTripsageChat(input: {
         },
         emitItinerary: (result: PlannerResult) => {
           hasItinerary = true;
+          latestEmittedItinerary = result;
           writer.write({ type: "data-status", data: { kind: "checking", label: "Đang kiểm tra lịch trình…" } satisfies TripsageChatStatus, transient: true });
           const itineraryPart = { type: "data-itinerary" as const, id: "itinerary", data: result };
           writer.write(itineraryPart);
@@ -608,7 +700,28 @@ export function streamTripsageChat(input: {
           if (chunk.type === "error") streamErrored = true;
           controller.enqueue(chunk);
         },
-        flush(controller) { if (timedOut()) timeoutNotice(controller); },
+        flush(controller) {
+          if (timedOut()) {
+            timeoutNotice(controller);
+            return;
+          }
+          if (!streamErrored) {
+            const fallback = resolveFallbackQuickReplies({
+              text: textChunks.join("").trim(),
+              hasEmittedQuickReplies: emittedQuickReplies,
+              hasOriginCandidates: emittedOriginCandidates,
+              itinerary: latestEmittedItinerary,
+              cost: latestEmittedCost,
+              accessLeg: latestEmittedAccessLeg ?? input.accessLeg ?? null,
+              tripInfo: latestEmittedTripInfo ?? input.tripInfo ?? null,
+            });
+            if (fallback) {
+              const part = { type: "data-quick-replies" as const, id: "quick-replies", data: { replies: fallback } };
+              controller.enqueue(part as UIMessageChunk);
+              recordDataPart(part);
+            }
+          }
+        },
       }));
       let persisted = false;
       const persistAssistant = async (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {

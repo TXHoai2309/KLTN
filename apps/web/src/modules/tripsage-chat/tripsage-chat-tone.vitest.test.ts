@@ -8,7 +8,7 @@ import { fixtureRoutes, planningCandidate, planningNow } from "../../test/planni
 import { sourcesPartSchema } from "./tripsage-chat-context";
 import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
-import { TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
+import { resolveFallbackQuickReplies, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 
 let seq = 0;
@@ -151,5 +151,62 @@ describe("Ticket 03: tone rules & document source scoping", () => {
     expect(fallbackPrompt).toContain("autoSelected");
     expect(fallbackPrompt).toContain("TUYỆT ĐỐI KHÔNG nhắc từ ngữ nội bộ");
     expect(fallbackPrompt).not.toContain("Nói ngắn với người dùng rằng đây là bản nháp tự chọn");
+  });
+
+  it("Point 4: synthesizes actionable fallback quick replies when a turn ends with a choice question without suggestReplies, and persists them", async () => {
+    // 1. Unit checks for resolveFallbackQuickReplies across open-issue classes
+    expect(
+      resolveFallbackQuickReplies({
+        text: "Thẻ lịch cảnh báo chặng đầu từ Cầu Giấy quá dài.\n\nNhà mình muốn xử lý chặng đường dài bằng cách nào?",
+        hasEmittedQuickReplies: false,
+        hasOriginCandidates: false,
+        itinerary: null,
+        cost: null,
+        accessLeg: null,
+        tripInfo: null,
+      }),
+    ).toEqual(["Thêm 1 ngày", "Xuất phát sớm hơn (05:30)", "Nghỉ đêm giữa đường ở TP Hà Giang", "Giữ nguyên"]);
+
+    expect(
+      resolveFallbackQuickReplies({
+        text: "Chưa có giá đoạn Đà Nẵng ⇄ Hà Nội, tổng đang thiếu khoản này. Bạn muốn xử lý tiếp thế nào?",
+        hasEmittedQuickReplies: false,
+        hasOriginCandidates: false,
+        itinerary: null,
+        cost: {
+          currency: "VND", travelers: 4, days: 4,
+          lines: [{ category: "food", label: "Ăn uống", amount: 2_000_000 }],
+          total: 2_000_000, perPersonPerDay: 125_000, budgetCap: 20_000_000, withinCap: null, overBy: null,
+          assumptions: [], priceReferenceDate: "2026-11-21", isIncomplete: true, missingItems: ["Chặng tiếp cận Đà Nẵng ⇄ Hà Nội"],
+        },
+        accessLeg: null,
+        tripInfo: null,
+      }),
+    ).toEqual(["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"]);
+
+    // No chips synthesized when text does NOT end with a question or when suggestReplies already ran
+    expect(
+      resolveFallbackQuickReplies({
+        text: "Mình đã lập xong lịch trình cho bạn.",
+        hasEmittedQuickReplies: false,
+        hasOriginCandidates: false,
+        itinerary: null,
+        cost: null,
+        accessLeg: null,
+        tripInfo: null,
+      }),
+    ).toBeNull();
+
+    // 2. End-to-end stream check (a2764b16 scenario: model ends with long-drive question without calling suggestReplies)
+    const { all } = await runTurn(
+      "Mình ở Hà Nội (Cầu Giấy), gia đình 5 người tự lái ô tô 3 ngày từ 26/12.",
+      [
+        { tool: "listDestinations", input: {} },
+        { tool: "proposeItinerary", input: { selection: { days: [["D1", "D2"]] } } },
+        { text: "Thẻ lịch cảnh báo chặng đầu từ Cầu Giấy quá dài.\n\nNhà mình muốn xử lý chặng đường dài bằng cách nào?" },
+      ],
+    );
+    const qrPart = all.find(p => p.type === "data-quick-replies")?.data as { replies?: string[] } | undefined;
+    expect(qrPart?.replies).toEqual(["Thêm 1 ngày", "Xuất phát sớm hơn (05:30)", "Nghỉ đêm giữa đường ở TP Hà Giang", "Giữ nguyên"]);
   });
 });

@@ -185,12 +185,13 @@ describe("sanitizeStoredParts", () => {
       { type: "data-journey", id: "journey", data: { journey: COMPLETE_JOURNEY_FIXTURE } },
       { type: "data-status", data: { kind: "start", label: "Đang đọc..." } },
       { type: "data-quick-replies", id: "quick-replies", data: { replies: ["4 ngày"] } },
+      { type: "data-quick-replies", id: "quick-replies-bad", data: { replies: ["x".repeat(41)] } },
       { type: "tool-output-available", toolCallId: "c1", output: { secret: "raw" } },
       { type: "system", text: "SYSTEM INSTRUCTIONS" },
       { type: "data-trip-info", data: { tripInfo: { transport: "PLANE" } } },
     ]);
-    expect(out.map(p => p.type)).toEqual(["text", "data-trip-info", "data-sources"]);
-    expect(JSON.stringify(out)).not.toMatch(/v1\.secret\.coords|raw|SYSTEM INSTRUCTIONS|PLANE/);
+    expect(out.map(p => p.type)).toEqual(["text", "data-trip-info", "data-sources", "data-quick-replies"]);
+    expect(JSON.stringify(out)).not.toMatch(/v1\.secret\.coords|raw|SYSTEM INSTRUCTIONS|PLANE|x{41}/);
   });
 
   it("stores a journey only when its origin is a fixed public hub, so a reload keeps the confirmed hub", () => {
