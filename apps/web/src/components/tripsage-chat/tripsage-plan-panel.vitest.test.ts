@@ -339,4 +339,50 @@ describe("Ticket 10: Plan summary card & desktop split panel / tablet drawer (sl
     expect(summaryHtml).toContain("Thông tin chuyến đã đổi — bản lịch này chưa cập nhật");
     expect(summaryHtml).toContain('data-testid="plan-summary-outdated"');
   });
+
+  it("Bug 10: keeps status notices outside .tripsage-panel-header-actions and links disabled 'Lưu chuyến' via aria-describedby", () => {
+    const assumedProposal: PlannerResult = {
+      ...makeProposal("prop-assumed-10"),
+      assumedFields: ["origin", "startDate"],
+      eligibleForFinalConfirmation: false,
+    };
+    const html = renderToStaticMarkup(
+      createElement(TripsagePlanPanel, {
+        proposal: assumedProposal,
+        suggestions: [],
+        tripInfo: {
+          startDate: "2026-12-13",
+          durationDays: 2,
+          transport: "MOTORCYCLE",
+          assumedFields: ["origin", "startDate"],
+        },
+        chosenLodgings: {},
+        pinnedItems: [],
+        drawerOpen: false,
+        onCloseDrawer: () => {},
+        onToggleChosenLodging: () => {},
+        onRequestMeals: () => {},
+        onAskAccess: () => {},
+        onSelectSavingsOption: () => {},
+        onSaved: () => {},
+        onSaveStateChange: () => {},
+      }),
+    );
+
+    const actionsMatch = html.match(/<div class="tripsage-panel-header-actions">([\s\S]*?)<\/header>/);
+    expect(actionsMatch).not.toBeNull();
+    const actionsHtml = actionsMatch![1]!;
+    const actionsVisibleText = actionsHtml.replace(/<[^>]+>/g, "").trim();
+    // Long status message MUST NOT appear as visible content inside .tripsage-panel-header-actions (only the compact CTA)
+    expect(actionsVisibleText).toBe("Lưu chuyến");
+    expect(actionsHtml).not.toMatch(/<p[\s>]/);
+    expect(actionsHtml).toContain('aria-describedby="tripsage-panel-status-prop-assumed-10"');
+    expect(actionsHtml).toContain('title="Bản nháp đang dùng giả định');
+
+    // Status strip sits OUTSIDE </header> with matching id and warn tone
+    const afterHeader = html.slice(html.indexOf("</header>"));
+    expect(afterHeader).toContain('id="tripsage-panel-status-prop-assumed-10"');
+    expect(afterHeader).toContain("tripsage-panel-status-strip--warn");
+    expect(afterHeader).toContain("Bản nháp đang dùng giả định — cần xác nhận nơi xuất phát và ngày khởi hành trước khi lưu hành trình.");
+  });
 });

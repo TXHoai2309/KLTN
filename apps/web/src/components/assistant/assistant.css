@@ -3258,6 +3258,7 @@
 
 .tripsage-panel-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--tv-space-3);
@@ -3267,9 +3268,10 @@
 }
 
 .tripsage-panel-title-wrap {
+  flex: 1 1 auto;
+  min-width: 12rem;
   display: grid;
   gap: 2px;
-  min-width: 0;
 }
 
 .tripsage-panel-title {
@@ -3299,19 +3301,53 @@
   display: none;
 }
 
+.tripsage-panel-status-strip,
 .tripsage-panel-stale-banner,
 .tripsage-plan-summary-stale {
   margin: 0;
   padding: 6px 10px;
-  border-radius: var(--tv-radius-sm, 8px);
-  background: var(--tv-warn-bg);
-  color: var(--tv-warn-ink);
+  border-radius: 8px;
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
-.tripsage-panel-stale-banner {
+.tripsage-panel-status-strip {
   margin: var(--tv-space-2) var(--tv-space-4) 0;
+  flex-shrink: 0;
+}
+
+.tripsage-panel-status-strip--warn,
+.tripsage-panel-stale-banner,
+.tripsage-plan-summary-stale {
+  background: var(--tv-warn-bg);
+  color: var(--tv-warn-ink);
+}
+
+.tripsage-panel-status-strip--error {
+  background: var(--tv-danger-bg);
+  color: var(--tv-danger);
+}
+
+.tripsage-panel-status-strip--info {
+  background: var(--tv-surface-2);
+  color: var(--tv-ink-2);
+}
+
+.tripsage-panel-status-text {
+  margin: 0;
+}
+
+.tripsage-save-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tv-space-2);
+  margin-top: var(--tv-space-2);
+}
+
+@container (max-width: 400px) {
+  .tripsage-panel-title-wrap {
+    min-width: 0;
+  }
 }
 
 .tripsage-panel-subtabs {

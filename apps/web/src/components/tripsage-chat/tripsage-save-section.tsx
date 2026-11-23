@@ -6,12 +6,65 @@ import { useEffect, useRef, useState } from "react";
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import type { TripsageTripInfo } from "@/modules/tripsage-chat/tripsage-chat-context";
-import { chatSavePlan, createChatSaveController, type ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
+import { chatSavePlan, createChatSaveController, type ChatSaveView, type SaveRecoveryAction } from "@/modules/tripsage-chat/tripsage-chat-save";
 import { chosenLodgingMapToList, type ChosenLodgingMap, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { blockingAssumedFields, formatAssumedConfirmationMessage } from "@/modules/trip-validation/trip-proposal-contract";
+
+export type SaveStatusNotice = {
+  tone: "warn" | "error" | "info";
+  text: string;
+  recovery?: SaveRecoveryAction[];
+};
+
+/**
+ * Bug 10: computes the single unified status notice to render full-width below `.tripsage-panel-header`
+ * (never inside `.tripsage-panel-header-actions`).
+ */
+export function resolveSaveStatusNotice(input: {
+  result: PlannerResult;
+  tripInfo?: TripsageTripInfo | null;
+  outdatedReason?: string | null;
+  noticePresent?: boolean;
+  saveView?: ChatSaveView | null;
+}): SaveStatusNotice | null {
+  if (input.outdatedReason) {
+    return { tone: "warn", text: input.outdatedReason };
+  }
+  if (input.saveView?.state === "failed" && input.saveView.message) {
+    return { tone: "error", text: input.saveView.message, recovery: input.saveView.recovery };
+  }
+  if (input.saveView?.state === "unknown" && input.saveView.message) {
+    return { tone: "warn", text: input.saveView.message };
+  }
+  const currentAssumed = input.tripInfo ? input.tripInfo.assumedFields : input.result.assumedFields;
+  const blockingAssumed = blockingAssumedFields(currentAssumed);
+  if (blockingAssumed.length > 0) {
+    return { tone: "warn", text: formatAssumedConfirmationMessage(blockingAssumed) };
+  }
+  if (input.noticePresent) {
+    return { tone: "info", text: "Lịch trình chưa được lưu." };
+  }
+  const effectiveResult: PlannerResult = input.result.assumedFields?.length
+    ? {
+        ...input.result,
+        assumedFields: currentAssumed?.length ? [...currentAssumed] : undefined,
+        eligibleForFinalConfirmation: input.result.status === "PROPOSAL_READY" && Boolean(input.result.requirement.startDate),
+      }
+    : input.result;
+  if (!chatSavePlan(effectiveResult)) {
+    return { tone: "warn", text: "Lịch này có mục chưa được kiểm tra hoặc chưa đạt, nên chưa thể lưu." };
+  }
+  if (input.saveView?.state === "success" && input.saveView.unchecked.length > 0) {
+    return {
+      tone: "info",
+      text: `Hành trình được lưu kèm ${input.saveView.unchecked.length} mục chưa kiểm; các mục này không được tính là đã đạt.`,
+    };
+  }
+  return null;
+}
 
 /**
  * Save box under a chat itinerary. An all-PASS schedule saves with one click. A schedule whose only gaps are unchecked data of
@@ -28,9 +81,12 @@ export function TripsageSaveSection({
   primaryLabel = "Lưu hành trình",
   buttonSize = "md",
   outdatedReason,
+  hideInlineMessages = false,
+  describedById,
   initialView,
   onSaved,
   onStateChange,
+  onViewChange,
   onRequestFix,
 }: {
   result: PlannerResult;
@@ -44,10 +100,15 @@ export function TripsageSaveSection({
   buttonSize?: "md" | "lg";
   /** Bug 7: when trip requirements changed after this plan was generated, lock Save with a clear reason. */
   outdatedReason?: string | null;
+  /** Bug 10: when mounted inside `.tripsage-panel-header-actions`, render only the compact button/link and lift status notices out. */
+  hideInlineMessages?: boolean;
+  /** Accessible description id linking a disabled Save button to the full-width status strip below the header. */
+  describedById?: string;
   /** Test seam for rendering saved / pending / failed / unknown states cleanly. */
   initialView?: ChatSaveView;
   onSaved?: (tripId: string) => void;
   onStateChange?: (state: SaveState) => void;
+  onViewChange?: (view: ChatSaveView) => void;
   /** Recovery callback when save fails validation so the traveler can ask the assistant to fix it in one tap. */
   onRequestFix?: (prompt: string) => void;
 }) {
@@ -68,10 +129,11 @@ export function TripsageSaveSection({
           className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
           disabled
           title={outdatedReason}
+          aria-describedby={describedById}
         >
           {primaryLabel}
         </button>
-        <p role="note" className="tripsage-save-note">{outdatedReason}</p>
+        {!hideInlineMessages && <p role="note" className="tripsage-save-note">{outdatedReason}</p>}
       </div>
     );
   }
@@ -79,16 +141,19 @@ export function TripsageSaveSection({
   const currentAssumed = tripInfo ? tripInfo.assumedFields : result.assumedFields;
   const blockingAssumed = blockingAssumedFields(currentAssumed);
   if (blockingAssumed.length > 0) {
+    const assumedMsg = formatAssumedConfirmationMessage(blockingAssumed);
     return (
       <div className="tripsage-save" aria-live="polite">
         <button
           type="button"
           className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
           disabled
+          title={assumedMsg}
+          aria-describedby={describedById}
         >
           {primaryLabel}
         </button>
-        <p role="note" className="tripsage-save-note">{formatAssumedConfirmationMessage(blockingAssumed)}</p>
+        {!hideInlineMessages && <p role="note" className="tripsage-save-note">{assumedMsg}</p>}
       </div>
     );
   }
@@ -102,7 +167,23 @@ export function TripsageSaveSection({
 
   const plan = chatSavePlan(effectiveResult);
   if (!plan) {
-    return <p role="note" className="assistant-muted">Lịch này có mục chưa được kiểm tra hoặc chưa đạt, nên chưa thể lưu.</p>;
+    const unsaveableMsg = "Lịch này có mục chưa được kiểm tra hoặc chưa đạt, nên chưa thể lưu.";
+    if (hideInlineMessages) {
+      return (
+        <div className="tripsage-save" aria-live="polite">
+          <button
+            type="button"
+            className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
+            disabled
+            title={unsaveableMsg}
+            aria-describedby={describedById}
+          >
+            {primaryLabel}
+          </button>
+        </div>
+      );
+    }
+    return <p role="note" className="assistant-muted">{unsaveableMsg}</p>;
   }
   const controller = controllerRef.current;
   // After the server refused a confirmation, its list replaces ours and must be confirmed again.
@@ -113,7 +194,9 @@ export function TripsageSaveSection({
     if (controller.view.state === "pending" || controller.view.state === "success") return;
     if (items.length > 0 && !confirmed) return;
     abortRef.current = new AbortController();
-    setView({ state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: items });
+    const pendingView: ChatSaveView = { state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: items };
+    setView(pendingView);
+    onViewChange?.(pendingView);
     onStateChange?.("pending");
     const chosenList = chosenLodgings ? chosenLodgingMapToList(chosenLodgings) : [];
     const nearbyList = (suggestions ?? []).flatMap(item => (item.kind === "ACTIVITY" || item.kind === "EVENING") && item.place?.placeId
@@ -126,7 +209,9 @@ export function TripsageSaveSection({
       ...(pinnedItems?.length ? { pinnedItems } : {}),
     });
     if (next.state === "failed" && next.unchecked.length) setConfirmed(false);
-    setView({ ...next });
+    const snapshot = { ...next };
+    setView(snapshot);
+    onViewChange?.(snapshot);
     onStateChange?.(next.state);
     if (next.state === "success" && next.tripId) onSaved?.(next.tripId);
   }
@@ -141,7 +226,7 @@ export function TripsageSaveSection({
         >
           Mở chuyến đi
         </Link>
-        {view.unchecked.length > 0 && (
+        {!hideInlineMessages && view.unchecked.length > 0 && (
           <p role="note" className="tripsage-save-note">
             Hành trình được lưu kèm {view.unchecked.length} mục chưa kiểm; các mục này không được tính là đã đạt.
           </p>
@@ -168,11 +253,12 @@ export function TripsageSaveSection({
         type="button"
         className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
         disabled={view.state === "pending" || (unresolved && !confirmed)}
+        aria-describedby={describedById}
         onClick={() => void save()}
       >
         {view.state === "pending" ? "Đang lưu…" : view.state === "unknown" ? "Kiểm tra lại kết quả lưu" : unresolved ? "Xác nhận và lưu hành trình" : primaryLabel}
       </button>
-      {view.state === "failed" && (
+      {!hideInlineMessages && view.state === "failed" && (
         <div role="alert" className="tripsage-save-error">
           <p>{view.message}</p>
           {onRequestFix && view.recovery && view.recovery.length > 0 && (
@@ -191,7 +277,7 @@ export function TripsageSaveSection({
           )}
         </div>
       )}
-      {view.state === "unknown" && <p role="status" className="tripsage-save-note">{view.message}</p>}
+      {!hideInlineMessages && view.state === "unknown" && <p role="status" className="tripsage-save-note">{view.message}</p>}
     </div>
   );
 }

@@ -30,7 +30,8 @@ import { isProposalOutdated, STALE_ITINERARY_MESSAGE } from "./tripsage-conversa
 import { TripsageAccessLegCard } from "./tripsage-access-leg-card";
 import { TripsageCostCard } from "./tripsage-cost-card";
 import type { PinControl } from "./tripsage-pin-button";
-import { TripsageSaveSection } from "./tripsage-save-section";
+import type { ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
+import { resolveSaveStatusNotice, TripsageSaveSection } from "./tripsage-save-section";
 
 export type PlanPanelSubTab = "itinerary" | "map" | "cost" | "checks";
 
@@ -135,6 +136,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   const [selectedDayKey, setSelectedDayKey] = useState<string>(() => initialDayKey ?? `day-${proposal.days[0]?.day ?? 1}`);
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
+  const [saveView, setSaveView] = useState<ChatSaveView | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const pushedHistoryRef = useRef(false);
   const savedScrollTopRef = useRef<number | null>(null);
@@ -409,6 +411,16 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   const passedChecks = proposal.checks.filter((c) => c.status === "PASS").length;
   const planOutdated = isProposalOutdated({ proposal, tripInfo, cost, itineraryStale: isOutdated });
   const outdatedReason = planOutdated ? STALE_ITINERARY_MESSAGE : null;
+  const statusNotice = !busy
+    ? resolveSaveStatusNotice({
+        result: proposal,
+        tripInfo,
+        outdatedReason,
+        noticePresent,
+        saveView,
+      })
+    : null;
+  const statusNoticeId = `tripsage-panel-status-${proposal.proposalId}`;
 
   return (
     <>
@@ -448,23 +460,22 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
           </div>
           <div className="tripsage-panel-header-actions">
             <div className="tripsage-panel-save-desktop">
-              {!busy && (
-                noticePresent ? (
-                  <p role="note" className="assistant-muted">Lịch trình chưa được lưu.</p>
-                ) : (
-                  <TripsageSaveSection
-                    result={proposal}
-                    tripInfo={tripInfo}
-                    chosenLodgings={chosenLodgings}
-                    suggestions={suggestions}
-                    pinnedItems={pinnedItems}
-                    primaryLabel="Lưu chuyến"
-                    outdatedReason={outdatedReason}
-                    onSaved={onSaved}
-                    onStateChange={onSaveStateChange}
-                    onRequestFix={onSelectSavingsOption}
-                  />
-                )
+              {!busy && !noticePresent && (
+                <TripsageSaveSection
+                  result={proposal}
+                  tripInfo={tripInfo}
+                  chosenLodgings={chosenLodgings}
+                  suggestions={suggestions}
+                  pinnedItems={pinnedItems}
+                  primaryLabel="Lưu chuyến"
+                  outdatedReason={outdatedReason}
+                  hideInlineMessages
+                  describedById={statusNotice ? statusNoticeId : undefined}
+                  onSaved={onSaved}
+                  onStateChange={onSaveStateChange}
+                  onViewChange={setSaveView}
+                  onRequestFix={onSelectSavingsOption}
+                />
               )}
             </div>
             <button
@@ -478,9 +489,28 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
           </div>
         </header>
 
-        {planOutdated && (
-          <div role="status" className="tripsage-panel-stale-banner" data-testid="plan-panel-outdated">
-            {STALE_ITINERARY_MESSAGE}
+        {statusNotice && (
+          <div
+            id={statusNoticeId}
+            role={statusNotice.tone === "error" ? "alert" : "status"}
+            className={`tripsage-panel-status-strip tripsage-panel-status-strip--${statusNotice.tone}`}
+            data-testid={planOutdated ? "plan-panel-outdated" : "plan-panel-status-strip"}
+          >
+            <p className="tripsage-panel-status-text">{statusNotice.text}</p>
+            {statusNotice.recovery && statusNotice.recovery.length > 0 && (
+              <div className="tripsage-save-recovery">
+                {statusNotice.recovery.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className={travelerButtonClassName({ variant: "secondary", size: "sm" })}
+                    onClick={() => onSelectSavingsOption(action.prompt)}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -652,8 +682,11 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
               primaryLabel="Lưu chuyến"
               buttonSize="lg"
               outdatedReason={outdatedReason}
+              hideInlineMessages
+              describedById={statusNotice ? statusNoticeId : undefined}
               onSaved={onSaved}
               onStateChange={onSaveStateChange}
+              onViewChange={setSaveView}
               onRequestFix={onSelectSavingsOption}
             />
           )}
