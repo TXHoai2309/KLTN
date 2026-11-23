@@ -9,12 +9,13 @@
 }
 
 body {
-  background-color: #f5f8f6;
-  color: var(--auth-ink);
+  background-color: var(--tv-ground, #f6f8f6);
+  color: var(--tv-ink, #17231d);
 }
 
 .dark body {
-  background-color: #0c1410;
+  background-color: var(--tv-ground, #111613);
+  color: var(--tv-ink, #e6ece8);
 }
 
 /* ─── Header ─── */

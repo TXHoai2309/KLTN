@@ -143,7 +143,7 @@ try {
     await page.goto(base + "/admin/users"); await page.getByLabel("Tìm kiếm người dùng").fill(label);
     await page.getByRole("link", { name: users[7].name, exact: true }).first().waitFor();
     await page.getByRole("button", { name: "Chuyển giao diện sáng/tối", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Tối", exact: true }).click();
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
     await page.screenshot({ path: resolve(output, "desktop-list-dark.png") });
     await page.setViewportSize({ width: 390, height: 844 }); await page.screenshot({ path: resolve(output, "mobile-list-dark.png") });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, "Mobile document overflow");
