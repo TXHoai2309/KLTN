@@ -132,7 +132,7 @@
   display: flex;
   flex-direction: column;
   background: var(--tv-ground);
-  border-right: 1px solid var(--tv-border);
+  border-right: 1px solid var(--tv-line);
   transition: width 200ms ease, min-width 200ms ease, max-width 200ms ease, margin-left 200ms ease, transform 0.25s ease;
   z-index: 30;
   overflow: hidden;
@@ -165,7 +165,7 @@
     width: 48px;
     min-width: 48px;
     max-width: 48px;
-    border-right: 1px solid var(--tv-border);
+    border-right: 1px solid var(--tv-line);
     visibility: visible;
   }
 
@@ -188,7 +188,7 @@
     min-height: 32px;
     padding: 0;
     border: none;
-    border-radius: var(--tv-radius-sm);
+    border-radius: 6px;
     background: transparent;
     color: var(--tv-ink-2);
     display: inline-flex;
@@ -243,7 +243,7 @@
   min-height: 28px;
   padding: 0 8px;
   border: none;
-  border-radius: var(--tv-radius-sm);
+  border-radius: 6px;
   background: transparent;
   color: var(--tv-ink);
   font-size: 13px;
@@ -276,7 +276,7 @@
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: var(--tv-radius-sm);
+  border-radius: 6px;
   color: var(--tv-ink-2);
   font-size: 13px;
   cursor: pointer;
@@ -331,8 +331,8 @@
   min-height: 32px;
   padding: 0 28px 0 30px;
   font-size: 13px;
-  border: 1px solid var(--tv-border);
-  border-radius: var(--tv-radius-sm);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius-control);
   background: var(--tv-surface);
   color: var(--tv-ink);
   outline: none;
@@ -865,9 +865,9 @@
   height: 18px;
 }
 
-/* General button reset inside assistant-page (never clobber shared .tv-btn / .tv-day-tab tokens) */
+/* General button reset inside assistant-page (never clobber shared .tv-btn / .tv-day-tab / link font sizes) */
 .assistant-page button:not(.tv-btn):not(.tv-day-tab), .assistant-page select {
-  font: inherit;
+  font-family: inherit;
 }
 
 .assistant-page button {
@@ -2227,7 +2227,7 @@
 
 .dark .assistant-sidebar {
   background: var(--tv-ground);
-  border-color: var(--tv-border);
+  border-color: var(--tv-line);
 }
 
 .dark .assistant-sidebar .assistant-sidebar-new-btn {
@@ -2242,7 +2242,7 @@
 
 .dark .assistant-sidebar .assistant-sidebar-search-input {
   background: var(--tv-surface);
-  border-color: var(--tv-border);
+  border-color: var(--tv-line);
   color: var(--tv-ink);
 }
 
@@ -2714,21 +2714,40 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
-  border: 1px solid var(--assistant-line);
-  background: var(--assistant-soft);
-  color: var(--assistant-green);
-  font-size: var(--chat-xs-size, 0.75rem);
-  font-weight: 600;
+  background: transparent;
+  color: var(--tv-accent);
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.35;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: none;
 }
 .tripsage-preview-btn:hover,
 .tripsage-preview-btn:focus-visible {
-  background: var(--assistant-green-light);
-  border-color: var(--assistant-green);
+  background: transparent;
+  color: var(--tv-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tripsage-preview-btn.tv-preview-icon-btn,
+.tripsage-preview-btn[data-icon-only="true"] {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  justify-content: center;
+  color: var(--tv-ink-2);
+  text-decoration: none;
+}
+.tripsage-preview-btn.tv-preview-icon-btn:hover,
+.tripsage-preview-btn[data-icon-only="true"]:hover {
+  background: var(--tv-sunken);
+  color: var(--tv-accent);
+  text-decoration: none;
 }
 .tripsage-choose-lodging-btn {
   display: inline-flex;
@@ -3099,8 +3118,8 @@
 .tripsage-map-collapse { margin: 0; }
 .tripsage-day-tab { border-color: transparent; background: var(--assistant-soft); }
 .tripsage-timeline-heading { font-size: 0.9375rem; color: var(--assistant-ink); }
-.tripsage-suggestion { padding: 6px 8px; margin-top: 0.35rem; border-radius: 8px; background: var(--assistant-soft); }
-.tripsage-suggestion svg { color: var(--assistant-green); }
+.tripsage-suggestion { padding: 8px 10px; margin-top: 0.35rem; border-radius: 8px; border: 1px solid var(--tv-line); background: var(--tv-surface); font-size: 14px; font-weight: 500; color: var(--tv-ink); }
+.tripsage-suggestion svg { color: var(--tv-accent); }
 .dark .tripsage-quick-replies button:hover:not(:disabled) { color: var(--tv-ink); }
 
 /* Plan cards fold when a later turn leaves the itinerary unchanged (2026-11-22). */
@@ -3108,10 +3127,13 @@
 .tripsage-plan-details > summary { cursor: pointer; font-weight: 600; color: var(--assistant-green); padding: 0.4rem 0; list-style-position: inside; }
 .tripsage-plan-details > summary:focus-visible { outline: 2px solid var(--assistant-green); outline-offset: 2px; }
 
-/* Nearby activity suggestions: one compact list per stop or night (2026-11-22). */
-.tripsage-nearby { margin: 0.4rem 0 0.2rem; padding: 0.5rem 0.75rem; border-radius: 10px; background: var(--assistant-soft); font-size: 0.9rem; }
-.tripsage-nearby-note { color: var(--assistant-muted, var(--tv-ink-2)); font-size: 0.8rem; }
+/* Nearby activity suggestions: one compact list per stop or night (A3: --tv-surface + AA typography). */
+.tripsage-nearby { margin: 0.4rem 0 0.2rem; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--tv-line); background: var(--tv-surface); font-size: 14px; color: var(--tv-ink); }
+.tripsage-nearby-head { display: inline-flex; align-items: center; gap: 6px; }
+.tripsage-nearby-note { color: var(--tv-ink-2); font-size: 13px; }
 .tripsage-nearby ul { margin: 0.35rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+.tripsage-nearby-name { font-size: 14px; font-weight: 500; color: var(--tv-ink); }
+.tripsage-suggestion-meta { font-size: 13px; color: var(--tv-ink-2); }
 
 /* Reply in progress: a quiet pill with three dots instead of a bare grey line. */
 .tripsage-thinking { display: inline-flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0 0.25rem; padding: 0.55rem 0.95rem; border-radius: 999px; background: var(--assistant-soft); border: 1px solid var(--assistant-line); color: var(--assistant-muted); font-size: 0.92rem; }
@@ -3383,7 +3405,7 @@
   min-height: 32px;
   padding: 0;
   border: none;
-  border-radius: var(--tv-radius-sm);
+  border-radius: 6px;
   background: transparent;
   color: var(--tv-ink-2);
   display: inline-flex;
@@ -3465,9 +3487,9 @@
   align-items: center;
   gap: 2px;
   padding: 2px;
-  border-radius: var(--tv-radius-sm);
+  border-radius: 6px;
   background: var(--tv-sunken);
-  border: 1px solid var(--tv-border);
+  border: 1px solid var(--tv-line);
 }
 
 .tripsage-panel-mode-btn {

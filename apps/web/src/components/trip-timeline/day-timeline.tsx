@@ -10,6 +10,7 @@ import {
   Clock3,
   Coffee,
   Eye,
+  Info,
   MapPin,
   Moon,
   UtensilsCrossed,
@@ -132,28 +133,45 @@ function StopPhoto({
   );
 }
 
+function InfoBadge({ label }: { label: string }) {
+  return (
+    <span
+      role="img"
+      tabIndex={0}
+      className="dt-info-badge"
+      title={label}
+      aria-label={label}
+    >
+      <Info size={14} aria-hidden="true" />
+    </span>
+  );
+}
+
 function PreviewLink({
   target,
   name,
   onPreview,
+  iconOnly = false,
 }: {
   target?: PlacePreviewTarget | null;
   name: string;
   onPreview?: (target: PlacePreviewTarget, trigger: HTMLElement) => void;
+  iconOnly?: boolean;
 }) {
   if (!target || !onPreview || !canPreviewPlace(target)) return null;
   return (
     <button
       type="button"
-      className="tripsage-preview-btn tv-quick-link"
+      className={iconOnly ? "tripsage-preview-btn tv-preview-icon-btn" : "tripsage-preview-btn tv-quick-link"}
       aria-label={`Xem nhanh ${name}`}
+      title={iconOnly ? `Xem nhanh ${name}` : undefined}
       onClick={(event) => {
         event.stopPropagation();
         onPreview(target, event.currentTarget);
       }}
     >
-      <Eye size={13} aria-hidden="true" />
-      <span>Xem nhanh</span>
+      <Eye size={iconOnly ? 16 : 13} aria-hidden="true" />
+      {!iconOnly && <span>Xem nhanh</span>}
     </button>
   );
 }
@@ -398,17 +416,17 @@ export function DayTimeline({
                       )}
 
                       {stop.nearbyAfter && stop.nearbyAfter.length > 0 && (
-                        <div className="dt-sunken-box" aria-label={`Gần đây có thể ghé quanh ${cleanName}`}>
-                          <div className="dt-sunken-head">
+                        <div className="dt-suggestion-box" aria-label={`Gần đây có thể ghé quanh ${cleanName}`}>
+                          <div className="dt-suggestion-head">
                             <span>Gần đây có thể ghé</span>
-                            <span className="dt-sunken-note">gợi ý, chưa kiểm tra</span>
+                            <InfoBadge label="Gợi ý, chưa kiểm tra" />
                           </div>
-                          <ul className="dt-sunken-list">
+                          <ul className="dt-suggestion-list">
                             {stop.nearbyAfter.map((item) => (
                               <li key={item.key}>
-                                <span className="dt-sunken-item-name">{cleanPlaceDisplayName(item.name)}</span>
+                                <span className="dt-suggestion-name">{cleanPlaceDisplayName(item.name)}</span>
                                 {item.distanceKm != null && (
-                                  <span className="dt-sunken-dist">
+                                  <span className="dt-suggestion-dist">
                                     {item.distanceKm.toLocaleString("vi-VN")} km
                                   </span>
                                 )}
@@ -416,6 +434,7 @@ export function DayTimeline({
                                   target={item.previewTarget}
                                   name={cleanPlaceDisplayName(item.name)}
                                   onPreview={onPreview}
+                                  iconOnly
                                 />
                                 {item.actionSlot}
                               </li>
@@ -450,14 +469,14 @@ export function DayTimeline({
                         )}
                       </p>
                       {resolvedLunch.suggestions && resolvedLunch.suggestions.length > 0 && (
-                        <div className="dt-sunken-box">
-                          <ul className="dt-sunken-list">
+                        <div className="dt-suggestion-box">
+                          <ul className="dt-suggestion-list">
                             {resolvedLunch.suggestions.map((meal) => (
                               <li key={meal.key}>
-                                <span className="dt-sunken-item-name">{cleanPlaceDisplayName(meal.name)}</span>
-                                {meal.detail && <span className="dt-sunken-dist">{cleanTravelerDisplay(meal.detail)}</span>}
+                                <span className="dt-suggestion-name">{cleanPlaceDisplayName(meal.name)}</span>
+                                {meal.detail && <span className="dt-suggestion-dist">{cleanTravelerDisplay(meal.detail)}</span>}
                                 {meal.distanceKm != null && (
-                                  <span className="dt-sunken-dist">
+                                  <span className="dt-suggestion-dist">
                                     {meal.distanceKm.toLocaleString("vi-VN")} km
                                   </span>
                                 )}
@@ -465,6 +484,7 @@ export function DayTimeline({
                                   target={meal.previewTarget}
                                   name={cleanPlaceDisplayName(meal.name)}
                                   onPreview={onPreview}
+                                  iconOnly
                                 />
                                 {meal.actionSlot}
                               </li>
@@ -499,17 +519,17 @@ export function DayTimeline({
 
       {day.eveningPlan ? (
         <div
-          className="dt-sunken-box dt-evening-box"
+          className="dt-suggestion-box dt-evening-box"
           role="note"
           data-testid={`evening-plan-day-${day.dayIndex}`}
           aria-label={`Tối nay ngày ${day.dayIndex}`}
         >
-          <div className="dt-sunken-head">
+          <div className="dt-suggestion-head">
             <span className="dt-evening-title">
               <Moon size={14} aria-hidden="true" />
               Tối nay{day.eveningPlan.overnightArea ? ` · nghỉ ở ${day.eveningPlan.overnightArea}` : ""}
             </span>
-            <span className="dt-sunken-note">gợi ý, chưa kiểm tra</span>
+            <InfoBadge label="Gợi ý từ Google Maps · Chưa kiểm tra · Không nằm trong lịch" />
           </div>
 
           {day.eveningPlan.chosenLodging ? (
@@ -517,30 +537,31 @@ export function DayTimeline({
               <BedDouble size={14} aria-hidden="true" />
               <span>
                 Chỗ nghỉ đã chọn (Đêm {day.eveningPlan.nightIndex}):{" "}
-                <strong>{cleanPlaceDisplayName(day.eveningPlan.chosenLodging.name)}</strong>
-                {" · "}
-                <span className="dt-sunken-note">Chưa kiểm tra · Không phải đặt phòng</span>
+                <strong className="dt-suggestion-name">{cleanPlaceDisplayName(day.eveningPlan.chosenLodging.name)}</strong>
               </span>
+              <InfoBadge label="Chưa kiểm tra · Không phải đặt phòng" />
               <PreviewLink
                 target={day.eveningPlan.chosenLodging.previewTarget}
                 name={cleanPlaceDisplayName(day.eveningPlan.chosenLodging.name)}
                 onPreview={onPreview}
+                iconOnly
               />
             </div>
           ) : day.eveningPlan.lodgingSuggestions && day.eveningPlan.lodgingSuggestions.length > 0 ? (
             <div className="dt-evening-lodging-list">
-              <span className="dt-sunken-note">Gợi ý chỗ nghỉ:</span>
-              <ul className="dt-sunken-list">
+              <span className="dt-suggestion-subhead">Gợi ý chỗ nghỉ:</span>
+              <ul className="dt-suggestion-list">
                 {day.eveningPlan.lodgingSuggestions.slice(0, 3).map((item) => (
                   <li key={item.key}>
-                    <span className="dt-sunken-item-name">{cleanPlaceDisplayName(item.name)}</span>
+                    <span className="dt-suggestion-name">{cleanPlaceDisplayName(item.name)}</span>
                     {item.distanceKm != null && (
-                      <span className="dt-sunken-dist">{item.distanceKm.toLocaleString("vi-VN")} km</span>
+                      <span className="dt-suggestion-dist">{item.distanceKm.toLocaleString("vi-VN")} km</span>
                     )}
                     <PreviewLink
                       target={item.previewTarget}
                       name={cleanPlaceDisplayName(item.name)}
                       onPreview={onPreview}
+                      iconOnly
                     />
                     {item.onChoose && (
                       <button
@@ -558,42 +579,44 @@ export function DayTimeline({
           ) : null}
 
           {day.eveningPlan.eveningPlaces.length > 0 ? (
-            <ul className="dt-sunken-list">
+            <ul className="dt-suggestion-list">
               {day.eveningPlan.eveningPlaces.slice(0, 3).map((place) => (
                 <li key={place.key}>
-                  <span className="dt-sunken-item-name">{cleanPlaceDisplayName(place.name)}</span>
+                  <span className="dt-suggestion-name">{cleanPlaceDisplayName(place.name)}</span>
                   {place.distanceKm != null && (
-                    <span className="dt-sunken-dist">{place.distanceKm.toLocaleString("vi-VN")} km</span>
+                    <span className="dt-suggestion-dist">{place.distanceKm.toLocaleString("vi-VN")} km</span>
                   )}
                   <PreviewLink
                     target={place.previewTarget}
                     name={cleanPlaceDisplayName(place.name)}
                     onPreview={onPreview}
+                    iconOnly
                   />
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="dt-sunken-empty">Chưa tìm được gợi ý buổi tối</p>
+            <p className="dt-suggestion-empty">Chưa tìm được gợi ý buổi tối</p>
           )}
         </div>
       ) : (
         day.chosenLodging && (
           <div
-            className="dt-sunken-box my-trips-chosen-lodging"
+            className="dt-suggestion-box my-trips-chosen-lodging"
             role="note"
             aria-label={`Chỗ nghỉ đã chọn đêm ${day.chosenLodging.nightIndex}`}
           >
             <BedDouble size={15} aria-hidden="true" />
             <span>
               <strong>Chỗ nghỉ đã chọn (Đêm {day.chosenLodging.nightIndex}):</strong>{" "}
-              {cleanPlaceDisplayName(day.chosenLodging.name)} ·{" "}
-              <span className="dt-sunken-note">Chưa kiểm tra · Không phải đặt phòng</span>
+              <span className="dt-suggestion-name">{cleanPlaceDisplayName(day.chosenLodging.name)}</span>
             </span>
+            <InfoBadge label="Chưa kiểm tra · Không phải đặt phòng" />
             <PreviewLink
               target={day.chosenLodging.previewTarget}
               name={cleanPlaceDisplayName(day.chosenLodging.name)}
               onPreview={onPreview}
+              iconOnly
             />
           </div>
         )
@@ -601,20 +624,20 @@ export function DayTimeline({
 
       {day.nearbySuggestions && day.nearbySuggestions.length > 0 && (
         <div
-          className="dt-sunken-box my-trips-nearby"
+          className="dt-suggestion-box my-trips-nearby"
           role="note"
           aria-label={`Gợi ý vui chơi quanh đây ngày ${day.dayIndex}`}
         >
-          <div className="dt-sunken-head">
+          <div className="dt-suggestion-head">
             <span>Gần đây có thể ghé</span>
-            <span className="dt-sunken-note">Từ Google Maps · Chưa kiểm tra · Không nằm trong lịch</span>
+            <InfoBadge label="Từ Google Maps · Chưa kiểm tra · Không nằm trong lịch" />
           </div>
-          <ul className="dt-sunken-list">
+          <ul className="dt-suggestion-list">
             {day.nearbySuggestions.map((item) => (
               <li key={item.key}>
-                <span className="dt-sunken-item-name">{cleanPlaceDisplayName(item.name)}</span>
+                <span className="dt-suggestion-name">{cleanPlaceDisplayName(item.name)}</span>
                 {item.distanceKm != null && (
-                  <span className="dt-sunken-dist">
+                  <span className="dt-suggestion-dist">
                     {item.distanceKm.toLocaleString("vi-VN")} km{item.tag ? ` ${item.tag}` : ""}
                   </span>
                 )}
@@ -622,6 +645,7 @@ export function DayTimeline({
                   target={item.previewTarget}
                   name={cleanPlaceDisplayName(item.name)}
                   onPreview={onPreview}
+                  iconOnly
                 />
               </li>
             ))}

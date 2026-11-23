@@ -270,4 +270,72 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     expect(css).not.toMatch(/\bInter\b/);
     expect(css).toContain("@media (max-width: 480px)");
   });
+
+  it("A3: renders suggestions on --tv-surface with info icon tooltip, 16px icon-only suggestion preview, sm Chọn button, and borderless main stop preview link", () => {
+    const dayWithSuggestions: DayTimelineDay = {
+      dayIndex: 1,
+      localDate: "2026-12-13",
+      stops: [
+        {
+          id: "v1",
+          destinationId: "d1",
+          order: 1,
+          name: "Cổng Trời Quản Bạ",
+          area: "Quản Bạ",
+          startMinute: 480,
+          durationMinutes: 60,
+          previewTarget: { kind: "CATALOG", name: "Cổng Trời Quản Bạ", latitude: 23.0493, longitude: 104.9927 },
+          nearbyAfter: [
+            {
+              key: "nb-1",
+              name: "Cánh đồng tam giác mạch",
+              distanceKm: 2.7,
+              previewTarget: { kind: "GOOGLE_PLACE", name: "Cánh đồng tam giác mạch", placeId: "ChIJ_nb1" },
+            },
+          ],
+        },
+      ],
+      eveningPlan: {
+        nightIndex: 1,
+        overnightArea: "Đồng Văn",
+        lodgingSuggestions: [
+          {
+            key: "lg-1",
+            name: "Ha Anh Homestay",
+            distanceKm: 0.8,
+            previewTarget: { kind: "GOOGLE_PLACE", name: "Ha Anh Homestay", placeId: "ChIJ_lg1" },
+            onChoose: () => {},
+          },
+        ],
+        eveningPlaces: [
+          {
+            key: "ev-1",
+            name: "Quán Cơm nhà Pao",
+            distanceKm: 0.2,
+            previewTarget: { kind: "GOOGLE_PLACE", name: "Quán Cơm nhà Pao", placeId: "ChIJ_ev1" },
+          },
+        ],
+      },
+    };
+
+    const html = renderToStaticMarkup(createElement(DayTimeline, { day: dayWithSuggestions, variant: "full", onPreview: () => {} }));
+    expect(html).not.toContain("dt-sunken-box");
+    expect(html).toContain("dt-suggestion-box");
+    expect(html).toContain("dt-info-badge");
+    // Tooltip carries the disclaimer; no repeated plain text disclaimer span inside rows
+    expect(html).not.toContain(">gợi ý, chưa kiểm tra<");
+    expect(html).not.toContain(">Chưa kiểm tra · Không phải đặt phòng<");
+    // Main stop keeps Xem nhanh text link; suggestion rows use 16px eye icon-only button
+    expect(html).toContain("tv-quick-link");
+    expect(html).toContain("tv-preview-icon-btn");
+    expect(html).toContain('aria-label="Xem nhanh Cánh đồng tam giác mạch"');
+    expect(html).toContain("tv-btn tv-btn--sm tv-btn--secondary");
+
+    const dayCss = readFileSync(resolve(process.cwd(), "src/components/trip-timeline/day-timeline.css"), "utf8");
+    const tripsCss = readFileSync(resolve(process.cwd(), "src/app/trips/trips.css"), "utf8");
+    expect(dayCss).not.toContain(".dt-sunken-box");
+    expect(dayCss).toMatch(/\.dt-suggestion-box\s*\{[^}]*background:\s*var\(--tv-surface\)/);
+    expect(dayCss).toMatch(/\.dt-suggestion-name\s*\{[^}]*font-size:\s*14px[^}]*font-weight:\s*500/);
+    expect(tripsCss).not.toMatch(/\.my-trips-chosen-lodging\s*\{[^}]*background:\s*var\(--tv-sunken\)/);
+  });
 });

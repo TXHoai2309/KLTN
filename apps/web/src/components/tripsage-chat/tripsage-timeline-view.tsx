@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, Car, Check, Clock, Eye, Flag, Home, Lightbulb, MapPin, Moon, Sparkles, UtensilsCrossed } from "lucide-react";
+import { BedDouble, Car, Check, Clock, Eye, Flag, Home, Info, Lightbulb, MapPin, Moon, Sparkles, UtensilsCrossed } from "lucide-react";
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
@@ -107,7 +107,7 @@ export function ChosenLodgingButton({
   return (
     <button
       type="button"
-      className={`tripsage-choose-lodging-btn${selected ? " is-selected" : ""}`}
+      className={`tv-btn tv-btn--sm ${selected ? "tv-btn--primary" : "tv-btn--secondary"} tripsage-choose-lodging-btn${selected ? " is-selected" : ""}`}
       aria-pressed={selected}
       aria-label={selected ? `Bỏ chọn ${placeName} cho đêm ${nightIndex}` : `Chọn ${placeName} cho đêm ${nightIndex}`}
       onClick={onClick}
@@ -282,22 +282,27 @@ export function TripsageTimelineView({
                   )}
                   {(() => {
                     const nearby = (bySlot.get(item.slotId) ?? []).filter(isNearbyActivity);
+                    const tooltip = "Từ Google Maps · Chưa kiểm tra · Không nằm trong lịch";
                     if (item.kind === "OVERNIGHT") {
                       return (
                         <div className="tripsage-nearby" data-testid={`evening-plan-day-${activeDay.day}`}>
-                          <strong>Tối nay</strong>
-                          <span className="tripsage-nearby-note"> · gợi ý từ Google Maps, chưa kiểm tra</span>
+                          <span className="tripsage-nearby-head">
+                            <strong>Tối nay</strong>
+                            <span role="img" tabIndex={0} className="dt-info-badge" title={tooltip} aria-label={tooltip}>
+                              <Info size={14} aria-hidden="true" />
+                            </span>
+                          </span>
                           {nearby.length > 0 ? (
                             <ul>
                               {nearby.slice(0, 3).map(suggestion => {
                                 const target = suggestionPreviewTarget(suggestion);
                                 return (
                                   <li key={suggestion.place!.placeId ?? suggestion.title}>
-                                    <span>{suggestion.title}</span>
-                                    <span className="tripsage-suggestion-meta"> · cách khoảng {suggestion.place!.distanceKm} km</span>
+                                    <span className="tripsage-nearby-name">{suggestion.title}</span>
+                                    <span className="tripsage-suggestion-meta"> · {suggestion.place!.distanceKm} km</span>
                                     {target && (
-                                      <button type="button" className="tripsage-preview-btn" aria-label={`Xem nhanh ${target.name}`} onClick={event => setPreview({ target, trigger: event.currentTarget })}>
-                                        <Eye size={12} aria-hidden="true" /><span>Xem nhanh</span>
+                                      <button type="button" className="tripsage-preview-btn" data-icon-only="true" aria-label={`Xem nhanh ${target.name}`} title={`Xem nhanh ${target.name}`} onClick={event => setPreview({ target, trigger: event.currentTarget })}>
+                                        <Eye size={16} aria-hidden="true" />
                                       </button>
                                     )}
                                   </li>
@@ -313,18 +318,22 @@ export function TripsageTimelineView({
                     if (!nearby.length) return null;
                     return (
                       <div className="tripsage-nearby">
-                        <strong>{item.kind === "FREE_TIME" ? "Chiều rảnh, có thể ghé" : "Gần đây có thể ghé"}</strong>
-                        <span className="tripsage-nearby-note"> · gợi ý từ Google Maps, chưa kiểm tra</span>
+                        <span className="tripsage-nearby-head">
+                          <strong>{item.kind === "FREE_TIME" ? "Chiều rảnh, có thể ghé" : "Gần đây có thể ghé"}</strong>
+                          <span role="img" tabIndex={0} className="dt-info-badge" title={tooltip} aria-label={tooltip}>
+                            <Info size={14} aria-hidden="true" />
+                          </span>
+                        </span>
                         <ul>
                           {nearby.map(suggestion => {
                             const target = suggestionPreviewTarget(suggestion);
                             return (
                               <li key={suggestion.place!.placeId ?? suggestion.title}>
-                                <span>{suggestion.title}</span>
-                                <span className="tripsage-suggestion-meta"> · cách khoảng {suggestion.place!.distanceKm} km</span>
+                                <span className="tripsage-nearby-name">{suggestion.title}</span>
+                                <span className="tripsage-suggestion-meta"> · {suggestion.place!.distanceKm} km</span>
                                 {target && (
-                                  <button type="button" className="tripsage-preview-btn" aria-label={`Xem nhanh ${target.name}`} onClick={event => setPreview({ target, trigger: event.currentTarget })}>
-                                    <Eye size={12} aria-hidden="true" /><span>Xem nhanh</span>
+                                  <button type="button" className="tripsage-preview-btn" data-icon-only="true" aria-label={`Xem nhanh ${target.name}`} title={`Xem nhanh ${target.name}`} onClick={event => setPreview({ target, trigger: event.currentTarget })}>
+                                    <Eye size={16} aria-hidden="true" />
                                   </button>
                                 )}
                               </li>
@@ -344,7 +353,8 @@ export function TripsageTimelineView({
                     return (
                       <div key={index} className={`tripsage-suggestion${isChosen ? " is-chosen-lodging" : ""}`}>
                         {SUGGESTION_ICON[suggestion.kind]}
-                        <strong>{SUGGESTION_LABEL[suggestion.kind]}:</strong> {suggestion.title}
+                        <strong>{SUGGESTION_LABEL[suggestion.kind]}:</strong>{" "}
+                        <span className="tripsage-nearby-name">{suggestion.title}</span>
                         {suggestion.place && (
                           <span className="tripsage-suggestion-meta">
                             {formatSuggestionPlaceMeta(suggestion.title, suggestion.place)}
@@ -355,7 +365,9 @@ export function TripsageTimelineView({
                           <button
                             type="button"
                             className="tripsage-preview-btn"
+                            data-icon-only="true"
                             aria-label={`Xem nhanh ${sPreview.name}`}
+                            title={`Xem nhanh ${sPreview.name}`}
                             onClick={event =>
                               setPreview({
                                 target: sPreview,
@@ -366,8 +378,7 @@ export function TripsageTimelineView({
                               })
                             }
                           >
-                            <Eye size={12} aria-hidden="true" />
-                            <span>Xem nhanh</span>
+                            <Eye size={16} aria-hidden="true" />
                           </button>
                         )}
                         {canChoose && lodgingPlaceId && onToggleChosenLodging && (

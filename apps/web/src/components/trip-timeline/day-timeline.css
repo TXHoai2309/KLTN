@@ -391,26 +391,29 @@
   margin-left: var(--tv-space-2);
 }
 
-/* Sunken suggestions & Evening plan boxes (design §3.3) */
-.dt-sunken-box {
+/* Suggestion & Evening plan containers (A3: --tv-surface background, 14px/500 --tv-ink names, 13px --tv-ink-2 meta) */
+.dt-suggestion-box {
   display: grid;
   gap: var(--tv-space-2);
   margin-top: var(--tv-space-2);
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: var(--tv-radius-control);
-  background: var(--tv-sunken);
+  border: 1px solid var(--tv-line);
+  background: var(--tv-surface);
   color: var(--tv-ink);
-  font-size: var(--tv-text-sm);
-  line-height: var(--tv-leading-sm);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
-.dt-sunken-head {
+.dt-suggestion-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--tv-space-2);
+  justify-content: flex-start;
+  gap: 6px;
+  font-size: 13px;
   font-weight: 500;
+  color: var(--tv-ink-2);
 }
 
 .dt-evening-title {
@@ -418,16 +421,34 @@
   align-items: center;
   gap: 6px;
   color: var(--tv-ink);
+  font-size: 14px;
   font-weight: 500;
 }
 
-.dt-sunken-note {
+.dt-info-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   color: var(--tv-ink-3);
-  font-size: var(--tv-text-xs);
-  font-weight: 400;
+  cursor: help;
+  flex-shrink: 0;
+  border-radius: 4px;
 }
 
-.dt-sunken-list {
+.dt-info-badge:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+}
+
+.dt-suggestion-subhead {
+  color: var(--tv-ink-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dt-suggestion-list {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -435,28 +456,71 @@
   list-style: none;
 }
 
-.dt-sunken-list li {
+.dt-suggestion-list li {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--tv-space-2);
 }
 
-.dt-sunken-item-name {
+.dt-suggestion-name {
+  font-size: 14px;
+  font-weight: 500;
   color: var(--tv-ink);
-  font-weight: 400;
 }
 
-.dt-sunken-dist {
+.dt-suggestion-dist {
   color: var(--tv-ink-2);
-  font-size: var(--tv-text-xs);
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
-.dt-sunken-empty {
+.dt-suggestion-empty {
   margin: 0;
   color: var(--tv-ink-2);
-  font-size: var(--tv-text-sm);
+  font-size: 13px;
+}
+
+.dt-day .tv-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tv-accent);
+  font-family: var(--tv-font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.dt-day .tv-quick-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dt-day .tv-preview-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tv-ink-2);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.dt-day .tv-preview-icon-btn:hover {
+  background: var(--tv-sunken);
+  color: var(--tv-accent);
 }
 
 .dt-evening-lodging {
@@ -464,11 +528,13 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: var(--tv-text-sm);
+  font-size: 14px;
+  color: var(--tv-ink-2);
 }
 
 .dt-evening-lodging strong {
   font-weight: 500;
+  color: var(--tv-ink);
 }
 
 .dt-evening-lodging-list {

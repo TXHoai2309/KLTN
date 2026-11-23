@@ -1488,7 +1488,7 @@
 }
 
 /* ==========================================================================
-   CHOSEN LODGING & NEARBY SUGGESTIONS (design §3.3 sunken box + link "Xem nhanh")
+   CHOSEN LODGING & NEARBY SUGGESTIONS (A3: --tv-surface + borderless preview)
    ========================================================================== */
 .my-trips-chosen-lodging {
   display: flex;
@@ -1496,13 +1496,13 @@
   align-items: center;
   gap: var(--tv-space-2);
   margin-top: var(--tv-space-3);
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: var(--tv-radius-control);
-  border: 0;
-  background: var(--tv-sunken);
+  border: 1px solid var(--tv-line);
+  background: var(--tv-surface);
   color: var(--tv-ink);
-  font-size: var(--tv-text-sm);
-  line-height: var(--tv-leading-sm);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .my-trips-chosen-lodging .tripsage-preview-btn,
