@@ -194,9 +194,16 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   let latestDistanceKm: number | null = context.currentItinerary?.distanceKm ?? null;
   let latestAccessLeg: AccessLegPart | null = context.accessLeg ?? null;
   let latestCostOverBudget = false;
+  let latestCostMissingItems: string[] = [];
+  let latestProposalReadyToSave = false;
+  let latestProposalDecisionIssues: string[] = [];
   const flightLookups: PriorFlightLookupRecord[] = [...(context.priorFlightLookups ?? [])];
   /** Set when this turn's schedule shows that driving from the origin is not practical; the assistant should offer hubs. */
   let hubSuggested = false;
+  const latestUserAskedFood = () =>
+    /\b(?:qu[aá]n\s*[aă]n|nh[aà]\s*h[aà]ng|[aă]n\s*u[oố]ng|[aă]n\s*tr[uư]a|[aă]n\s*t[oố]i|[aă]n\s*g[iì]|đ[aặ]c\s*s[aả]n|[aẩ]m\s*th[uự]c|m[oó]n\s*ngon)\b/iu.test(
+      context.latestUserText ?? "",
+    );
 
   const fixedHubPublic = FIXED_HUB_CANDIDATES.map(hub => ({ candidateId: hub.id, label: hub.label }));
   const statedDateInfo = (): { date: string; tentative: boolean } | null => {
@@ -519,11 +526,33 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           };
         }
       }
-      if (latestCostOverBudget && replies.some(r => /qu[aá]n\s+[aă]n|t[iì]m\s+th[eê]m\s+qu[aá]n/iu.test(r))) {
+      const hasMealReply = replies.some(r => /qu[aá]n\s+[aă]n|t[iì]m\s+th[eê]m\s+qu[aá]n/iu.test(r));
+      if (latestCostOverBudget && hasMealReply) {
         return {
           ok: false as const,
           code: "BUDGET_EXCEEDED_PRIORITY",
           message: "Bảng chi phí đang vượt ngân sách và các nút giảm chi phí ước tính đã hiện cho người dùng. Không hỏi chuyển sang tìm quán ăn; hãy kết thúc bằng một câu hỏi về ngân sách / phương án giảm chi phí.",
+        };
+      }
+      if (latestCostMissingItems.length > 0 && hasMealReply) {
+        return {
+          ok: false as const,
+          code: "INCOMPLETE_COST_PRIORITY",
+          message: `Bảng chi phí đang thiếu giá (${latestCostMissingItems.join(", ")}). Không hỏi sang tìm quán ăn; hãy kết thúc bằng câu hỏi về đoạn chưa có giá kèm nút lựa chọn phù hợp.`,
+        };
+      }
+      if (latestProposalDecisionIssues.length > 0 && hasMealReply) {
+        return {
+          ok: false as const,
+          code: "SCHEDULE_DECISION_PRIORITY",
+          message: `Lịch trình còn vấn đề cần người dùng quyết (${latestProposalDecisionIssues.join(", ")}). Không hỏi sang tìm quán ăn; hãy hỏi đúng vấn đề đó kèm chip.`,
+        };
+      }
+      if (proposals > 0 && latestProposalReadyToSave && hasMealReply && !latestUserAskedFood()) {
+        return {
+          ok: false as const,
+          code: "SAVE_OR_COST_PRIORITY",
+          message: "Lịch trình đã đạt và người dùng không hỏi về quán ăn trong lượt này. Hãy mời người dùng bấm nút 'Lưu chuyến' ('Lưu chuyến này nhé?') hoặc xem bảng chi phí thay vì hỏi tìm quán ăn.",
         };
       }
       context.emitQuickReplies?.(replies);
@@ -748,11 +777,20 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           : rawResult;
         context.emitPlanProgress?.({ step: "VALIDATE", state: "done" });
         context.emitItinerary(result);
+        // Bug 6: track open schedule decisions vs save-readiness for closing-question priority.
+        const decisionIssues: string[] = [];
+        if (result.checks.some(check => check.status === "VIOLATION")) decisionIssues.push("mục kiểm tra chưa đạt");
+        if (result.days.some(day => day.stops.length === 0 && day.journeyDayKind !== "OUTBOUND_ONLY" && day.journeyDayKind !== "RETURN_ONLY")) decisionIssues.push("có ngày trống");
+        if (result.warnings.some(w => w.code === "LONG_DRIVING_DAY")) decisionIssues.push("chặng chạy xe dài");
+        if (shouldSuggestHub(result)) decisionIssues.push("chặng ngày đầu dài, cân nhắc điểm tập kết");
+        latestProposalDecisionIssues = decisionIssues;
+        latestProposalReadyToSave = Boolean(result.eligibleForFinalConfirmation && blockingAssumed.length === 0 && decisionIssues.length === 0);
+
         // A plan with a violation never ends the turn without a next step; the model may still replace these buttons.
         if (result.checks.some(check => check.status === "VIOLATION")) {
           context.emitQuickReplies?.(statedDate?.tentative ? ["Đổi ngày", "Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"] : ["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"]);
         } else if (statedDate?.tentative) {
-          context.emitQuickReplies?.(["Đổi ngày", "Đổi nhịp đi", "Tìm thêm quán ăn"]);
+          context.emitQuickReplies?.(["Đổi ngày", "Xem bảng chi phí", "Đổi nhịp đi"]);
         }
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
@@ -978,6 +1016,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
       const chipsSent = savingsOptions.length > 0 && Boolean(context.emitCost);
       latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
+      latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
       context.emitCost?.(emittedCost);
       context.emitPlanProgress?.({ step: "COSTS", state: "done" });
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
@@ -988,8 +1027,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           : latestCostOverBudget
             ? "Bảng chi phí vượt ngân sách (chưa gửi được nút giảm chi phí tự động). Không tự đổi lịch và KHÔNG nói các nút giảm chi phí đã hiện; câu hỏi duy nhất cuối tin PHẢI hỏi người dùng muốn giảm chi phí theo hướng nào (đổi phương tiện, hạng phòng hay bớt ngày) và KHÔNG hỏi sang chuyện tìm quán ăn."
             : emittedCost.isIncomplete
-              ? `Bảng chi phí CHƯA ĐẦY ĐỦ vì chưa tính: ${(emittedCost.missingItems ?? []).join(", ")}. TUYỆT ĐỐI KHÔNG nói tổng nằm trong ngân sách hay vừa ngân sách; hãy nêu rõ đoạn chưa có giá và hỏi người dùng muốn bổ sung mức giá dự kiến hay đổi phương tiện có giá tham khảo.`
-              : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
+              ? `Bảng chi phí CHƯA ĐẦY ĐỦ vì chưa tính: ${(emittedCost.missingItems ?? []).join(", ")}. TUYỆT ĐỐI KHÔNG nói tổng nằm trong ngân sách hay vừa ngân sách; câu hỏi cuối tin PHẢI hỏi về đoạn chưa có giá (mời bổ sung mức giá dự kiến hoặc đổi phương tiện có giá tham khảo; KHÔNG hỏi sang tìm quán ăn).`
+              : latestProposalReadyToSave && !latestUserAskedFood()
+                ? "Bảng chi phí đã hiện cho người dùng và lịch trình đã đạt. Câu kết ưu tiên mời người dùng bấm nút 'Lưu chuyến' trong panel ('Lưu chuyến này nhé?') hoặc xem chi phí; KHÔNG hỏi tìm quán ăn nếu người dùng không nhắc chuyện ăn uống."
+                : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
     },
   });
 

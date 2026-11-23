@@ -198,8 +198,46 @@ describe("Ticket 12: post-itinerary meal suggestions offer", () => {
   });
 
   it("instructs the assistant to ask the single meal-offer question after non-assumed itineraries and defer it on Assumed drafts", () => {
-    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Bạn có muốn mình tìm thêm quán ăn gần các điểm dừng không?");
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Lưu chuyến này nhé?");
     expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("mealSuggestionsDeclined");
-    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("để lời mời tìm quán ăn tới lượt đầu tiên không còn giả định quan trọng");
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Chỉ hỏi tìm thêm quán ăn khi người dùng đã nhắc chuyện ăn uống/quán ăn");
+  });
+
+  it("Bug 6: blocks unprompted meal replies after a valid edited schedule (invites save) and on incomplete cost, while allowing meal replies when user asked about food", async () => {
+    // 1. Clean edited itinerary within budget, user did NOT mention food -> blocks meal reply with SAVE_OR_COST_PRIORITY
+    const cleanEdit = await chat({
+      text: "Ngày 1 bỏ Cột cờ Lũng Cú, thêm Phố cổ Đồng Văn buổi chiều.",
+      steps: [
+        { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
+        {
+          tool: "estimateCosts",
+          input: {
+            budgetCap: 20_000_000,
+            lines: [
+              { category: "lodging", label: "Lưu trú", amount: 2_000_000 },
+              { category: "food", label: "Ăn uống", amount: 1_500_000 },
+            ],
+          },
+        },
+        { tool: "suggestReplies", input: { replies: ["Có, tìm quán ăn giúp mình", "Không cần đâu"] } },
+        { text: "Lịch mới đã đạt kiểm tra. Lưu chuyến này nhé?" },
+      ],
+    });
+    const cleanToolPrompts = JSON.stringify(cleanEdit.model.doStreamCalls.map(c => c.prompt));
+    expect(cleanToolPrompts).toContain("Lưu chuyến này nhé?");
+    expect(cleanToolPrompts).toContain("SAVE_OR_COST_PRIORITY");
+
+    // 2. When user explicitly asked about eating/food -> meal suggestReplies IS allowed
+    const foodAsk = await chat({
+      text: "Lập lại lịch và gợi ý giúp mình thêm quán ăn ngon dọc đường nhé",
+      steps: [
+        { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
+        { tool: "suggestReplies", input: { replies: ["Có, tìm quán ăn giúp mình", "Không cần đâu"] } },
+        { text: "Bạn có muốn mình tìm thêm quán ăn gần các điểm dừng không?" },
+      ],
+    });
+    const foodToolPrompts = JSON.stringify(foodAsk.model.doStreamCalls.map(c => c.prompt));
+    expect(foodToolPrompts).not.toContain("SAVE_OR_COST_PRIORITY");
+    expect(foodAsk.all.some(p => p.type === "data-quick-replies")).toBe(true);
   });
 });
