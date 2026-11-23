@@ -107,7 +107,8 @@ describe("Ticket 08: Khối Tối nay (PARITY AC-6, AC-8, AC-9, AC-10)", () => {
         },
       }),
     );
-    expect(html).toContain("Tối nay · nghỉ ở Đồng Văn");
+    expect(html).toContain("Nhận phòng · Đồng Văn");
+    expect(html).toContain("Ăn tối gần chỗ nghỉ");
     expect(html).toContain("Homestay Phố Cổ");
     expect(html).toContain("Chưa tìm được gợi ý buổi tối");
   });

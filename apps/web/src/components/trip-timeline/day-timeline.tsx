@@ -9,12 +9,14 @@ import {
   ChevronRight,
   Clock3,
   Coffee,
+  Compass,
   Eye,
   Info,
   MapPin,
   Moon,
   UtensilsCrossed,
 } from "lucide-react";
+import { buildDaySuggestionMarkers, type TimelineSuggestionMarker } from "./suggestion-markers";
 
 import { travelerDayColorVar } from "@/components/traveler-ui/traveler-day-tabs";
 import { getDestinationVisual } from "@/lib/destination-visuals";
@@ -100,6 +102,8 @@ export interface DayTimelineDay {
   nightRest?: { startMinute: number | null; text: string } | null;
   chosenLodging?: DayTimelineChosenLodging | null;
   nearbySuggestions?: readonly DayTimelineNearbyItem[];
+  freeTimeSuggestions?: readonly DayTimelineNearbyItem[];
+  estimatedCheckinTravelMinutes?: number | null;
   eveningPlan?: DayTimelineEveningPlan | null;
   emptyMessage?: string;
 }
@@ -176,6 +180,227 @@ function PreviewLink({
   );
 }
 
+function StopNearbyRow({
+  items,
+  stopName,
+  onPreview,
+}: {
+  items: readonly DayTimelineNearbyItem[];
+  stopName: string;
+  onPreview?: (target: PlacePreviewTarget, trigger: HTMLElement) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (items.length === 0) return null;
+  const first = items[0]!;
+  const rest = items.slice(1);
+  const firstName = cleanPlaceDisplayName(first.name);
+
+  return (
+    <div
+      className="dt-stop-nearby"
+      aria-label={`Gần đây có thể ghé quanh ${stopName}`}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="dt-stop-nearby-row">
+        <span className="dt-stop-nearby-label">Gần đây:</span>
+        <span className="dt-suggestion-name">{firstName}</span>
+        {first.distanceKm != null && (
+          <span className="dt-suggestion-dist">
+            · {first.distanceKm.toLocaleString("vi-VN")} km
+          </span>
+        )}
+        <PreviewLink
+          target={first.previewTarget}
+          name={firstName}
+          onPreview={onPreview}
+          iconOnly
+        />
+        {first.actionSlot}
+        <InfoBadge label="Gợi ý, chưa kiểm tra" />
+        {rest.length > 0 && (
+          <button
+            type="button"
+            className="dt-nearby-more-btn"
+            aria-expanded={expanded}
+            onClick={(event) => {
+              event.stopPropagation();
+              setExpanded((prev) => !prev);
+            }}
+          >
+            {expanded ? "Thu gọn" : `+${rest.length}`}
+          </button>
+        )}
+      </div>
+
+      {expanded && rest.length > 0 && (
+        <ul className="dt-suggestion-list dt-stop-nearby-extra">
+          {rest.map((item) => {
+            const itemName = cleanPlaceDisplayName(item.name);
+            return (
+              <li key={item.key}>
+                <span className="dt-suggestion-name">{itemName}</span>
+                {item.distanceKm != null && (
+                  <span className="dt-suggestion-dist">
+                    · {item.distanceKm.toLocaleString("vi-VN")} km
+                  </span>
+                )}
+                <PreviewLink
+                  target={item.previewTarget}
+                  name={itemName}
+                  onPreview={onPreview}
+                  iconOnly
+                />
+                {item.actionSlot}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SuggestionMarkerItem({
+  marker,
+  dayIndex,
+  isDashedToNext,
+  onPreview,
+}: {
+  marker: TimelineSuggestionMarker;
+  dayIndex: number;
+  isDashedToNext: boolean;
+  onPreview?: (target: PlacePreviewTarget, trigger: HTMLElement) => void;
+}) {
+  const Icon =
+    marker.kind === "CHECKIN"
+      ? BedDouble
+      : marker.kind === "DINNER"
+        ? UtensilsCrossed
+        : Compass;
+  const testId =
+    marker.kind === "CHECKIN"
+      ? `evening-plan-day-${dayIndex}`
+      : marker.kind === "DINNER"
+        ? `evening-dinner-day-${dayIndex}`
+        : `free-time-day-${dayIndex}`;
+
+  return (
+    <li
+      className={`dt-suggestion-marker${isDashedToNext ? " dt-rail-to-suggestion" : ""}`}
+      data-marker-kind={marker.kind}
+      data-testid={testId}
+      aria-label={marker.title}
+    >
+      <span className="dt-timeline-node dt-timeline-node--suggestion" aria-hidden="true" />
+      <div className={`dt-visit-time${marker.timeText ? "" : " dt-marker-time--empty"}`}>
+        {marker.timeText ? <strong>{marker.timeText}</strong> : null}
+      </div>
+
+      <div className="dt-marker-body" role="note">
+        <div className="dt-marker-head">
+          <span className="dt-marker-title">
+            <Icon size={14} aria-hidden="true" />
+            <span>{marker.title}</span>
+          </span>
+          <span className="dt-marker-badge">{marker.badgeText}</span>
+          <InfoBadge label={marker.infoTooltip} />
+        </div>
+
+        {marker.kind === "FREE_TIME" && marker.freeItems && marker.freeItems.length > 0 && (
+          <ul className="dt-suggestion-list">
+            {marker.freeItems.map((item) => {
+              const itemName = cleanPlaceDisplayName(item.name);
+              return (
+                <li key={item.key}>
+                  <span className="dt-suggestion-name">{itemName}</span>
+                  {item.distanceKm != null && (
+                    <span className="dt-suggestion-dist">
+                      {item.distanceKm.toLocaleString("vi-VN")} km
+                    </span>
+                  )}
+                  <PreviewLink target={item.previewTarget} name={itemName} onPreview={onPreview} iconOnly />
+                  {item.actionSlot}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {marker.kind === "CHECKIN" &&
+          (marker.chosenLodging ? (
+            <div className="dt-evening-lodging">
+              <span>
+                Chỗ nghỉ đã chọn (Đêm {marker.chosenLodging.nightIndex}):{" "}
+                <strong className="dt-suggestion-name">{marker.chosenLodging.name}</strong>
+              </span>
+              <PreviewLink
+                target={marker.chosenLodging.previewTarget}
+                name={marker.chosenLodging.name}
+                onPreview={onPreview}
+                iconOnly
+              />
+            </div>
+          ) : marker.lodgingSuggestions && marker.lodgingSuggestions.length > 0 ? (
+            <div className="dt-evening-lodging-list">
+              <span className="dt-suggestion-subhead">Gợi ý chỗ nghỉ:</span>
+              <ul className="dt-suggestion-list">
+                {marker.lodgingSuggestions.map((item) => {
+                  const itemName = cleanPlaceDisplayName(item.name);
+                  return (
+                    <li key={item.key}>
+                      <span className="dt-suggestion-name">{itemName}</span>
+                      {item.distanceKm != null && (
+                        <span className="dt-suggestion-dist">
+                          {item.distanceKm.toLocaleString("vi-VN")} km
+                        </span>
+                      )}
+                      <PreviewLink target={item.previewTarget} name={itemName} onPreview={onPreview} iconOnly />
+                      {item.onChoose && (
+                        <button
+                          type="button"
+                          className={`tv-btn tv-btn--sm ${item.chosen ? "tv-btn--primary" : "tv-btn--secondary"}`}
+                          onClick={item.onChoose}
+                        >
+                          {item.chosen ? "Đã chọn" : "Chọn"}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : (
+            <p className="dt-suggestion-empty">Chưa chọn chỗ nghỉ</p>
+          ))}
+
+        {marker.kind === "DINNER" &&
+          (marker.eveningPlaces && marker.eveningPlaces.length > 0 ? (
+            <ul className="dt-suggestion-list">
+              {marker.eveningPlaces.map((place) => {
+                const placeName = cleanPlaceDisplayName(place.name);
+                return (
+                  <li key={place.key}>
+                    <span className="dt-suggestion-name">{placeName}</span>
+                    {place.distanceKm != null && (
+                      <span className="dt-suggestion-dist">
+                        {place.distanceKm.toLocaleString("vi-VN")} km
+                      </span>
+                    )}
+                    <PreviewLink target={place.previewTarget} name={placeName} onPreview={onPreview} iconOnly />
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="dt-suggestion-empty">
+              {marker.dinnerEmptyText ?? "Chưa tìm được gợi ý buổi tối"}
+            </p>
+          ))}
+      </div>
+    </li>
+  );
+}
+
 /**
  * Shared day timeline component (PARITY US 6-10, design §3.3).
  * Used by trip detail (`full`), shared companion group (`full`), desktop assistant panel (`full`),
@@ -239,6 +464,19 @@ export function DayTimeline({
     }
   }
 
+  const suggestionMarkers = buildDaySuggestionMarkers({
+    dayIndex: day.dayIndex,
+    orderedStops,
+    freeTimeSuggestions: day.freeTimeSuggestions,
+    nearbySuggestions: day.nearbySuggestions,
+    eveningPlan: day.eveningPlan,
+    chosenLodging: day.chosenLodging,
+    estimatedCheckinTravelMinutes: day.estimatedCheckinTravelMinutes,
+  });
+
+  const headingRailToSuggestion =
+    orderedStops.length === 0 && !day.departureCard && suggestionMarkers.length > 0;
+
   return (
     <section
       className={["dt-day", `dt-day--${variant}`, dimmed ? "dt-day--dimmed my-trips-day-dimmed" : "", className ?? ""]
@@ -249,7 +487,7 @@ export function DayTimeline({
       style={dayColorStyle}
       aria-labelledby={dayId}
     >
-      <div className="dt-day-heading">
+      <div className={`dt-day-heading${headingRailToSuggestion ? " dt-rail-to-suggestion" : ""}`}>
         <span className="dt-timeline-node my-trips-timeline-node" aria-hidden="true" />
         <div className="dt-day-title-wrap">
           <div className="dt-day-number-tag">Ngày {day.dayIndex}</div>
@@ -283,11 +521,12 @@ export function DayTimeline({
         )}
       </div>
 
-      {day.stops.length === 0 && !day.departureCard && !day.returnCard ? (
+      {day.stops.length === 0 && !day.departureCard && !day.returnCard && (
         <div className="dt-day-empty">
           <p>{day.emptyMessage ?? "Ngày này chưa có điểm dừng."}</p>
         </div>
-      ) : (
+      )}
+      {(day.stops.length > 0 || Boolean(day.departureCard) || Boolean(day.returnCard) || suggestionMarkers.length > 0) && (
         <ol className="dt-visits">
           {day.departureCard}
           {orderedStops.map((stop, index) => {
@@ -320,7 +559,13 @@ export function DayTimeline({
 
                 <li
                   id={`trip-visit-${stop.destinationId}`}
-                  className={`dt-visit-item${isSelected ? " is-selected-item" : ""}`}
+                  className={`dt-visit-item${isSelected ? " is-selected-item" : ""}${
+                    index === orderedStops.length - 1 &&
+                    !resolvedLunch &&
+                    suggestionMarkers.length > 0
+                      ? " dt-rail-to-suggestion"
+                      : ""
+                  }`}
                   onClick={onSelectDestination ? () => onSelectDestination(stop.destinationId) : undefined}
                 >
                   <span className="dt-timeline-node my-trips-timeline-node" aria-hidden="true" />
@@ -329,7 +574,8 @@ export function DayTimeline({
                     {stop.durationMinutes !== null && <span>{stop.durationMinutes} phút</span>}
                   </div>
 
-                  <article className={`dt-visit-card${isSelected ? " is-active-selection" : ""}`}>
+                  <div className="dt-visit-main-col">
+                    <article className={`dt-visit-card${isSelected ? " is-active-selection" : ""}`}>
                     <div className="dt-visit-media" role="img" aria-label={cleanName}>
                       <StopPhoto image={stop.image} fallback={fallback} />
                       <div className="dt-visit-photo-gradient" aria-hidden="true" />
@@ -414,40 +660,27 @@ export function DayTimeline({
                       {stop.unavailable && (
                         <p className="dt-unavailable">Điểm đến không còn khả dụng công khai</p>
                       )}
-
-                      {stop.nearbyAfter && stop.nearbyAfter.length > 0 && (
-                        <div className="dt-suggestion-box" aria-label={`Gần đây có thể ghé quanh ${cleanName}`}>
-                          <div className="dt-suggestion-head">
-                            <span>Gần đây có thể ghé</span>
-                            <InfoBadge label="Gợi ý, chưa kiểm tra" />
-                          </div>
-                          <ul className="dt-suggestion-list">
-                            {stop.nearbyAfter.map((item) => (
-                              <li key={item.key}>
-                                <span className="dt-suggestion-name">{cleanPlaceDisplayName(item.name)}</span>
-                                {item.distanceKm != null && (
-                                  <span className="dt-suggestion-dist">
-                                    {item.distanceKm.toLocaleString("vi-VN")} km
-                                  </span>
-                                )}
-                                <PreviewLink
-                                  target={item.previewTarget}
-                                  name={cleanPlaceDisplayName(item.name)}
-                                  onPreview={onPreview}
-                                  iconOnly
-                                />
-                                {item.actionSlot}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
                     </div>
                   </article>
+
+                    {stop.nearbyAfter && stop.nearbyAfter.length > 0 && (
+                      <StopNearbyRow
+                        items={stop.nearbyAfter}
+                        stopName={cleanName}
+                        onPreview={onPreview}
+                      />
+                    )}
+                  </div>
                 </li>
 
                 {resolvedLunch && (
-                  <li className="dt-break-item">
+                  <li
+                    className={`dt-break-item${
+                      index === orderedStops.length - 1 && suggestionMarkers.length > 0
+                        ? " dt-rail-to-suggestion"
+                        : ""
+                    }`}
+                  >
                     <span aria-hidden="true" />
                     <div className="dt-visit-time">
                       <strong>{minuteLabel(resolvedLunch.fromMinute)}</strong>
@@ -499,6 +732,20 @@ export function DayTimeline({
             );
           })}
 
+          {suggestionMarkers.map((marker, markerIdx) => {
+            const nextMarker = suggestionMarkers[markerIdx + 1];
+            const isDashedToNext = nextMarker !== undefined;
+            return (
+              <SuggestionMarkerItem
+                key={marker.id}
+                marker={marker}
+                dayIndex={day.dayIndex}
+                isDashedToNext={isDashedToNext}
+                onPreview={onPreview}
+              />
+            );
+          })}
+
           {day.nightRest && !day.chosenLodging && !day.eveningPlan && (
             <li className="dt-break-item">
               <span aria-hidden="true" />
@@ -515,142 +762,6 @@ export function DayTimeline({
 
           {day.returnCard}
         </ol>
-      )}
-
-      {day.eveningPlan ? (
-        <div
-          className="dt-suggestion-box dt-evening-box"
-          role="note"
-          data-testid={`evening-plan-day-${day.dayIndex}`}
-          aria-label={`Tối nay ngày ${day.dayIndex}`}
-        >
-          <div className="dt-suggestion-head">
-            <span className="dt-evening-title">
-              <Moon size={14} aria-hidden="true" />
-              Tối nay{day.eveningPlan.overnightArea ? ` · nghỉ ở ${day.eveningPlan.overnightArea}` : ""}
-            </span>
-            <InfoBadge label="Gợi ý từ Google Maps · Chưa kiểm tra · Không nằm trong lịch" />
-          </div>
-
-          {day.eveningPlan.chosenLodging ? (
-            <div className="dt-evening-lodging">
-              <BedDouble size={14} aria-hidden="true" />
-              <span>
-                Chỗ nghỉ đã chọn (Đêm {day.eveningPlan.nightIndex}):{" "}
-                <strong className="dt-suggestion-name">{cleanPlaceDisplayName(day.eveningPlan.chosenLodging.name)}</strong>
-              </span>
-              <InfoBadge label="Chưa kiểm tra · Không phải đặt phòng" />
-              <PreviewLink
-                target={day.eveningPlan.chosenLodging.previewTarget}
-                name={cleanPlaceDisplayName(day.eveningPlan.chosenLodging.name)}
-                onPreview={onPreview}
-                iconOnly
-              />
-            </div>
-          ) : day.eveningPlan.lodgingSuggestions && day.eveningPlan.lodgingSuggestions.length > 0 ? (
-            <div className="dt-evening-lodging-list">
-              <span className="dt-suggestion-subhead">Gợi ý chỗ nghỉ:</span>
-              <ul className="dt-suggestion-list">
-                {day.eveningPlan.lodgingSuggestions.slice(0, 3).map((item) => (
-                  <li key={item.key}>
-                    <span className="dt-suggestion-name">{cleanPlaceDisplayName(item.name)}</span>
-                    {item.distanceKm != null && (
-                      <span className="dt-suggestion-dist">{item.distanceKm.toLocaleString("vi-VN")} km</span>
-                    )}
-                    <PreviewLink
-                      target={item.previewTarget}
-                      name={cleanPlaceDisplayName(item.name)}
-                      onPreview={onPreview}
-                      iconOnly
-                    />
-                    {item.onChoose && (
-                      <button
-                        type="button"
-                        className={`tv-btn tv-btn--sm ${item.chosen ? "tv-btn--primary" : "tv-btn--secondary"}`}
-                        onClick={item.onChoose}
-                      >
-                        {item.chosen ? "Đã chọn" : "Chọn"}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {day.eveningPlan.eveningPlaces.length > 0 ? (
-            <ul className="dt-suggestion-list">
-              {day.eveningPlan.eveningPlaces.slice(0, 3).map((place) => (
-                <li key={place.key}>
-                  <span className="dt-suggestion-name">{cleanPlaceDisplayName(place.name)}</span>
-                  {place.distanceKm != null && (
-                    <span className="dt-suggestion-dist">{place.distanceKm.toLocaleString("vi-VN")} km</span>
-                  )}
-                  <PreviewLink
-                    target={place.previewTarget}
-                    name={cleanPlaceDisplayName(place.name)}
-                    onPreview={onPreview}
-                    iconOnly
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="dt-suggestion-empty">Chưa tìm được gợi ý buổi tối</p>
-          )}
-        </div>
-      ) : (
-        day.chosenLodging && (
-          <div
-            className="dt-suggestion-box my-trips-chosen-lodging"
-            role="note"
-            aria-label={`Chỗ nghỉ đã chọn đêm ${day.chosenLodging.nightIndex}`}
-          >
-            <BedDouble size={15} aria-hidden="true" />
-            <span>
-              <strong>Chỗ nghỉ đã chọn (Đêm {day.chosenLodging.nightIndex}):</strong>{" "}
-              <span className="dt-suggestion-name">{cleanPlaceDisplayName(day.chosenLodging.name)}</span>
-            </span>
-            <InfoBadge label="Chưa kiểm tra · Không phải đặt phòng" />
-            <PreviewLink
-              target={day.chosenLodging.previewTarget}
-              name={cleanPlaceDisplayName(day.chosenLodging.name)}
-              onPreview={onPreview}
-              iconOnly
-            />
-          </div>
-        )
-      )}
-
-      {day.nearbySuggestions && day.nearbySuggestions.length > 0 && (
-        <div
-          className="dt-suggestion-box my-trips-nearby"
-          role="note"
-          aria-label={`Gợi ý vui chơi quanh đây ngày ${day.dayIndex}`}
-        >
-          <div className="dt-suggestion-head">
-            <span>Gần đây có thể ghé</span>
-            <InfoBadge label="Từ Google Maps · Chưa kiểm tra · Không nằm trong lịch" />
-          </div>
-          <ul className="dt-suggestion-list">
-            {day.nearbySuggestions.map((item) => (
-              <li key={item.key}>
-                <span className="dt-suggestion-name">{cleanPlaceDisplayName(item.name)}</span>
-                {item.distanceKm != null && (
-                  <span className="dt-suggestion-dist">
-                    {item.distanceKm.toLocaleString("vi-VN")} km{item.tag ? ` ${item.tag}` : ""}
-                  </span>
-                )}
-                <PreviewLink
-                  target={item.previewTarget}
-                  name={cleanPlaceDisplayName(item.name)}
-                  onPreview={onPreview}
-                  iconOnly
-                />
-              </li>
-            ))}
-          </ul>
-        </div>
       )}
     </section>
   );

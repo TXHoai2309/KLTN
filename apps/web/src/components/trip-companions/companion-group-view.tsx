@@ -35,6 +35,7 @@ import {
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
 import { DayTimeline, type DayTimelineDay } from "@/components/trip-timeline/day-timeline";
+import { splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
 import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
@@ -1145,6 +1146,16 @@ function CompanionGroupContent({
                     journeyPlan: currentGroup.meetingPoint?.plan ?? undefined,
                   });
 
+                  const { nearbyByStopOrder, freeTimeSuggestions } = splitTripNearbyBySlot(
+                    dayNearby,
+                    day.visits.map((v) => ({ order: v.order })),
+                    (item) => ({
+                      key: `nb-${item.dayIndex}-${item.slot}-${item.placeId}`,
+                      name: cleanPlaceDisplayName(item.name),
+                      distanceKm: item.distanceKm,
+                    }),
+                  );
+
                   const timelineDay: DayTimelineDay = {
                     dayIndex: day.dayIndex,
                     localDate: day.localDate,
@@ -1155,6 +1166,7 @@ function CompanionGroupContent({
                       const isUnavailable = visit.destination.availability === "UNAVAILABLE";
                       const area = cleanAreaDisplayLabel(visit.destination.area) ?? inferDestinationArea(visit.destination.name);
                       const fallbackVisual = getDestinationVisual(visit.destination.name, area);
+                      const stopNearby = nearbyByStopOrder.get(visit.order);
                       return {
                         id: visit.visitId,
                         destinationId: destId,
@@ -1169,6 +1181,7 @@ function CompanionGroupContent({
                           ? `/destinations/${visit.destination.destinationId}`
                           : null,
                         unavailable: isUnavailable,
+                        nearbyAfter: stopNearby && stopNearby.length > 0 ? stopNearby : undefined,
                         lunchAfter:
                           dayLunch && visitIdx === dayLunch.afterStopIndex
                             ? {
@@ -1179,15 +1192,11 @@ function CompanionGroupContent({
                             : null,
                       };
                     }),
-                    chosenLodging: !eveningPlan && dayLodging
+                    chosenLodging: day.dayIndex < totalDays && !eveningPlan && dayLodging
                       ? { nightIndex: dayLodging.nightIndex, name: dayLodging.name, placeId: dayLodging.placeId }
                       : null,
                     eveningPlan,
-                    nearbySuggestions: dayNearby.map((item) => ({
-                      key: `nb-${item.dayIndex}-${item.slot}-${item.placeId}`,
-                      name: cleanPlaceDisplayName(item.name),
-                      distanceKm: item.distanceKm,
-                    })),
+                    freeTimeSuggestions: freeTimeSuggestions.length > 0 ? freeTimeSuggestions : undefined,
                   };
 
                   return (

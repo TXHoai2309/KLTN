@@ -7,7 +7,8 @@ import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-plan
 import { Fragment, useEffect, useRef, useState, useMemo, type CSSProperties } from "react";
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, travelerDayColorVar, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
-import { DayTimeline, type DayTimelineDay, type DayTimelineNearbyItem, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
+import { DayTimeline, type DayTimelineDay, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
+import { estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
 import { buildDataTripTitle, daysUntilTrip } from "@/lib/traveler-trip-title";
@@ -1451,10 +1452,22 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   })),
                 });
 
+                const { nearbyByStopOrder, freeTimeSuggestions } = splitTripNearbyBySlot(
+                  nearbyForDay,
+                  day.visits.map((v) => ({ order: v.order })),
+                  (item) => ({
+                    key: `${item.slot}|${item.placeId}`,
+                    name: item.name,
+                    distanceKm: item.distanceKm,
+                    previewTarget: { kind: "GOOGLE_PLACE", name: item.name, placeId: item.placeId },
+                  }),
+                );
+
                 const stops: DayTimelineStop[] = day.visits.map((visit, visitIndex) => {
                   const nextVisit = day.visits[visitIndex + 1];
                   const departure = visit.startMinute + visit.plannedDurationMinutes;
                   const lunch = nextVisit ? lunchBreakAfter(trip.journey?.plan, nextVisit.destination.id, departure, nextVisit.startMinute) : null;
+                  const stopNearby = nearbyByStopOrder.get(visit.order);
                   return {
                     id: visit.id,
                     destinationId: visit.destination.id,
@@ -1470,17 +1483,21 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                     external: Boolean(visit.destination.external),
                     unavailable: visit.destination.availability === "UNAVAILABLE",
                     weatherSlot: <StopWeather day={day.dayIndex} destinationId={visit.destination.id} />,
+                    nearbyAfter: stopNearby && stopNearby.length > 0 ? stopNearby : undefined,
                     lunchAfter: lunch ? { fromMinute: lunch.from, toMinute: lunch.to, durationMinutes: 60 } : null,
                   };
                 });
 
-                const nearbyItems: DayTimelineNearbyItem[] = nearbyForDay.map((item) => ({
-                  key: `${item.slot}|${item.placeId}`,
-                  name: item.name,
-                  distanceKm: item.distanceKm,
-                  tag: item.kind === "EVENING" ? "(buổi tối)" : item.slot === "free" ? "(chiều rảnh)" : "(gần điểm tham quan)",
-                  previewTarget: { kind: "GOOGLE_PLACE", name: item.name, placeId: item.placeId },
-                }));
+                const estimatedCheckinTravelMinutes =
+                  (eveningPlan || (day.dayIndex < trip.days.length && chosen)) && chosen
+                    ? estimateCheckinTravelMinutes({
+                        lastStopLat: lastVisit?.destination.latitude,
+                        lastStopLng: lastVisit?.destination.longitude,
+                        targetLat: chosen.latitude,
+                        targetLng: chosen.longitude,
+                        transport: trip.transport,
+                      })
+                    : null;
 
                 const timelineDay: DayTimelineDay = {
                   dayIndex: day.dayIndex,
@@ -1530,7 +1547,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                         }
                       />
                     ) : undefined,
-                  chosenLodging: !eveningPlan && chosen
+                  chosenLodging: day.dayIndex < trip.days.length && !eveningPlan && chosen
                     ? {
                         nightIndex: chosen.nightIndex,
                         name: chosen.name,
@@ -1539,7 +1556,8 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                       }
                     : null,
                   eveningPlan,
-                  nearbySuggestions: nearbyItems,
+                  estimatedCheckinTravelMinutes,
+                  freeTimeSuggestions: freeTimeSuggestions.length > 0 ? freeTimeSuggestions : undefined,
                 };
 
                 return (

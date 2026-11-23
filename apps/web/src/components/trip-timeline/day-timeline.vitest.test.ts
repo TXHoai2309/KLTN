@@ -5,9 +5,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { DayTimeline, type DayTimelineDay } from "./day-timeline";
+import { estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "./suggestion-markers";
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
 import { TripsageTimelineView } from "@/components/tripsage-chat/tripsage-timeline-view";
 import { formatVisitDescription } from "@/modules/tripsage-chat/tripsage-timeline";
+import { validateItinerary, type RouteSnapshot, type ValidationVisit } from "@/modules/trip-validation/trip-validation";
+import { estimateTripCost } from "@/modules/tripsage-chat/tripsage-cost";
 
 const SAMPLE_DAY: DayTimelineDay = {
   dayIndex: 1,
@@ -69,7 +72,7 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     expect(html).toContain("08:12 – 09:12 (60 phút)");
     expect(html).toContain("Điểm dừng 1");
     expect(html).toContain("Xem nhanh");
-    expect(html).toContain("Gần đây có thể ghé");
+    expect(html).toContain("Gần đây:");
     expect(html).toContain("Quán cà phê Cổng Trời");
     expect(html).toContain("Nghỉ trưa");
     expect(html).toContain("Quán ăn Quản Bạ");
@@ -96,7 +99,7 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     expect(html).toContain("--tv-day-color:var(--tv-day-2)");
     expect(html).toContain("Đèo Mã Pí Lèng");
     expect(html).not.toContain("Xem nhanh");
-    expect(html).not.toContain("Gần đây có thể ghé");
+    expect(html).not.toContain("Gần đây:");
   });
 
   it("strips [Tam]/[Tạm]/[ Tạm ] prefix from stop descriptions across DayTimeline, TripsageTimelineView, formatVisitDescription, and PlacePreviewModal without marking the stop unverified", () => {
@@ -320,7 +323,6 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
 
     const html = renderToStaticMarkup(createElement(DayTimeline, { day: dayWithSuggestions, variant: "full", onPreview: () => {} }));
     expect(html).not.toContain("dt-sunken-box");
-    expect(html).toContain("dt-suggestion-box");
     expect(html).toContain("dt-info-badge");
     // Tooltip carries the disclaimer; no repeated plain text disclaimer span inside rows
     expect(html).not.toContain(">gợi ý, chưa kiểm tra<");
@@ -334,8 +336,194 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     const dayCss = readFileSync(resolve(process.cwd(), "src/components/trip-timeline/day-timeline.css"), "utf8");
     const tripsCss = readFileSync(resolve(process.cwd(), "src/app/trips/trips.css"), "utf8");
     expect(dayCss).not.toContain(".dt-sunken-box");
-    expect(dayCss).toMatch(/\.dt-suggestion-box\s*\{[^}]*background:\s*var\(--tv-surface\)/);
+    expect(dayCss).toMatch(/\.dt-suggestion-marker[^{]*\{[^}]*background:\s*var\(--tv-surface\)/);
     expect(dayCss).toMatch(/\.dt-suggestion-name\s*\{[^}]*font-size:\s*14px[^}]*font-weight:\s*500/);
     expect(tripsCss).not.toMatch(/\.my-trips-chosen-lodging\s*\{[^}]*background:\s*var\(--tv-sunken\)/);
+  });
+
+  it("A4: places Gần đây under stop (+N collapsed by default) and Free Time, Check-in, Dinner as ordered timeline markers with hollow nodes and dashed rails", () => {
+    const dayWithAllMarkers: DayTimelineDay = {
+      dayIndex: 1,
+      localDate: "2026-12-13",
+      estimatedCheckinTravelMinutes: 210, // 14:00 + 3h30 -> ~17:30 check-in
+      stops: [
+        {
+          id: "v1",
+          destinationId: "d1",
+          order: 1,
+          name: "Phố cổ Đồng Văn",
+          area: "Đồng Văn",
+          startMinute: 780, // 13:00
+          durationMinutes: 60, // ends 14:00
+          nearbyAfter: [
+            { key: "nb-1", name: "Cánh đồng tam giác mạch", distanceKm: 2.7, previewTarget: { kind: "GOOGLE_PLACE", name: "Cánh đồng tam giác mạch", placeId: "ChIJ_1" } },
+            { key: "nb-2", name: "Làng Lũng Cẩm", distanceKm: 3.4, previewTarget: { kind: "GOOGLE_PLACE", name: "Làng Lũng Cẩm", placeId: "ChIJ_2" } },
+          ],
+        },
+      ],
+      freeTimeSuggestions: [
+        { key: "ft-1", name: "Dốc Thẩm Mã", distanceKm: 2.1, previewTarget: { kind: "GOOGLE_PLACE", name: "Dốc Thẩm Mã", placeId: "ChIJ_ft1" } },
+        { key: "ft-2", name: "Dốc 9 Khoanh", distanceKm: 3.2, previewTarget: { kind: "GOOGLE_PLACE", name: "Dốc 9 Khoanh", placeId: "ChIJ_ft2" } },
+      ],
+      eveningPlan: {
+        nightIndex: 1,
+        overnightArea: "Đồng Văn",
+        lodgingSuggestions: [
+          { key: "lg-1", name: "Ha Anh Homestay", distanceKm: 0.8, previewTarget: { kind: "GOOGLE_PLACE", name: "Ha Anh Homestay", placeId: "ChIJ_lg1" }, onChoose: () => {} },
+        ],
+        eveningPlaces: [
+          { key: "ev-1", name: "Quán Cơm nhà Pao", distanceKm: 0.2, previewTarget: { kind: "GOOGLE_PLACE", name: "Quán Cơm nhà Pao", placeId: "ChIJ_ev1" } },
+        ],
+      },
+    };
+
+    const html = renderToStaticMarkup(createElement(DayTimeline, { day: dayWithAllMarkers, variant: "full", onPreview: () => {} }));
+    // Per-stop nearby shows first item + "+1" collapsed toggle by default
+    expect(html).toContain("Gần đây:");
+    expect(html).toContain("Cánh đồng tam giác mạch");
+    expect(html).toContain("+1");
+    expect(html).not.toContain("Làng Lũng Cẩm"); // collapsed until "+1" clicked
+    // Markers appear in chronological order inside timeline list with ~ prefix, "gợi ý" label, hollow ring & dashed connector
+    expect(html).toContain("dt-timeline-node--suggestion");
+    expect(html).toContain("dt-rail-to-suggestion");
+    expect(html).toContain("dt-marker-badge\">gợi ý<");
+    expect(html).toContain("~14:00");
+    expect(html).toContain("Thời gian trống · có thể ghé");
+    expect(html).toContain("~17:30");
+    expect(html).toContain("Nhận phòng · Đồng Văn");
+    expect(html).toContain("~19:00");
+    expect(html).toContain("Ăn tối gần chỗ nghỉ");
+    const posStop = html.indexOf("Phố cổ Đồng Văn");
+    const posNearby = html.indexOf("Cánh đồng tam giác mạch");
+    const posFree = html.indexOf("Thời gian trống · có thể ghé");
+    const posCheckin = html.indexOf("Nhận phòng · Đồng Văn");
+    const posDinner = html.indexOf("Ăn tối gần chỗ nghỉ");
+    expect(posStop).toBeLessThan(posNearby);
+    expect(posNearby).toBeLessThan(posFree);
+    expect(posFree).toBeLessThan(posCheckin);
+    expect(posCheckin).toBeLessThan(posDinner);
+
+    // Without estimatedCheckinTravelMinutes, check-in sits after free time WITHOUT a fabricated clock
+    const withoutCheckinClock = renderToStaticMarkup(createElement(DayTimeline, {
+      day: { ...dayWithAllMarkers, estimatedCheckinTravelMinutes: null },
+      variant: "full",
+    }));
+    expect(withoutCheckinClock).toContain("Nhận phòng · Đồng Văn");
+    expect(withoutCheckinClock).not.toContain("~17:30");
+
+    // Last day (eveningPlan = null): neither check-in nor dinner renders
+    const lastDayHtml = renderToStaticMarkup(createElement(DayTimeline, {
+      day: { ...dayWithAllMarkers, eveningPlan: null, chosenLodging: null },
+      variant: "full",
+    }));
+    expect(lastDayHtml).not.toContain("Nhận phòng");
+    expect(lastDayHtml).not.toContain("Ăn tối gần chỗ nghỉ");
+  });
+
+  it("A4: keeps Constraint Validator decisions, stop times, and cost untouched with or without suggestion markers", () => {
+    const visits: ValidationVisit[] = [
+      {
+        visitId: "v1",
+        dayIndex: 1,
+        order: 1,
+        localDate: "2026-12-13",
+        startMinute: 480,
+        plannedDurationMinutes: 60,
+        minimumDurationMinutes: 45,
+        openingDays: [{ dayOfWeek: "SUNDAY", status: "OPEN", intervals: [{ opensAtMinute: 420, closesAtMinute: 1080 }] }],
+      },
+      {
+        visitId: "v2",
+        dayIndex: 1,
+        order: 2,
+        localDate: "2026-12-13",
+        startMinute: 600,
+        plannedDurationMinutes: 90,
+        minimumDurationMinutes: 60,
+        openingDays: [{ dayOfWeek: "SUNDAY", status: "OPEN", intervals: [{ opensAtMinute: 420, closesAtMinute: 1080 }] }],
+      },
+    ];
+    const routes: RouteSnapshot[] = [
+      { fromVisitId: "v1", toVisitId: "v2", route: { kind: "ok", durationSeconds: 2400 } },
+    ];
+    const timeRef = new Date("2026-12-01T00:00:00Z");
+    const costInput = {
+      travelers: 2,
+      days: 2,
+      transport: "CAR" as const,
+      distanceKm: 120,
+      lines: [{ category: "food" as const, label: "Ăn uống", amount: 800_000 }],
+    };
+
+    const baselineValidation = validateItinerary(visits, routes, timeRef);
+    const baselineCost = estimateTripCost(costInput);
+
+    // Render DayTimeline both without and with full suggestion markers (display layer only)
+    const bareDay: DayTimelineDay = {
+      dayIndex: 1,
+      localDate: "2026-12-13",
+      stops: visits.map(v => ({
+        id: v.visitId,
+        destinationId: v.visitId,
+        order: v.order,
+        name: `Điểm ${v.order}`,
+        area: "Đồng Văn",
+        startMinute: v.startMinute,
+        durationMinutes: v.plannedDurationMinutes,
+      })),
+    };
+    const suggestedDay: DayTimelineDay = {
+      ...bareDay,
+      estimatedCheckinTravelMinutes: 40,
+      stops: bareDay.stops.map((s, idx) =>
+        idx === 0 ? { ...s, nearbyAfter: [{ key: "nb", name: "Cánh đồng hoa", distanceKm: 1.5 }] } : s,
+      ),
+      freeTimeSuggestions: [{ key: "ft", name: "Dốc Thẩm Mã", distanceKm: 2.0 }],
+      eveningPlan: {
+        nightIndex: 1,
+        overnightArea: "Đồng Văn",
+        lodgingSuggestions: [{ key: "lg", name: "Ha Anh Homestay", distanceKm: 0.8 }],
+        eveningPlaces: [{ key: "ev", name: "Quán Cơm nhà Pao", distanceKm: 0.2 }],
+      },
+    };
+    renderToStaticMarkup(createElement(DayTimeline, { day: bareDay }));
+    renderToStaticMarkup(createElement(DayTimeline, { day: suggestedDay }));
+
+    const afterValidation = validateItinerary(visits, routes, timeRef);
+    const afterCost = estimateTripCost(costInput);
+
+    expect(afterValidation).toEqual(baselineValidation);
+    expect(afterCost.total).toBe(baselineCost.total);
+    expect(visits.map(v => [v.startMinute, v.plannedDurationMinutes])).toEqual([[480, 60], [600, 90]]);
+  });
+
+  it("A4: splits saved nearbySuggestions cleanly by slot and estimates check-in travel only when coordinates or same-area distance exist", () => {
+    const items = [
+      { slot: "visit-1", kind: "ACTIVITY", placeId: "p1", name: "Cánh đồng tam giác mạch", distanceKm: 2.7 },
+      { slot: "visit-2", kind: "ACTIVITY", placeId: "p2", name: "Đồn Cao", distanceKm: 1.1 },
+      { slot: "free", kind: "ACTIVITY", placeId: "p3", name: "Dốc Thẩm Mã", distanceKm: 2.0 },
+      { slot: "visit-9", kind: "ACTIVITY", placeId: "p4", name: "Điểm rảnh", distanceKm: 3.5 },
+    ];
+    const split = splitTripNearbyBySlot(items, [{ order: 1 }, { order: 2 }], (i) => ({
+      key: `${i.slot}|${i.placeId}`,
+      name: i.name,
+      distanceKm: i.distanceKm,
+    }));
+    expect(split.nearbyByStopOrder.get(1)?.map((i) => i.name)).toEqual(["Cánh đồng tam giác mạch"]);
+    expect(split.nearbyByStopOrder.get(2)?.map((i) => i.name)).toEqual(["Đồn Cao"]);
+    expect(split.freeTimeSuggestions.map((i) => i.name)).toEqual(["Dốc Thẩm Mã", "Điểm rảnh"]);
+
+    // No coordinates -> returns null (never fabricates a clock)
+    expect(estimateCheckinTravelMinutes({ lastStopLat: 23.27, lastStopLng: 105.36 })).toBeNull();
+    // Coordinates ~20 km apart -> positive 5-min-rounded travel time estimate
+    const travel = estimateCheckinTravelMinutes({
+      lastStopLat: 23.049,
+      lastStopLng: 104.992,
+      targetLat: 23.278,
+      targetLng: 105.362,
+      transport: "CAR",
+    });
+    expect(travel).not.toBeNull();
+    expect(travel!).toBeGreaterThanOrEqual(45);
   });
 });

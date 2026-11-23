@@ -6,6 +6,7 @@ import { Calendar, Columns2, Map, Maximize2, PanelRightClose, PanelRightOpen, X 
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { DayTimeline, type DayTimelineDay, type DayTimelineNearbyItem, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
+import { estimateCheckinTravelMinutes, isSameTravelArea } from "@/components/trip-timeline/suggestion-markers";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import { ItineraryValidationPanel } from "@/components/trip-planner/planner-presentation";
@@ -419,33 +420,48 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         key: s.place!.placeId ?? s.title,
         name: s.title,
         distanceKm: s.place!.distanceKm,
-        tag: "(chiều rảnh)",
         previewTarget: previewTargetForSuggestion(s),
       }));
+
+    const eveningPlan = buildDayEveningPlan({
+      dayIndex: activePlannerDay.day,
+      totalDays,
+      lastStopArea: lastDayStop?.destination.area,
+      lastStopName: lastDayStop?.destination.name,
+      lastStopAddress: lastDayStop?.destination.address,
+      lastStopLatitude: lastDayStop?.destination.latitude,
+      lastStopLongitude: lastDayStop?.destination.longitude,
+      chosenLodging: chosen
+        ? {
+            name: chosen.name,
+            previewTarget: { kind: "GOOGLE_PLACE", name: chosen.name, placeId: chosen.placeId },
+          }
+        : null,
+      lodgingSuggestions: lodgingChoices,
+      eveningPlaces,
+    });
+
+    const sameOvernightArea = eveningPlan
+      ? isSameTravelArea(lastDayStop?.destination.area, eveningPlan.overnightArea)
+      : false;
+    const referenceLodgingDistKm = sameOvernightArea
+      ? (lodgingChoices.find((l) => l.chosen)?.distanceKm ?? lodgingChoices[0]?.distanceKm ?? null)
+      : null;
+    const estimatedCheckinTravelMinutes = eveningPlan
+      ? estimateCheckinTravelMinutes({
+          sameAreaDistanceKm: referenceLodgingDistKm,
+          transport: proposal.requirement.transport,
+        })
+      : null;
 
     return {
       dayIndex: activePlannerDay.day,
       localDate: activePlannerDay.date,
       transportLabel: transportText,
       stops,
-      eveningPlan: buildDayEveningPlan({
-        dayIndex: activePlannerDay.day,
-        totalDays,
-        lastStopArea: lastDayStop?.destination.area,
-        lastStopName: lastDayStop?.destination.name,
-        lastStopAddress: lastDayStop?.destination.address,
-        lastStopLatitude: lastDayStop?.destination.latitude,
-        lastStopLongitude: lastDayStop?.destination.longitude,
-        chosenLodging: chosen
-          ? {
-              name: chosen.name,
-              previewTarget: { kind: "GOOGLE_PLACE", name: chosen.name, placeId: chosen.placeId },
-            }
-          : null,
-        lodgingSuggestions: lodgingChoices,
-        eveningPlaces,
-      }),
-      nearbySuggestions: freeNearby.length > 0 ? freeNearby : undefined,
+      eveningPlan,
+      estimatedCheckinTravelMinutes,
+      freeTimeSuggestions: freeNearby.length > 0 ? freeNearby : undefined,
     };
   }, [
     activePlannerDay,
