@@ -7,8 +7,10 @@ import { fixtureRoutes, planningCandidate } from "../../test/planning-fixtures";
 import {
   extractStatedDateFromText,
   FAR_HOME_TRANSPORT_CHIPS,
+  FIXED_HUB_CANDIDATES,
   isFarFromHubs,
   isFarHomeCityName,
+  permitsOriginConfirmation,
 } from "./tripsage-chat-origin";
 import { TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
@@ -228,5 +230,56 @@ describe("Ticket 03: far home city & no redundant date confirmation", () => {
   it("updates persona instructions to match the server guards", () => {
     expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Đổi ngày");
     expect(TRIPSAGE_CHAT_INSTRUCTIONS).toMatch(/quận\/huyện|điểm cụ thể trong thành phố nhà/u);
+  });
+
+  it("Bug 1: permits immediate fixed-hub confirmation when user names hub + travel verb and still asks when vague", () => {
+    const hn = FIXED_HUB_CANDIDATES.find(c => c.id === "hub:HA_NOI")!;
+    const hg = FIXED_HUB_CANDIDATES.find(c => c.id === "hub:HA_GIANG_CITY")!;
+    const fullScenario =
+      "Nhóm mình 4 người ở Đà Nẵng, muốn đi Hà Giang 4 ngày bằng xe máy, khởi hành khoảng 12/12. Ngân sách tầm 5 triệu/người, thích săn mây và ăn đặc sản. Bọn mình bay ra Hà Nội rồi đi xe khách lên TP Hà Giang, thuê xe máy ở đó.";
+
+    expect(permitsOriginConfirmation(fullScenario, hg, FIXED_HUB_CANDIDATES, { fromPreviousTurn: false })).toBe(true);
+    expect(permitsOriginConfirmation(fullScenario, hn, FIXED_HUB_CANDIDATES, { fromPreviousTurn: false })).toBe(false);
+    expect(permitsOriginConfirmation("đi xe khách lên TP Hà Giang", hg, FIXED_HUB_CANDIDATES, { fromPreviousTurn: false })).toBe(true);
+    expect(permitsOriginConfirmation("bay ra Hà Nội rồi tự chạy xe từ Hà Nội", hn, FIXED_HUB_CANDIDATES, { fromPreviousTurn: false })).toBe(true);
+    expect(permitsOriginConfirmation("bay ra Hà Nội rồi tự chạy xe từ Hà Nội", hg, FIXED_HUB_CANDIDATES, { fromPreviousTurn: false })).toBe(false);
+
+    // Vague / ambiguous messages must still require confirmation
+    expect(permitsOriginConfirmation("chắc đi Hà Giang", hg, FIXED_HUB_CANDIDATES, { fromPreviousTurn: false })).toBe(false);
+    expect(permitsOriginConfirmation("chắc đi xe khách lên TP Hà Giang", hg, FIXED_HUB_CANDIDATES, { fromPreviousTurn: false })).toBe(false);
+    expect(permitsOriginConfirmation("đi từ Hà Nội hay TP Hà Giang", hg, FIXED_HUB_CANDIDATES, { fromPreviousTurn: false })).toBe(false);
+  });
+
+  it("Bug 1: produces itinerary in Turn 1 for the Đà Nẵng + bus to TP Hà Giang scenario without asking to confirm hub", async () => {
+    const fullScenario =
+      "Nhóm mình 4 người ở Đà Nẵng, muốn đi Hà Giang 4 ngày bằng xe máy, khởi hành khoảng 12/12. Ngân sách tầm 5 triệu/người, thích săn mây và ăn đặc sản. Bọn mình bay ra Hà Nội rồi đi xe khách lên TP Hà Giang, thuê xe máy ở đó.";
+
+    const { sse, model } = await chat(
+      [{ id: "u1", role: "user", text: fullScenario }],
+      [
+        {
+          tool: "recordTripInfo",
+          input: {
+            homeCity: "Đà Nẵng",
+            travelers: 4,
+            durationDays: 2,
+            startDate: "2026-12-13",
+            transport: "MOTORCYCLE",
+            pace: "PACKED",
+          },
+        },
+        { tool: "confirmOrigin", input: { candidateId: "hub:HA_GIANG_CITY" } },
+        { tool: "proposeItinerary", input: { selection: { days: [["a"], ["b"]] } } },
+        { text: "Mình đã xếp lịch chạy xe từ TP Hà Giang bắt đầu 13/12." },
+      ],
+    );
+
+    const emitted = parts(sse);
+    const toolPrompts = JSON.stringify(model.doStreamCalls.map(c => c.prompt));
+    expect(toolPrompts).not.toContain("ORIGIN_CONFIRMATION_REQUIRED");
+    const journey = emitted.find(p => p.type === "data-journey")?.data as { journey?: { origin?: { label?: string; confirmed?: boolean } } } | undefined;
+    expect(journey?.journey?.origin?.label).toBe("TP Hà Giang (bến xe phía Nam)");
+    expect(journey?.journey?.origin?.confirmed).toBe(true);
+    expect(emitted.some(p => p.type === "data-itinerary")).toBe(true);
   });
 });

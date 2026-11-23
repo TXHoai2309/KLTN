@@ -111,6 +111,38 @@ const HUB_SPECIFIC_PATTERNS: Record<string, readonly RegExp[]> = {
   ],
 };
 
+/** Hedging or hub-comparison phrases that indicate the traveler has not decided on a fixed hub yet. */
+const HUB_UNCERTAIN_CUE = /\b(?:chac(?:\s+la)?|co\s+the|chua\s+chac|du\s+dinh\s+co\s+the)\s+(?:di|bay|len|ra|toi|den|xuat\s+phat|tap\s+ket)\b/u;
+const HUB_COMPARISON_CUE = /\b(?:ha\s+noi|hanoi)\s+(?:hay|hoac|or)\s+(?:tp\s+|thanh\s+pho\s+)?ha\s+giang\b|\b(?:tp\s+|thanh\s+pho\s+)?ha\s+giang\s+(?:hay|hoac|or)\s+(?:ha\s+noi|hanoi)\b/u;
+
+/** Explicit travel/transfer/rental patterns that directly designate TP Hà Giang as the starting hub. */
+const STATED_HA_GIANG_HUB_PATTERNS: readonly RegExp[] = [
+  /\b(?:xe\s+khach|xe\s+giuong\s+nam|limousine|xe\s+co\s+tai\s+xe|xe\s+dich\s+vu)\b[^.?!;]{0,40}\b(?:len|ra|toi|den|ve|di)\s+(?:tp\s+|thanh\s+pho\s+)?ha\s+giang\b/u,
+  /\b(?:len|ra|toi|den)\s+(?:tp\s+ha\s+giang|thanh\s+pho\s+ha\s+giang|ben\s+xe\s+(?:phia\s+nam|ha\s+giang))\b/u,
+  /\bthue\s+(?:xe\s+may|o\s+to|xe)\s+(?:o|tai)\s+(?:tp\s+ha\s+giang|thanh\s+pho\s+ha\s+giang)\b/u,
+];
+
+/** Explicit travel/self-drive/rental patterns that directly designate Hà Nội as the starting hub (only when TP Hà Giang is not stated). */
+const STATED_HA_NOI_HUB_PATTERNS: readonly RegExp[] = [
+  /\b(?:bay|di\s+may\s+bay|di\s+tau(?:\s+hoa)?|di\s+xe\s+khach|di\s+xe\s+giuong\s+nam)\s+(?:ra|len|toi|den)\s+(?:tp\s+|thanh\s+pho\s+)?(?:ha\s+noi|hanoi)\b/u,
+  /\b(?:tu\s+(?:chay|lai)(?:\s+xe(?:\s+may)?)?\s+tu|thue\s+(?:xe\s+may|o\s+to|xe)\s+(?:o|tai))\s+(?:tp\s+|thanh\s+pho\s+)?(?:ha\s+noi|hanoi)\b/u,
+];
+
+/**
+ * Returns the fixed hub id directly designated by a travel/transfer/rental phrase in the traveler's message
+ * (e.g. "bay ra Hà Nội rồi đi xe khách lên TP Hà Giang" → "hub:HA_GIANG_CITY",
+ * "bay ra Hà Nội rồi tự chạy xe từ Hà Nội" → "hub:HA_NOI").
+ * Returns null for vague, hesitant, negated, or ambiguous hub comparisons so the assistant still asks.
+ */
+export function statedFixedHubId(latestUserText: string): "hub:HA_GIANG_CITY" | "hub:HA_NOI" | null {
+  const folded = foldVietnamese(latestUserText);
+  if (!folded || hasHardNegation(latestUserText, folded)) return null;
+  if (HUB_UNCERTAIN_CUE.test(folded) || HUB_COMPARISON_CUE.test(folded)) return null;
+  if (STATED_HA_GIANG_HUB_PATTERNS.some(pattern => pattern.test(folded))) return "hub:HA_GIANG_CITY";
+  if (STATED_HA_NOI_HUB_PATTERNS.some(pattern => pattern.test(folded))) return "hub:HA_NOI";
+  return null;
+}
+
 function mentionsHub(folded: string, hubId: string): boolean {
   return HUB_SPECIFIC_PATTERNS[hubId]?.some(pattern => pattern.test(folded)) ?? false;
 }
@@ -237,6 +269,14 @@ export function permitsOriginConfirmation(
       return true;
     }
     return false;
+  }
+
+  // Fixed hub directly designated by a travel/transfer/rental verb in the latest message
+  // (e.g. "đi xe khách lên TP Hà Giang", "bay ra Hà Nội rồi tự chạy xe từ Hà Nội") confirms immediately
+  // in the same turn without an extra confirmation round; TP Hà Giang takes priority in multi-leg transfers.
+  if (HUB_SPECIFIC_PATTERNS[candidate.id]) {
+    const statedHub = statedFixedHubId(latestUserText);
+    if (statedHub) return statedHub === candidate.id;
   }
 
   // Fixed hub selected directly without a prior findOrigin round-trip requires an explicit choice/switch cue + hub name
