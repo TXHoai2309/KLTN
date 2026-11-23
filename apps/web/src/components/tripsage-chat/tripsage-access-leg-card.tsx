@@ -12,7 +12,7 @@ const hours = (minutes: number) => `${Math.floor(minutes / 60)} giờ${minutes %
 const formatDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
 function segmentPriceLabel(segment: AccessLegPart["outbound"][number]): string {
-  if (segment.priceVndPerPerson === 0) return "chưa có giá";
+  if (segment.priceVndPerPerson === 0 || segment.priceSource === "MISSING") return "chưa có giá";
   if (segment.priceSource === "GOOGLE_FLIGHTS") {
     const dateSuffix = segment.priceLookupDate ? ` ngày ${formatDate(segment.priceLookupDate)}` : "";
     return `${formatVnd(segment.priceVndPerPerson)}/người (giá tham khảo từ Google Flights${dateSuffix})`;
@@ -21,14 +21,23 @@ function segmentPriceLabel(segment: AccessLegPart["outbound"][number]): string {
 }
 
 function Segments({ title, segments, minutes }: { title: string; segments: AccessLegPart["outbound"]; minutes: number }) {
+  const hasMissingDuration = segments.some(s => s.durationMinutes <= 0);
   return (
     <div>
-      <h5 className="font-semibold">{title} · khoảng {hours(minutes)}</h5>
+      <h5 className="font-semibold">
+        {title}
+        {minutes > 0 ? ` · khoảng ${hours(minutes)}${hasMissingDuration ? " (chưa đủ mọi đoạn)" : ""}` : ""}
+      </h5>
       <ol className="tripsage-access-segments">
         {segments.map((segment, index) => (
           <li key={index}>
             {ICON[segment.mode]} <strong>{ACCESS_MODE_LABELS[segment.mode]}</strong> {segment.from} → {segment.to}
-            <span className="assistant-muted"> · {segment.departTime ? `đi ${segment.departTime}, ` : ""}{hours(segment.durationMinutes)} · {segmentPriceLabel(segment)}</span>
+            <span className="assistant-muted">
+              {" · "}
+              {segment.departTime ? `đi ${segment.departTime}, ` : ""}
+              {segment.durationMinutes > 0 ? `${hours(segment.durationMinutes)} · ` : ""}
+              {segmentPriceLabel(segment)}
+            </span>
           </li>
         ))}
       </ol>
@@ -75,7 +84,15 @@ export function TripsageAccessLegCard({
       </div>
       <Segments title="Trước chuyến đi" segments={leg.outbound} minutes={leg.outboundMinutes} />
       <Segments title="Sau chuyến đi" segments={leg.return} minutes={leg.returnMinutes} />
-      <p className="text-sm">Tổng tham khảo cả nhóm {leg.travelers} người: <strong>{leg.totalVnd > 0 ? formatVnd(leg.totalVnd) : "chưa có giá"}</strong></p>
+      <p className="text-sm">
+        Tổng tham khảo cả nhóm {leg.travelers} người:{" "}
+        <strong>
+          {leg.totalVnd > 0 ? formatVnd(leg.totalVnd) : "chưa có giá"}
+        </strong>
+        {leg.missingPriceSegments && leg.missingPriceSegments.length > 0 && (
+          <span className="assistant-muted"> (chưa đầy đủ — thiếu giá {leg.missingPriceSegments.join(", ")})</span>
+        )}
+      </p>
       {hasGoogleFlights && (
         <p className="assistant-muted text-xs">Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.</p>
       )}

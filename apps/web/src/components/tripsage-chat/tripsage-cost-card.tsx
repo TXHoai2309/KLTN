@@ -28,6 +28,7 @@ export function TripsageCostCard({
   })).filter(group => group.lines.length);
   const hasBudgetCap = cost.budgetCap !== null && cost.budgetCap > 0;
   const isOverBudget = hasBudgetCap && cost.withinCap === false && (cost.overBy ?? 0) > 0;
+  const isIncomplete = cost.isIncomplete === true || Boolean(cost.missingItems?.length);
   const savingsChips = resolveBudgetSavingsChips(cost, accessLeg);
   return (
     <section className="tripsage-cost" aria-label="Bảng chi phí ước tính">
@@ -35,6 +36,11 @@ export function TripsageCostCard({
         <h4 className="tripsage-cost-title">Chi phí ước tính</h4>
         <div className="tripsage-cost-total-row">
           <strong className="tripsage-cost-total-amount">{formatVnd(cost.total)}</strong>
+          {isIncomplete && (
+            <span className="tripsage-cost-warn-badge" data-testid="cost-incomplete-badge">
+              Chưa đầy đủ
+            </span>
+          )}
           {isOverBudget && (
             <span className="tripsage-cost-warn-badge" data-testid="cost-over-budget-badge">
               Vượt ngân sách {formatSavingsShortVnd(cost.overBy!)}
@@ -44,6 +50,11 @@ export function TripsageCostCard({
         <p className="tripsage-cost-sub">
           cả nhóm {cost.travelers} người · {formatVnd(cost.perPersonPerDay)}/người/ngày
         </p>
+        {isIncomplete && cost.missingItems && cost.missingItems.length > 0 && (
+          <p className="tripsage-cost-sub" data-testid="cost-missing-items">
+            Chưa tính: {cost.missingItems.join(", ")}
+          </p>
+        )}
       </header>
 
       {savingsChips.length > 0 && onSelectSavingsOption && (
@@ -115,7 +126,11 @@ export function TripsageCostCard({
                 <th scope="row">So với ngân sách {formatVnd(cost.budgetCap!)}</th>
                 <td className="tripsage-cost-basis-desktop" aria-hidden="true" />
                 <td className="tripsage-cost-amount">
-                  {cost.withinCap ? "Trong ngân sách" : `Vượt ${formatVnd(cost.overBy ?? 0)}`}
+                  {cost.withinCap === true
+                    ? "Trong ngân sách"
+                    : cost.withinCap === false
+                      ? `Vượt ${formatVnd(cost.overBy ?? 0)}`
+                      : "Chưa đủ giá để kết luận"}
                 </td>
               </tr>
             )}

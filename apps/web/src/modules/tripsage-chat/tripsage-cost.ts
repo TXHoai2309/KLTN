@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { TripTransport } from "../trip-requirement/trip-requirement-contract";
-import type { AccessLegPart } from "./tripsage-access-leg";
+import { sameAccessPlace, type AccessLegPart } from "./tripsage-access-leg";
 
 /**
  * Client-safe cost estimate (ADR-42, ticket 03). The model estimates lodging, food, tickets and extras; the server computes
@@ -48,6 +48,9 @@ export const costPartSchema = z.object({
   priceReferenceDate: z.string().max(10),
   accessLegId: z.string().min(1).max(64).optional(),
   savingsOptions: z.array(budgetSavingsChipSchema).max(3).optional(),
+  /** Bug 2: items whose price could not be estimated from the reference table; total is incomplete and never "withinCap: true". */
+  isIncomplete: z.literal(true).optional(),
+  missingItems: z.array(z.string().max(120)).max(8).optional(),
 }).strict();
 export type CostPart = z.infer<typeof costPartSchema>;
 
@@ -58,6 +61,8 @@ export type CostInput = {
   extraLines?: readonly CostLineInput[];
   /** PARITY BR-1: stable id of the current access leg summed into this cost table. */
   accessLegId?: string | null;
+  /** Bug 2: explicit unpriced segments/items (e.g. "Chặng tiếp cận Đà Nẵng ⇄ Hà Nội"). */
+  missingItems?: readonly string[];
 };
 
 export const formatVnd = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
@@ -80,22 +85,51 @@ export function estimateTripCost(input: CostInput): CostPart {
   lines.push(...input.lines.filter(line => !(line.category === "transport" && /x[aă]ng/i.test(line.label))));
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
   const cap = input.budgetCap !== undefined && input.budgetCap !== null && input.budgetCap > 0 ? input.budgetCap : null;
+  const missingItems = [...new Set((input.missingItems ?? []).map(item => item.trim()).filter(Boolean))].slice(0, 8);
+  const isIncomplete = missingItems.length > 0;
+  if (isIncomplete) {
+    assumptions.push(`Chưa tính: ${missingItems.join(", ")}. Tổng chi phí chưa đầy đủ nên chưa thể kết luận trong ngân sách.`);
+  }
   assumptions.push("Các khoản khác là ước tính của trợ lý; giá thực tế có thể khác.");
+  // Never conclude "withinCap: true" when required price segments are missing; still flag overBy if partial total already exceeds cap.
+  const withinCap = cap === null ? null : total > cap ? false : isIncomplete ? null : true;
+  const overBy = cap === null ? null : total > cap ? total - cap : isIncomplete ? null : 0;
   return {
     currency: "VND", travelers: input.travelers, days: input.days, lines: lines.slice(0, 16), total,
     perPersonPerDay: Math.round(total / (input.travelers * input.days)),
-    budgetCap: cap, withinCap: cap === null ? null : total <= cap, overBy: cap === null ? null : Math.max(0, total - cap),
-    assumptions, priceReferenceDate: PRICE_REFERENCE.updatedAt,
+    budgetCap: cap, withinCap, overBy,
+    assumptions: assumptions.slice(0, 6), priceReferenceDate: PRICE_REFERENCE.updatedAt,
     ...(input.accessLegId ? { accessLegId: input.accessLegId } : {}),
+    ...(isIncomplete ? { isIncomplete: true as const, missingItems } : {}),
   };
 }
 
 /**
- * Reference figures sourced from `docs/fixtures/price-reference-ha-giang.md` (slim D21, BR-5).
- * Every savings number is an estimate ("ước tính") and never auto-mutates the itinerary.
+ * Reference figures sourced strictly from `docs/fixtures/price-reference-ha-giang.md` (slim D21, BR-5, Bug 2).
+ * Only corridors present in the reference table may be used to compute mode-switch savings.
  */
+export const PRICE_REFERENCE_BUS_ROUTES: readonly {
+  from: string;
+  to: string;
+  perPersonOneWayVnd: number;
+}[] = [
+  // docs/fixtures/price-reference-ha-giang.md: "Xe khách giường nằm Hà Nội ⇄ TP Hà Giang | 250.000–400.000đ/lượt"
+  { from: "Hà Nội", to: "TP Hà Giang", perPersonOneWayVnd: 325_000 },
+];
+
+export function findReferenceBusPricePerPerson(from: string, to: string): number | null {
+  for (const route of PRICE_REFERENCE_BUS_ROUTES) {
+    if (
+      (sameAccessPlace(from, route.from) && sameAccessPlace(to, route.to))
+      || (sameAccessPlace(from, route.to) && sameAccessPlace(to, route.from))
+    ) {
+      return route.perPersonOneWayVnd;
+    }
+  }
+  return null;
+}
+
 export const SAVINGS_REFERENCE = {
-  sleeperBusPerPersonOneWayVnd: 550_000,
   budgetHomestayPerRoomNightVnd: 350_000,
 } as const;
 
@@ -130,17 +164,21 @@ export function computeBudgetSavingsChips(
     const flightSegments = [...accessLeg.outbound, ...accessLeg.return].filter(
       (seg) => seg.mode === "FLIGHT" && seg.priceVndPerPerson > 0,
     );
+    // Bug 2: only offer "switch-bus" with a numeric estimate when the price reference table has bus fares for EVERY replaced flight segment.
     if (flightSegments.length > 0) {
-      const flightTotal = flightSegments.reduce((sum, seg) => sum + seg.priceVndPerPerson * travelers, 0);
-      const busAlt = flightSegments.length * SAVINGS_REFERENCE.sleeperBusPerPersonOneWayVnd * travelers;
-      const savings = Math.round(flightTotal - busAlt);
-      if (savings >= 200_000) {
-        chips.push({
-          id: "switch-bus",
-          label: `Đi xe khách thay máy bay · −${formatSavingsShortVnd(savings)} (ước tính)`,
-          prompt: "Đổi chặng máy bay sang xe khách giường nằm để tiết kiệm chi phí.",
-          estimatedSavingsVnd: savings,
-        });
+      const refBusPrices = flightSegments.map((seg) => findReferenceBusPricePerPerson(seg.from, seg.to));
+      if (refBusPrices.every((price): price is number => price !== null)) {
+        const flightTotal = flightSegments.reduce((sum, seg) => sum + seg.priceVndPerPerson * travelers, 0);
+        const busAlt = refBusPrices.reduce((sum, price) => sum + price * travelers, 0);
+        const savings = Math.round(flightTotal - busAlt);
+        if (savings >= 200_000) {
+          chips.push({
+            id: "switch-bus",
+            label: `Đi xe khách thay máy bay · −${formatSavingsShortVnd(savings)} (ước tính)`,
+            prompt: "Đổi chặng máy bay sang xe khách giường nằm để tiết kiệm chi phí.",
+            estimatedSavingsVnd: savings,
+          });
+        }
       }
     }
   }

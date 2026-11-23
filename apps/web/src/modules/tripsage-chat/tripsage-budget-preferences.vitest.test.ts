@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { computeBudgetSavingsChips, costPartSchema, estimateTripCost, resolveBudgetSavingsChips, type CostPart } from "./tripsage-cost";
 import { createTripsageChatTools, type TripsagePlanningDeps } from "./tripsage-chat-tools";
 import { buildGroundedPreferenceLabels, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
-import type { AccessLegPart } from "./tripsage-access-leg";
+import { buildAccessLeg, type AccessLegPart } from "./tripsage-access-leg";
+import { TripsageAccessLegCard } from "@/components/tripsage-chat/tripsage-access-leg-card";
 import { TripsageCostCard } from "@/components/tripsage-chat/tripsage-cost-card";
 import { fixtureRoutes, planningNow } from "@/test/planning-fixtures";
 
@@ -50,8 +51,10 @@ describe("Ticket 16: Budget savings chips & grounded preference labels (slim AC-
       expect(chip.label).toContain("ước tính");
       expect(chip.estimatedSavingsVnd).toBeGreaterThan(0);
     }
-    expect(chips.some((c) => c.id === "switch-bus")).toBe(true);
+    // Bug 2: Đà Nẵng ⇄ Hà Nội has NO bus fare in price-reference-ha-giang.md -> must NOT emit fabricated "switch-bus" savings
+    expect(chips.some((c) => c.id === "switch-bus")).toBe(false);
     expect(chips.some((c) => c.id === "lower-lodging")).toBe(true);
+    expect(chips.some((c) => c.id === "shorten-day")).toBe(true);
 
     // Renders clickable chips on TripsageCostCard when callback is supplied
     const html = renderToStaticMarkup(
@@ -124,7 +127,8 @@ describe("Ticket 16: Budget savings chips & grounded preference labels (slim AC-
     expect(emittedCosts).toHaveLength(1);
     const parsedCost = costPartSchema.parse(emittedCosts[0]);
     expect(parsedCost.savingsOptions?.length).toBeGreaterThanOrEqual(2);
-    expect(parsedCost.savingsOptions!.some(c => c.id === "switch-bus")).toBe(true);
+    // Đà Nẵng ⇄ Hà Nội lacks a reference sleeper-bus fare -> never fabricate switch-bus savings
+    expect(parsedCost.savingsOptions!.some(c => c.id === "switch-bus")).toBe(false);
     expect(parsedCost.savingsOptions!.every(c => c.label.includes("ước tính"))).toBe(true);
 
     // Works client-side even when accessLeg prop is omitted, via cost.savingsOptions
@@ -201,5 +205,62 @@ describe("Ticket 16: Budget savings chips & grounded preference labels (slim AC-
 
     const suggestions = preferenceLabelsToSuggestions(labels);
     expect(suggestions.every((s) => s.kind === "TIP" || s.kind === "MEAL")).toBe(true);
+  });
+
+  it("Bug 2: preserves homeCity -> transit segment when omitted, marks missing price, and never claims 'Trong ngân sách' when incomplete", async () => {
+    // AI dropped Đà Nẵng -> Hà Nội and only submitted Hà Nội -> TP Hà Giang
+    const leg = buildAccessLeg(
+      {
+        hubId: "HA_GIANG_CITY",
+        outbound: [{ mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", departTime: "21:00", durationMinutes: 390, priceVndPerPerson: 325_000 }],
+        return: [{ mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", departTime: "21:00", durationMinutes: 390, priceVndPerPerson: 325_000 }],
+      },
+      "Đà Nẵng",
+      4,
+    );
+
+    expect(leg.outbound).toHaveLength(2);
+    expect(leg.outbound[0]).toMatchObject({ from: "Đà Nẵng", to: "Hà Nội", priceVndPerPerson: 0, priceSource: "MISSING" });
+    expect(leg.return).toHaveLength(2);
+    expect(leg.return[1]).toMatchObject({ from: "Hà Nội", to: "Đà Nẵng", priceVndPerPerson: 0, priceSource: "MISSING" });
+    expect(leg.missingPriceSegments).toEqual(["Đà Nẵng ⇄ Hà Nội"]);
+
+    const accessHtml = renderToStaticMarkup(createElement(TripsageAccessLegCard, { leg }));
+    expect(accessHtml).toContain("Đà Nẵng → Hà Nội");
+    expect(accessHtml).toContain("chưa có giá");
+    expect(accessHtml).toContain("chưa đầy đủ");
+
+    const emittedCosts: CostPart[] = [];
+    const tools = createTripsageChatTools({
+      planning: { candidates: async () => [], routes: fixtureRoutes, now: () => planningNow },
+      emitItinerary: () => {},
+      tripInfo: { transport: "MOTORCYCLE", durationDays: 4, startDate: "2026-12-13", travelers: 4, homeCity: "Đà Nẵng" },
+      accessLeg: leg,
+      emitCost: c => emittedCosts.push(c),
+    });
+    const res = (await tools.estimateCosts.execute!(
+      {
+        budgetCap: 20_000_000,
+        lines: [
+          { category: "lodging", label: "Lưu trú", amount: 2_400_000 },
+          { category: "food", label: "Ăn uống", amount: 1_920_000 },
+          { category: "transport", label: "Thuê xe", amount: 1_400_000 },
+        ],
+      },
+      { toolCallId: "tc-bug2", messages: [] } as never,
+    )) as { ok: boolean; withinCap: boolean | null; isIncomplete?: boolean; missingItems?: string[]; note?: string };
+
+    expect(res.ok).toBe(true);
+    expect(res.isIncomplete).toBe(true);
+    expect(res.withinCap).toBeNull();
+    expect(res.missingItems).toEqual(["Chặng tiếp cận Đà Nẵng ⇄ Hà Nội"]);
+    expect(res.note).toContain("CHƯA ĐẦY ĐỦ");
+    expect(res.note).toContain("TUYỆT ĐỐI KHÔNG nói tổng nằm trong ngân sách");
+
+    const costHtml = renderToStaticMarkup(createElement(TripsageCostCard, { cost: emittedCosts[0]!, accessLeg: leg }));
+    expect(costHtml).toContain("Chưa đầy đủ");
+    expect(costHtml).toContain("Chưa tính: Chặng tiếp cận Đà Nẵng ⇄ Hà Nội");
+    expect(costHtml).toContain("Chưa đủ giá để kết luận");
+    expect(costHtml).not.toContain("Trong ngân sách");
   });
 });

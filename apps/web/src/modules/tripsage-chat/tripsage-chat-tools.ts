@@ -876,6 +876,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const extraLines = latestAccessLeg
         ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: formatAccessLegCostBasis(latestAccessLeg) }]
         : [];
+      const missingItems = (latestAccessLeg?.missingPriceSegments ?? []).map(seg => `Chặng tiếp cận ${seg}`);
       const cost = estimateTripCost({
         transport: info.transport,
         travelers: info.travelers,
@@ -887,6 +888,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         lines: input.lines,
         extraLines,
         accessLegId: latestAccessLeg?.id ?? null,
+        ...(missingItems.length ? { missingItems } : {}),
       });
       const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg);
       const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
@@ -895,12 +897,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       context.emitCost?.(emittedCost);
       context.emitPlanProgress?.({ step: "COSTS", state: "done" });
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
+        ...(emittedCost.isIncomplete ? { isIncomplete: true as const, missingItems: emittedCost.missingItems } : {}),
         ...(savingsOptions.length > 0 ? { savingsOptions: savingsOptions.map(o => ({ label: o.label, estimatedSavingsVnd: o.estimatedSavingsVnd })) } : {}),
         note: latestCostOverBudget && chipsSent
           ? "Bảng chi phí vượt ngân sách và các nút giảm chi phí ước tính đã hiện cho người dùng. Không tự đổi lịch; câu hỏi duy nhất cuối tin PHẢI hỏi về ngân sách và mời người dùng bấm chọn phương án muốn thử (nói rõ mức tiết kiệm là ước tính; KHÔNG hỏi sang chuyện tìm quán ăn)."
           : latestCostOverBudget
             ? "Bảng chi phí vượt ngân sách (chưa gửi được nút giảm chi phí tự động). Không tự đổi lịch và KHÔNG nói các nút giảm chi phí đã hiện; câu hỏi duy nhất cuối tin PHẢI hỏi người dùng muốn giảm chi phí theo hướng nào (đổi phương tiện, hạng phòng hay bớt ngày) và KHÔNG hỏi sang chuyện tìm quán ăn."
-            : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
+            : emittedCost.isIncomplete
+              ? `Bảng chi phí CHƯA ĐẦY ĐỦ vì chưa tính: ${(emittedCost.missingItems ?? []).join(", ")}. TUYỆT ĐỐI KHÔNG nói tổng nằm trong ngân sách hay vừa ngân sách; hãy nêu rõ đoạn chưa có giá và hỏi người dùng muốn bổ sung mức giá dự kiến hay đổi phương tiện có giá tham khảo.`
+              : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
     },
   });
 
@@ -938,7 +943,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   };
 
   const planAccessLeg = tool({
-    description: "Ước tính chặng tiếp cận cho người ở xa: từ thành phố của họ tới điểm tập kết (HA_NOI hoặc HA_GIANG_CITY) và chiều về, gồm các chặng máy bay, xe khách giường nằm, tàu, xe trung chuyển với giờ, thời lượng và giá mỗi người ước tính (chỉ dựa vào bảng giá tham khảo nếu có; không bịa tuyến không có trong bảng). Nếu đã có kết quả tra vé máy bay hợp lệ trong hội thoại, hệ thống tự thay giá đoạn FLIGHT bằng giá rẻ nhất/người kèm nguồn Google Flights. Chặng này chỉ để tham khảo, không được kiểm tra, không đặt vé; số ngày chuyến đi tính từ điểm tập kết.",
+    description: "Ước tính chặng tiếp cận cho người ở xa: luôn đi liền từ thành phố nhà (homeCity) tới điểm tập kết (HA_NOI hoặc HA_GIANG_CITY) và chiều về tới homeCity, KHÔNG được bỏ đoạn từ homeCity tới điểm trung chuyển. Gồm các đoạn máy bay, xe khách giường nằm, tàu, xe trung chuyển với giờ, thời lượng và giá mỗi người ước tính (chỉ dựa vào bảng giá tham khảo nếu có; nếu đoạn chưa có trong bảng giá, vẫn đưa đoạn đó với priceVndPerPerson = 0 để hệ thống ghi 'chưa có giá', không bịa giá). Nếu đã có kết quả tra vé máy bay hợp lệ trong hội thoại, hệ thống tự thay giá đoạn FLIGHT bằng giá rẻ nhất/người kèm nguồn Google Flights. Chặng này chỉ để tham khảo, không được kiểm tra, không đặt vé; số ngày chuyến đi tính từ điểm tập kết.",
     inputSchema: accessLegInputSchema,
     execute: async input => {
       const { info } = withTripInfoDefaults(tripInfo);
@@ -946,9 +951,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const flightOverride = findMatchingFlightOverride(info);
       latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers, flightOverride);
       context.emitAccessLeg?.(latestAccessLeg);
+      const missingSegs = latestAccessLeg.missingPriceSegments ?? [];
       return { ok: true as const, outboundMinutes: latestAccessLeg.outboundMinutes, returnMinutes: latestAccessLeg.returnMinutes, totalVnd: latestAccessLeg.totalVnd,
         usedGoogleFlightsPrice: Boolean(flightOverride && [...latestAccessLeg.outbound, ...latestAccessLeg.return].some(s => s.priceSource === "GOOGLE_FLIGHTS")),
-        note: `Chặng tiếp cận đã hiện cho người dùng (Trước chuyến đi / Sau chuyến đi). ${isHubOrigin(currentJourney?.origin?.label) ? "" : "Điểm xuất phát hiện chưa phải điểm tập kết: mời người dùng xác nhận điểm tập kết (hub:HA_NOI hoặc hub:HA_GIANG_CITY) để lập lịch phần đi xe."} estimateCosts sẽ tự cộng chặng này vào nhóm đi lại.` };
+        ...(missingSegs.length ? { missingPriceSegments: missingSegs } : {}),
+        note: `Chặng tiếp cận đã hiện cho người dùng (Trước chuyến đi / Sau chuyến đi). ${isHubOrigin(currentJourney?.origin?.label) ? "" : "Điểm xuất phát hiện chưa phải điểm tập kết: mời người dùng xác nhận điểm tập kết (hub:HA_NOI hoặc hub:HA_GIANG_CITY) để lập lịch phần đi xe."}${missingSegs.length ? ` CẢNH BÁO: còn đoạn chưa có giá (${missingSegs.join(", ")}) nên tổng chặng tiếp cận chưa đầy đủ; KHÔNG kết luận nằm trong ngân sách.` : ""} estimateCosts sẽ tự cộng chặng này vào nhóm đi lại.` };
     },
   });
 

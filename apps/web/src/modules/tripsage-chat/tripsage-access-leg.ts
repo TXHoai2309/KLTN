@@ -8,7 +8,7 @@ import { TRIP_HUBS } from "./trip-hubs";
  */
 export const ACCESS_MODES = ["FLIGHT", "SLEEPER_BUS", "TRAIN", "SHUTTLE"] as const;
 export const ACCESS_MODE_LABELS: Record<(typeof ACCESS_MODES)[number], string> = { FLIGHT: "Máy bay", SLEEPER_BUS: "Xe khách giường nằm", TRAIN: "Tàu hỏa", SHUTTLE: "Xe trung chuyển" };
-export const ACCESS_PRICE_SOURCES = ["ESTIMATE", "GOOGLE_FLIGHTS"] as const;
+export const ACCESS_PRICE_SOURCES = ["ESTIMATE", "GOOGLE_FLIGHTS", "MISSING"] as const;
 export type AccessPriceSource = (typeof ACCESS_PRICE_SOURCES)[number];
 /**
  * Single source of truth for suggesting a closer trip hub (TP Hà Giang / Hà Nội):
@@ -26,7 +26,7 @@ const inputSegmentSchema = z.object({
   from: z.string().trim().min(1).max(60),
   to: z.string().trim().min(1).max(60),
   departTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional().describe("Giờ đi gợi ý HH:MM."),
-  durationMinutes: z.number().int().min(10).max(1440),
+  durationMinutes: z.number().int().min(0).max(1440),
   priceVndPerPerson: z.number().int().min(0).max(20_000_000),
 }).strict();
 
@@ -52,8 +52,62 @@ export const accessLegPartSchema = z.object({
   outboundMinutes: z.number().int().min(0).max(5760),
   returnMinutes: z.number().int().min(0).max(5760),
   totalVnd: z.number().int().min(0).max(1_000_000_000),
+  /** Corridors whose price is missing (priceVndPerPerson === 0 / priceSource === "MISSING"). */
+  missingPriceSegments: z.array(z.string().max(120)).max(8).optional(),
 }).strict();
 export type AccessLegPart = z.infer<typeof accessLegPartSchema>;
+
+/** Normalizes Vietnamese city / airport / station labels to a canonical city key for continuity checks. */
+export function canonicalAccessPlace(label: string): string {
+  const clean = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .replace(/đ/giu, "d")
+    .toLowerCase()
+    .replace(/\([^)]*\)/gu, " ")
+    .replace(/\b(?:san bay|quoc te|ben xe|ga|thanh pho|tp\.?|tinh|khu vuc|phia nam|my dinh)\b/gu, " ")
+    .replace(/[^a-z0-9\s]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+  if (/^(?:ho chi minh|hcm|sai gon|sg|sgn)$/u.test(clean) || clean.includes("ho chi minh")) return "ho chi minh";
+  if (/^(?:ha noi|hn|han|noi bai)$/u.test(clean) || clean.includes("ha noi")) return "ha noi";
+  if (/^(?:da nang|dn|dad)$/u.test(clean) || clean.includes("da nang")) return "da nang";
+  if (/^(?:ha giang|hg)$/u.test(clean) || clean.includes("ha giang")) return "ha giang";
+  return clean;
+}
+
+export function sameAccessPlace(a: string, b: string): boolean {
+  const ca = canonicalAccessPlace(a);
+  const cb = canonicalAccessPlace(b);
+  if (!ca || !cb) return false;
+  return ca === cb || ca.includes(cb) || cb.includes(ca);
+}
+
+/** Deduplicates missing-price segments into concise corridor labels (e.g. "Đà Nẵng ⇄ Hà Nội"). */
+export function collectMissingPriceSegments(
+  outbound: readonly AccessLegPart["outbound"][number][],
+  ret: readonly AccessLegPart["return"][number][],
+): string[] {
+  const missingOut = outbound.filter(s => s.priceVndPerPerson <= 0 || s.priceSource === "MISSING");
+  const missingRet = ret.filter(s => s.priceVndPerPerson <= 0 || s.priceSource === "MISSING");
+  const usedRet = new Set<number>();
+  const labels: string[] = [];
+  for (const seg of missingOut) {
+    const revIdx = missingRet.findIndex(
+      (r, idx) => !usedRet.has(idx) && sameAccessPlace(r.from, seg.to) && sameAccessPlace(r.to, seg.from),
+    );
+    if (revIdx >= 0) {
+      usedRet.add(revIdx);
+      labels.push(`${seg.from} ⇄ ${seg.to}`);
+    } else {
+      labels.push(`${seg.from} → ${seg.to}`);
+    }
+  }
+  missingRet.forEach((seg, idx) => {
+    if (!usedRet.has(idx)) labels.push(`${seg.from} → ${seg.to}`);
+  });
+  return [...new Set(labels)].slice(0, 8);
+}
 
 const SHORT_MODE_LABELS: Record<(typeof ACCESS_MODES)[number], string> = {
   FLIGHT: "Máy bay",
@@ -115,11 +169,37 @@ export function buildAccessLeg(
         ...(flightPriceOverride?.lookupDate ? { priceLookupDate: flightPriceOverride.lookupDate } : {}),
       };
     }
+    if (segment.priceVndPerPerson <= 0) {
+      return { ...segment, priceVndPerPerson: 0, priceSource: "MISSING" as const };
+    }
     return { ...segment, priceSource: "ESTIMATE" as const };
   });
 
   const outbound = enrich(input.outbound, outboundFlightVnd);
   const ret = enrich(input.return, returnFlightVnd);
+  // Continuity guard (Bug 2): never drop the segment between homeCity and the first/last transit point.
+  const trimmedHome = homeCity.trim();
+  if (trimmedHome && outbound.length > 0 && outbound.length < 4 && !sameAccessPlace(outbound[0]!.from, trimmedHome)) {
+    outbound.unshift({
+      mode: outbound[0]!.mode,
+      from: trimmedHome,
+      to: outbound[0]!.from,
+      durationMinutes: 0,
+      priceVndPerPerson: 0,
+      priceSource: "MISSING" as const,
+    });
+  }
+  if (trimmedHome && ret.length > 0 && ret.length < 4 && !sameAccessPlace(ret[ret.length - 1]!.to, trimmedHome)) {
+    ret.push({
+      mode: ret[ret.length - 1]!.mode,
+      from: ret[ret.length - 1]!.to,
+      to: trimmedHome,
+      durationMinutes: 0,
+      priceVndPerPerson: 0,
+      priceSource: "MISSING" as const,
+    });
+  }
+  const missingPriceSegments = collectMissingPriceSegments(outbound, ret);
   const minutes = (segments: AccessLegPart["outbound"]) => segments.reduce((sum, segment) => sum + segment.durationMinutes, 0);
   const price = [...outbound, ...ret].reduce((sum, segment) => sum + segment.priceVndPerPerson, 0);
   return {
@@ -132,6 +212,7 @@ export function buildAccessLeg(
     outboundMinutes: minutes(outbound),
     returnMinutes: minutes(ret),
     totalVnd: price * travelers,
+    ...(missingPriceSegments.length ? { missingPriceSegments } : {}),
   };
 }
 
@@ -172,7 +253,7 @@ export function formatAccessLegCostBasis(leg: AccessLegPart): string {
   const fmtVnd = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
   const summarizeDir = (segments: AccessLegPart["outbound"]) =>
     segments
-      .map(s => `${SHORT_MODE_LABELS[s.mode]} ${s.priceVndPerPerson > 0 ? fmtVnd(s.priceVndPerPerson) : "0đ"}`)
+      .map(s => `${SHORT_MODE_LABELS[s.mode]} ${s.priceVndPerPerson > 0 && s.priceSource !== "MISSING" ? fmtVnd(s.priceVndPerPerson) : "chưa có giá"}`)
       .join(" + ");
   const outSum = summarizeDir(leg.outbound);
   const retSum = summarizeDir(leg.return);
