@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { cleanAreaDisplayLabel, cleanOvernightAreaLabel, cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
+import {
+  cleanAreaDisplayLabel,
+  cleanOvernightAreaLabel,
+  cleanPlaceDisplayName,
+  cleanTravelerDisplay,
+} from "../../lib/traveler-display-clean";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 
 /**
@@ -175,7 +180,7 @@ function lunchAfter(stops: PlannerResult["days"][number]["stops"]): number | nul
 
 /** Formats a concise 1-line catalog description for a VISIT slot; returns undefined if empty (never invents). */
 export function formatVisitDescription(raw: string | null | undefined): string | undefined {
-  const cleaned = (raw ?? "").replace(/\s+/gu, " ").trim();
+  const cleaned = cleanTravelerDisplay(raw);
   if (!cleaned) return undefined;
   if (cleaned.length <= 160) return cleaned;
   const firstSentence = cleaned.match(/^.+?[.!?](?=\s|$)/u)?.[0]?.trim();

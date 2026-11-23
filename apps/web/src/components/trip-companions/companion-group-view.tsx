@@ -196,7 +196,7 @@ function companionGroupToPlannerDays(group: CompanionGroup): PlannerDay[] {
         order: visit.order,
         destination: {
           id: destId,
-          name: visit.destination.name,
+          name: cleanPlaceDisplayName(visit.destination.name) || visit.destination.name,
           description: "",
           area: area,
           address: null,

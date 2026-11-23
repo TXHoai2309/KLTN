@@ -8,6 +8,7 @@ import {
   canPreviewPlace,
   type PlacePreviewTarget,
 } from "@/lib/place-preview-url";
+import { cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import "./place-preview-modal.css";
 
 export const PLACE_PREVIEW_NOTICE = "Thông tin từ Google Maps, ứng dụng chưa kiểm tra";
@@ -112,6 +113,7 @@ export function PlacePreviewModal({
 
   if (!previewable) return null;
 
+  const displayName = cleanPlaceDisplayName(previewable.name) || previewable.name;
   const embedUrl = buildPlacePreviewEmbedUrl(previewable, embedApiKey);
   const externalUrl = buildPlacePreviewExternalUrl(previewable);
 
@@ -131,7 +133,7 @@ export function PlacePreviewModal({
       >
         <div className="place-preview-header">
           <h3 id={titleId} className="place-preview-title">
-            {previewable.name}
+            {displayName}
           </h3>
           <button
             ref={closeRef}
@@ -148,7 +150,7 @@ export function PlacePreviewModal({
           {embedUrl && !iframeFailed ? (
             <iframe
               className="place-preview-iframe"
-              title={`Xem nhanh ${previewable.name} trên Google Maps`}
+              title={`Xem nhanh ${displayName} trên Google Maps`}
               src={embedUrl}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"

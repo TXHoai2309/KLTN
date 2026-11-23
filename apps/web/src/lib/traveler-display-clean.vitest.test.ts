@@ -3,6 +3,7 @@ import {
   cleanAreaDisplayLabel,
   cleanOvernightAreaLabel,
   cleanPlaceDisplayName,
+  cleanTravelerDisplay,
   isGenericActivityPlaceName,
 } from "./traveler-display-clean";
 
@@ -12,6 +13,20 @@ describe("Ticket 04: traveler display cleanup helpers", () => {
     expect(cleanPlaceDisplayName("[tạm]  Cột cờ Lũng Cú")).toBe("Cột cờ Lũng Cú");
     expect(cleanPlaceDisplayName("[Tam] - Đèo Mã Pí Lèng")).toBe("Đèo Mã Pí Lèng");
     expect(cleanPlaceDisplayName("Phố cổ Đồng Văn")).toBe("Phố cổ Đồng Văn");
+  });
+
+  it("strips [Tam]/[Tạm]/[tạm]/[ Tạm ] prefixes from stop descriptions while preserving real content", () => {
+    expect(cleanTravelerDisplay("[Tam] Điểm ngắm cảnh núi Đôi ở Quản Bạ…")).toBe(
+      "Điểm ngắm cảnh núi Đôi ở Quản Bạ…",
+    );
+    expect(cleanTravelerDisplay("[Tam] Điểm dừng ngắn ở khu vực Yên Minh…")).toBe(
+      "Điểm dừng ngắn ở khu vực Yên Minh…",
+    );
+    expect(cleanTravelerDisplay("[tạm] Mô tả chưa hoàn thiện")).toBe("Mô tả chưa hoàn thiện");
+    expect(cleanTravelerDisplay("[ Tạm ] : Điểm check-in nổi tiếng")).toBe("Điểm check-in nổi tiếng");
+    expect(cleanTravelerDisplay("  [ Tạm ] — Ngắm bình minh trên đèo")).toBe("Ngắm bình minh trên đèo");
+    expect(cleanTravelerDisplay(null)).toBe("");
+    expect(cleanTravelerDisplay(undefined)).toBe("");
   });
 
   it("hides generic placeholder 'khu vực hà giang' and capitalizes real Hà Giang areas", () => {

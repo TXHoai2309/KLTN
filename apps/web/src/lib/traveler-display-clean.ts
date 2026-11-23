@@ -4,7 +4,7 @@
  * and fixes capitalization of Hà Giang place names.
  */
 
-const TEMP_PREFIX = /^\[\s*t[aạ]m\s*\][\s:\-–—]*/iu;
+const TEMP_PREFIX = /^(?:\s*\[\s*t[aạ]m\s*\][\s:\-–—]*)+/iu;
 
 const PLACEHOLDER_AREAS = new Set([
   "khu vuc ha giang",
@@ -67,13 +67,22 @@ function capitalizeKnownPlaces(value: string): string {
   return out;
 }
 
-/** Strips internal "[Tạm]" prefix and collapses whitespace for display. */
-export function cleanPlaceDisplayName(raw: string): string {
+/**
+ * Strips leading internal "[Tạm]" / "[Tam]" prefixes and collapses whitespace for display.
+ * Safe for both destination names and descriptions; never alters stored DB values.
+ */
+export function cleanTravelerDisplay(raw: string | null | undefined): string {
+  if (!raw) return "";
   return raw
     .normalize("NFC")
     .replace(TEMP_PREFIX, "")
     .replace(/\s+/gu, " ")
     .trim();
+}
+
+/** Strips internal "[Tạm]" prefix and collapses whitespace for display. */
+export function cleanPlaceDisplayName(raw: string): string {
+  return cleanTravelerDisplay(raw);
 }
 
 /**

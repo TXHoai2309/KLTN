@@ -12,6 +12,7 @@ import { ItineraryValidationPanel } from "@/components/trip-planner/planner-pres
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
 import { buildDataTripTitle } from "@/lib/traveler-trip-title";
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
+import { cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
@@ -64,17 +65,18 @@ function shiftIsoDate(iso: string | null | undefined, deltaDays: number): string
 const shortDayMonth = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
 
 function previewTargetForStop(stop: PlannerResult["days"][number]["stops"][number]): PlacePreviewTarget | null {
+  const cleanName = cleanPlaceDisplayName(stop.destination.name) || stop.destination.name;
   if (stop.destination.id.startsWith("ext:")) {
     const target: PlacePreviewTarget = {
       kind: "GOOGLE_PLACE",
-      name: stop.destination.name,
+      name: cleanName,
       placeId: stop.destination.id.slice(4),
     };
     return canPreviewPlace(target) ? target : null;
   }
   const target: PlacePreviewTarget = {
     kind: "CATALOG",
-    name: stop.destination.name,
+    name: cleanName,
     latitude: stop.destination.latitude,
     longitude: stop.destination.longitude,
     address: stop.destination.address ?? null,
@@ -86,9 +88,10 @@ function previewTargetForStop(stop: PlannerResult["days"][number]["stops"][numbe
 function previewTargetForSuggestion(suggestion: TimelineSuggestion): PlacePreviewTarget | null {
   const placeId = suggestion.place?.placeId;
   if (!placeId) return null;
+  const rawName = suggestion.place?.name || suggestion.title;
   const target: PlacePreviewTarget = {
     kind: "GOOGLE_PLACE",
-    name: suggestion.place?.name || suggestion.title,
+    name: cleanPlaceDisplayName(rawName) || rawName,
     placeId,
   };
   return canPreviewPlace(target) ? target : null;
@@ -303,7 +306,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         durationMinutes: stop.visitDurationMinutes,
         image: stop.destination.image ? { url: stop.destination.image.url, alt: stop.destination.image.alt } : null,
         external: stop.destination.id.startsWith("ext:"),
-        description: stop.destination.description || null,
+        description: cleanTravelerDisplay(stop.destination.description) || null,
         preferenceBadges: preferenceBadges.length > 0 ? preferenceBadges : undefined,
         previewTarget: previewTargetForStop(stop),
         nearbyAfter: nearbyAfter.length > 0 ? nearbyAfter : undefined,

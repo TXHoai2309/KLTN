@@ -79,7 +79,7 @@ import TripFavoriteButton from "./trip-favorite-button";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import type { PlannerDay, PlannerStop, TravelLeg } from "@/modules/trip-planner/planner-contract";
 import { getDestinationCoordinates, getDestinationVisual } from "@/lib/destination-visuals";
-import { cleanAreaDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
+import { cleanAreaDisplayLabel, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 
 function MemberLeaveAction({
   trip,
@@ -766,8 +766,8 @@ function tripDetailToPlannerDays(trip: TripDetail): PlannerDay[] {
         order: visit.order,
         destination: {
           id: visit.destination.id,
-          name: visit.destination.name,
-          description: (visit.destination as { description?: string }).description ?? "",
+          name: cleanPlaceDisplayName(visit.destination.name) || visit.destination.name,
+          description: cleanTravelerDisplay((visit.destination as { description?: string }).description),
           area: visit.destination.area,
           address: (visit.destination as { address?: string | null }).address ?? null,
           category: (visit.destination as { category?: string }).category ?? "Điểm tham quan",
@@ -896,10 +896,10 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
   ].filter(Boolean);
 
   const heroFallback = firstStop
-    ? getDestinationVisual(firstStop.destination.name, firstStop.destination.area)
+    ? getDestinationVisual(cleanPlaceDisplayName(firstStop.destination.name) || firstStop.destination.name, firstStop.destination.area)
     : { src: getTripHeroImage(trip.durationDays, 0), alt: detailTitle };
   const heroImageUrl = firstStop?.destination.image?.url ?? heroFallback.src;
-  const heroImageAlt = firstStop?.destination.image?.alt ?? heroFallback.alt;
+  const heroImageAlt = cleanTravelerDisplay(firstStop?.destination.image?.alt) || heroFallback.alt;
 
   const plannerDays = useMemo(() => tripDetailToPlannerDays(trip), [trip]);
   const activePlannerDay = useMemo(() => {
@@ -1161,7 +1161,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
           <ul>
             {trip.unchecked.items.map((item) => (
               <li key={`${item.check}|${item.reasonCode}|${item.placeId}`}>
-                {trip.days.flatMap((d) => d.visits).find((v) => v.destination.id === item.placeId)?.destination.name ?? "Địa điểm ngoài danh mục"} — {uncheckedItemLabel(item)}
+                {cleanPlaceDisplayName(trip.days.flatMap((d) => d.visits).find((v) => v.destination.id === item.placeId)?.destination.name ?? "") || "Địa điểm ngoài danh mục"} — {uncheckedItemLabel(item)}
               </li>
             ))}
           </ul>

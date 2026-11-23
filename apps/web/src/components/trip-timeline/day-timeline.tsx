@@ -18,7 +18,11 @@ import {
 import { travelerDayColorVar } from "@/components/traveler-ui/traveler-day-tabs";
 import { getDestinationVisual } from "@/lib/destination-visuals";
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
-import { cleanAreaDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
+import {
+  cleanAreaDisplayLabel,
+  cleanPlaceDisplayName,
+  cleanTravelerDisplay,
+} from "@/lib/traveler-display-clean";
 
 export type DayTimelineVariant = "full" | "compact";
 
@@ -235,6 +239,7 @@ export function DayTimeline({
           {day.stops.map((stop, index) => {
             const cleanName = cleanPlaceDisplayName(stop.name) || stop.name;
             const cleanArea = cleanAreaDisplayLabel(stop.area);
+            const cleanDescription = cleanTravelerDisplay(stop.description);
             const fallback = stop.fallbackVisual ?? getDestinationVisual(cleanName, cleanArea ?? undefined);
             const isSelected = selectedDestinationId === stop.destinationId;
             const endMinute =
@@ -322,7 +327,7 @@ export function DayTimeline({
                         )}
                       </div>
 
-                      {stop.description && <p className="dt-visit-desc">{stop.description}</p>}
+                      {cleanDescription && <p className="dt-visit-desc">{cleanDescription}</p>}
                       {stop.weatherSlot}
 
                       {stop.unavailable && (
@@ -387,7 +392,7 @@ export function DayTimeline({
                             {stop.lunchAfter.suggestions.map((meal) => (
                               <li key={meal.key}>
                                 <span className="dt-sunken-item-name">{cleanPlaceDisplayName(meal.name)}</span>
-                                {meal.detail && <span className="dt-sunken-dist">{meal.detail}</span>}
+                                {meal.detail && <span className="dt-sunken-dist">{cleanTravelerDisplay(meal.detail)}</span>}
                                 {meal.distanceKm != null && (
                                   <span className="dt-sunken-dist">
                                     {meal.distanceKm.toLocaleString("vi-VN")} km

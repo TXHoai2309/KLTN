@@ -19,6 +19,7 @@ const shiftDate = (iso: string | null | undefined, days: number) => {
 };
 const shortDate = (iso: string) => iso.split("-").reverse().slice(0, 2).join("/");
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
+import { cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import {
   clockLabel,
   isEligibleLodgingSuggestion,
@@ -59,14 +60,15 @@ export function formatSuggestionPlaceMeta(title: string, place: NonNullable<Time
 /** Builds a Place preview target from a timeline VISIT item only when valid coordinates or placeId exist. */
 export function timelineItemPreviewTarget(item: TimelineItem): PlacePreviewTarget | null {
   if (item.kind !== "VISIT") return null;
+  const displayName = cleanPlaceDisplayName(item.label) || item.label;
   if (item.placeId) {
-    const candidate: PlacePreviewTarget = { kind: "GOOGLE_PLACE", name: item.label, placeId: item.placeId };
+    const candidate: PlacePreviewTarget = { kind: "GOOGLE_PLACE", name: displayName, placeId: item.placeId };
     return canPreviewPlace(candidate) ? candidate : null;
   }
   if (typeof item.latitude === "number" && typeof item.longitude === "number") {
     const candidate: PlacePreviewTarget = {
       kind: "CATALOG",
-      name: item.label,
+      name: displayName,
       latitude: item.latitude,
       longitude: item.longitude,
       address: item.address ?? null,
@@ -81,9 +83,10 @@ export function timelineItemPreviewTarget(item: TimelineItem): PlacePreviewTarge
 export function suggestionPreviewTarget(suggestion: TimelineSuggestion): PlacePreviewTarget | null {
   const placeId = suggestion.place?.placeId;
   if (!placeId) return null;
+  const rawName = suggestion.place?.name || suggestion.title;
   const candidate: PlacePreviewTarget = {
     kind: "GOOGLE_PLACE",
-    name: suggestion.place?.name || suggestion.title,
+    name: cleanPlaceDisplayName(rawName) || rawName,
     placeId,
   };
   return canPreviewPlace(candidate) ? candidate : null;
@@ -232,6 +235,8 @@ export function TripsageTimelineView({
         <ol className="tripsage-timeline-list">
           {activeDay.items.map(item => {
             const itemPreview = timelineItemPreviewTarget(item);
+            const cleanItemLabel = cleanPlaceDisplayName(item.label) || item.label;
+            const cleanItemDesc = cleanTravelerDisplay(item.description);
             return (
               <li key={item.slotId} className={`tripsage-timeline-item tripsage-timeline-${item.kind.toLowerCase()}`}>
                 <span className="tripsage-timeline-time">{time(item)}</span>
@@ -241,12 +246,12 @@ export function TripsageTimelineView({
                 </span>
                 <div className="tripsage-timeline-body">
                   <div className="tripsage-timeline-title-row">
-                    <span className="tripsage-timeline-title">{item.label}</span>
+                    <span className="tripsage-timeline-title">{cleanItemLabel}</span>
                     {itemPreview && (
                       <button
                         type="button"
                         className="tripsage-preview-btn"
-                        aria-label={`Xem nhanh ${item.label}`}
+                        aria-label={`Xem nhanh ${cleanItemLabel}`}
                         onClick={event => setPreview({ target: itemPreview, trigger: event.currentTarget })}
                       >
                         <Eye size={12} aria-hidden="true" />
@@ -254,7 +259,7 @@ export function TripsageTimelineView({
                       </button>
                     )}
                   </div>
-                  {item.description && <p className="tripsage-timeline-desc">{item.description}</p>}
+                  {cleanItemDesc && <p className="tripsage-timeline-desc">{cleanItemDesc}</p>}
                   {item.kind === "LUNCH" && onRequestMeals && !(bySlot.get(item.slotId) ?? []).some(suggestion => suggestion.kind === "MEAL") && (
                     <button type="button" className="tripsage-preview-btn" onClick={() => onRequestMeals(activeDay.day)}>
                       <UtensilsCrossed size={12} aria-hidden="true" />
