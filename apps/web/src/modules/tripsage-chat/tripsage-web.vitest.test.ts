@@ -233,7 +233,7 @@ describe("failures never crash or leak", () => {
       const sse = await run(model, { web: web(fetcher, apiKey ?? (() => KEY), timeoutMs) });
       expect(fetcher.mock.calls.length).toBeLessThanOrEqual(1);
       expect(fed(model, 1)).toContain("WEB_UNAVAILABLE");
-      expect(fed(model, 1)).toMatch(/tiếng Việt/);
+      expect(fed(model, 1)).toContain("chưa có thông tin cập nhật");
       expect(fed(model, 1)).not.toContain(KEY);
       expect(sse).not.toContain(KEY);
       expect(sse).toContain("Hiện chưa tra cứu được web");
