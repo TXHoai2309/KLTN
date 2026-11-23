@@ -4,6 +4,7 @@ import {
   cleanPlaceDisplayName,
   cleanTravelerDisplay,
   resolveOvernightAreaLabel,
+  type OvernightAreaContext,
 } from "../../lib/traveler-display-clean";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 
@@ -254,12 +255,13 @@ export function formatVisitDescription(raw: string | null | undefined): string |
   return `${cut || cleaned.slice(0, 159)}…`;
 }
 
-/** Formats overnight area without duplicating "khu vực" and avoiding generic "Hà Giang" when lastStopName is known. */
+/** Formats overnight area without duplicating "khu vực" and avoiding generic "Hà Giang" or landmark names. */
 export function formatOvernightLabel(
   area: string | null | undefined,
   lastStopName?: string | null | undefined,
+  context?: OvernightAreaContext,
 ): string {
-  const cleaned = resolveOvernightAreaLabel(area, lastStopName);
+  const cleaned = resolveOvernightAreaLabel(area, lastStopName, context);
   return cleaned ? `Nghỉ đêm khu vực ${cleaned}` : "Nghỉ đêm";
 }
 
@@ -347,13 +349,20 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
         items.push({ slotId: `d${day.day}-home`, kind: "ARRIVE_HOME", startMinute: returning.endMinute, endMinute: null, label: `Về đến ${originLabel}` });
       }
       const lastStop = day.stops.at(-1);
+      const overnightCtx: OvernightAreaContext | undefined = lastStop
+        ? {
+            address: lastStop.destination.address,
+            latitude: lastStop.destination.latitude,
+            longitude: lastStop.destination.longitude,
+          }
+        : undefined;
       if (day.day < last) {
         const lastActivityEnd = lastStop?.departureMinute ?? outbound?.endMinute ?? null;
         if (lastActivityEnd !== null && lastActivityEnd < EARLY_DAY_END_MINUTE) {
           items.push({ slotId: `d${day.day}-free`, kind: "FREE_TIME", startMinute: lastActivityEnd, endMinute: null, label: "Tự do buổi chiều" });
-          items.push({ slotId: `d${day.day}-overnight`, kind: "OVERNIGHT", startMinute: null, endMinute: null, label: formatOvernightLabel(lastStop?.destination.area, lastStop?.destination.name) });
+          items.push({ slotId: `d${day.day}-overnight`, kind: "OVERNIGHT", startMinute: null, endMinute: null, label: formatOvernightLabel(lastStop?.destination.area, lastStop?.destination.name, overnightCtx) });
         } else {
-          items.push({ slotId: `d${day.day}-overnight`, kind: "OVERNIGHT", startMinute: lastActivityEnd, endMinute: null, label: formatOvernightLabel(lastStop?.destination.area, lastStop?.destination.name) });
+          items.push({ slotId: `d${day.day}-overnight`, kind: "OVERNIGHT", startMinute: lastActivityEnd, endMinute: null, label: formatOvernightLabel(lastStop?.destination.area, lastStop?.destination.name, overnightCtx) });
         }
       }
       return { day: day.day, date: day.date, items };

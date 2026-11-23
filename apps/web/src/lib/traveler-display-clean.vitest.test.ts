@@ -51,13 +51,58 @@ describe("Ticket 04: traveler display cleanup helpers", () => {
     expect(cleanOvernightAreaLabel("")).toBe("");
   });
 
-  it("resolves specific overnight area from lastStopName when area is generic 'khu vực hà giang' (Bug D)", () => {
+  it("Bug 9: resolves commune/town overnight area (chosen lodging -> address/area -> nearest town) and never uses landmark, pass, or river names", () => {
     expect(resolveOvernightAreaLabel("khu vực hà giang", "[Tam] Rừng thông Yên Minh")).toBe("Yên Minh");
     expect(resolveOvernightAreaLabel("Hà Giang", "Phố cổ Đồng Văn")).toBe("Đồng Văn");
     expect(resolveOvernightAreaLabel("khu vực hà giang", "[Tam] Thị trấn Mèo Vạc")).toBe("Mèo Vạc");
-    expect(resolveOvernightAreaLabel("khu vực hà giang", "Đèo Mã Pì Lèng")).toBe("Mã Pí Lèng");
     expect(resolveOvernightAreaLabel("khu vực hà giang", "Làng văn hóa Nặm Đăm")).toBe("Nặm Đăm");
     expect(resolveOvernightAreaLabel("đồng văn", "Cột cờ Lũng Cú")).toBe("Đồng Văn");
+
+    // Dinh thự họ Vương -> Sà Phìn (from address), NOT "Dinh thự họ Vương"
+    expect(
+      resolveOvernightAreaLabel("khu vực hà giang", "Dinh thự họ Vương", {
+        address: "Thôn Sà Phìn, xã Sà Phìn, tỉnh Tuyên Quang (trước đây thuộc huyện Đồng Văn, tỉnh Hà Giang)",
+        latitude: 23.2562848,
+        longitude: 105.2621257,
+      }),
+    ).toBe("Sà Phìn");
+
+    // Sông Nho Quế -> Mèo Vạc (from address), NOT "Sông Nho Quế"
+    expect(
+      resolveOvernightAreaLabel("khu vực hà giang", "Sông Nho Quế", {
+        address: "Khu vực bến thuyền Nho Quế 1, xã Mèo Vạc, tỉnh Tuyên Quang",
+        latitude: 23.1907068,
+        longitude: 105.4694776,
+      }),
+    ).toBe("Mèo Vạc");
+
+    // Đèo Mã Pì Lèng -> Đồng Văn (from address or nearest town), NEVER "Mã Pí Lèng"
+    expect(
+      resolveOvernightAreaLabel("khu vực hà giang", "Đèo Mã Pì Lèng", {
+        address: "Quốc lộ 4C (Đường Hạnh Phúc), tuyến Đồng Văn – Mèo Vạc, Xã Đồng Văn, Tỉnh Tuyên Quang",
+        latitude: 23.24,
+        longitude: 105.4,
+      }),
+    ).toBe("Đồng Văn");
+    expect(
+      resolveOvernightAreaLabel("khu vực hà giang", "Đèo Mã Pì Lèng", {
+        latitude: 23.24,
+        longitude: 105.4,
+      }),
+    ).toBe("Đồng Văn");
+
+    // Chosen lodging naming a commune takes top priority
+    expect(
+      resolveOvernightAreaLabel("khu vực hà giang", "Dinh thự họ Vương", {
+        chosenLodgingName: "Sà Phìn Homestay",
+        address: "Huyện Đồng Văn, Hà Giang",
+      }),
+    ).toBe("Sà Phìn");
+
+    // Without address or coords, never return raw landmark/river/pass name
+    expect(resolveOvernightAreaLabel("khu vực hà giang", "Dinh thự họ Vương")).not.toBe("Dinh thự họ Vương");
+    expect(resolveOvernightAreaLabel("khu vực hà giang", "Sông Nho Quế")).not.toBe("Sông Nho Quế");
+    expect(resolveOvernightAreaLabel("khu vực hà giang", "Đèo Mã Pì Lèng")).not.toBe("Mã Pí Lèng");
   });
 
   it("detects meaningless generic activity names like 'Khu Vui Chơi'", () => {

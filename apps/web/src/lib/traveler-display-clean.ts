@@ -107,6 +107,22 @@ export function cleanOvernightAreaLabel(raw: string | null | undefined): string 
 
 const SPECIFIC_HA_GIANG_AREAS: readonly [RegExp, string][] = [
   [/(?<=^|[^\p{L}\p{N}])tp\.?\s*h[aà]\s+giang(?=$|[^\p{L}\p{N}])/iu, "TP Hà Giang"],
+  [/(?<=^|[^\p{L}\p{N}])s[aà]\s+ph[iì]n(?=$|[^\p{L}\p{N}])/iu, "Sà Phìn"],
+  [/(?<=^|[^\p{L}\p{N}])p[aả]i\s+l[uủ]ng(?=$|[^\p{L}\p{N}])/iu, "Pải Lủng"],
+  [/(?<=^|[^\p{L}\p{N}])s[uủ]ng\s+l[aà](?=$|[^\p{L}\p{N}])/iu, "Sủng Là"],
+  [/(?<=^|[^\p{L}\p{N}])ph[oó]\s+b[aả]ng(?=$|[^\p{L}\p{N}])/iu, "Phó Bảng"],
+  [/(?<=^|[^\p{L}\p{N}])l[oô]\s+l[oô]\s+ch[aả]i(?=$|[^\p{L}\p{N}])/iu, "Lô Lô Chải"],
+  [/(?<=^|[^\p{L}\p{N}])n[aặ]m\s+đ[aă]m(?=$|[^\p{L}\p{N}])/iu, "Nặm Đăm"],
+  [/(?<=^|[^\p{L}\p{N}])p[aả]\s+vi(?=$|[^\p{L}\p{N}])/iu, "Pả Vi"],
+  [/(?<=^|[^\p{L}\p{N}])du\s+gi[aà](?=$|[^\p{L}\p{N}])/iu, "Du Già"],
+  [/(?<=^|[^\p{L}\p{N}])l[uũ]ng\s+c[uú](?=$|[^\p{L}\p{N}])/iu, "Lũng Cú"],
+  [/(?<=^|[^\p{L}\p{N}])tam\s+s[oơ]n(?=$|[^\p{L}\p{N}])/iu, "Tam Sơn"],
+  [/(?<=^|[^\p{L}\p{N}])l[uũ]ng\s+t[aá]m(?=$|[^\p{L}\p{N}])/iu, "Lũng Tám"],
+  [/(?<=^|[^\p{L}\p{N}])th[aá]i\s+an(?=$|[^\p{L}\p{N}])/iu, "Thái An"],
+  [/(?<=^|[^\p{L}\p{N}])m[aậ]u\s+du[eệ](?=$|[^\p{L}\p{N}])/iu, "Mậu Duệ"],
+  [/(?<=^|[^\p{L}\p{N}])l[uũ]ng\s+ph[iì]n(?=$|[^\p{L}\p{N}])/iu, "Lũng Phìn"],
+  [/(?<=^|[^\p{L}\p{N}])x[ií]n\s+c[aá]i(?=$|[^\p{L}\p{N}])/iu, "Xín Cái"],
+  [/(?<=^|[^\p{L}\p{N}])s[oơ]n\s+v[iĩ](?=$|[^\p{L}\p{N}])/iu, "Sơn Vĩ"],
   [/(?<=^|[^\p{L}\p{N}])đ[oồ]ng\s+v[aă]n(?=$|[^\p{L}\p{N}])/iu, "Đồng Văn"],
   [/(?<=^|[^\p{L}\p{N}])m[eè]o\s+v[aạ]c(?=$|[^\p{L}\p{N}])/iu, "Mèo Vạc"],
   [/(?<=^|[^\p{L}\p{N}])qu[aả]n\s+b[aạ](?=$|[^\p{L}\p{N}])/iu, "Quản Bạ"],
@@ -117,37 +133,119 @@ const SPECIFIC_HA_GIANG_AREAS: readonly [RegExp, string][] = [
   [/(?<=^|[^\p{L}\p{N}])b[aắ]c\s+quang(?=$|[^\p{L}\p{N}])/iu, "Bắc Quang"],
   [/(?<=^|[^\p{L}\p{N}])b[aắ]c\s+m[eê](?=$|[^\p{L}\p{N}])/iu, "Bắc Mê"],
   [/(?<=^|[^\p{L}\p{N}])quang\s+b[iì]nh(?=$|[^\p{L}\p{N}])/iu, "Quang Bình"],
-  [/(?<=^|[^\p{L}\p{N}])l[uũ]ng\s+c[uú](?=$|[^\p{L}\p{N}])/iu, "Lũng Cú"],
-  [/(?<=^|[^\p{L}\p{N}])m[aã]\s+p[iíì]\s+l[eè]ng(?=$|[^\p{L}\p{N}])/iu, "Mã Pí Lèng"],
-  [/(?<=^|[^\p{L}\p{N}])du\s+gi[aà](?=$|[^\p{L}\p{N}])/iu, "Du Già"],
-  [/(?<=^|[^\p{L}\p{N}])l[oô]\s+l[oô]\s+ch[aả]i(?=$|[^\p{L}\p{N}])/iu, "Lô Lô Chải"],
-  [/(?<=^|[^\p{L}\p{N}])s[uủ]ng\s+l[aà](?=$|[^\p{L}\p{N}])/iu, "Sủng Là"],
-  [/(?<=^|[^\p{L}\p{N}])ph[oó]\s+b[aả]ng(?=$|[^\p{L}\p{N}])/iu, "Phó Bảng"],
-  [/(?<=^|[^\p{L}\p{N}])n[aặ]m\s+đ[aă]m(?=$|[^\p{L}\p{N}])/iu, "Nặm Đăm"],
-  [/(?<=^|[^\p{L}\p{N}])p[aả]\s+vi(?=$|[^\p{L}\p{N}])/iu, "Pả Vi"],
 ];
 
+/** Reference town centers for Hà Giang overnight areas, shared by EVENING anchor lookup and overnight label fallback. */
+export const OVERNIGHT_TOWN_CENTERS: Readonly<Record<string, { latitude: number; longitude: number }>> = {
+  "Yên Minh": { latitude: 23.1175, longitude: 105.1425 },
+  "Đồng Văn": { latitude: 23.2783, longitude: 105.3614 },
+  "Mèo Vạc": { latitude: 23.1638, longitude: 105.4091 },
+  "Quản Bạ": { latitude: 23.0703, longitude: 104.9798 },
+  "TP Hà Giang": { latitude: 22.8233, longitude: 104.9836 },
+  "Du Già": { latitude: 22.9303, longitude: 105.2232 },
+  "Lũng Cú": { latitude: 23.3622, longitude: 105.3127 },
+  "Hoàng Su Phì": { latitude: 22.7436, longitude: 104.6775 },
+  "Bắc Mê": { latitude: 22.7536, longitude: 105.2877 },
+};
+
+const LANDMARK_PREFIX = /^(?:đèo|deo|sông|song|dinh\s+thự|dinh\s+thu|cột\s+cờ|cot\s+co|rừng\s+thông|rung\s+thong|thác|thac|hang|núi|nui|cổng\s+trời|cong\s+troi|hẻm|hem|bến\s+thuyền|ben\s+thuyen|hồ|ho\s+|cầu|cau\s+|chùa|chua|đền|den|nhà\s+của|nha\s+cua|mã\s+pí\s+lèng|ma\s+pi\s+leng|nho\s+quế|nho\s+que)\b/iu;
+
+const PROVINCE_ONLY = new Set(["ha giang", "tinh ha giang", "tuyen quang", "tinh tuyen quang"]);
+
+/** Extracts an administrative commune/town name (xã / thị trấn / phường) or known Hà Giang commune/town from text. */
+export function extractAdminCommuneOrTown(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const cleaned = cleanPlaceDisplayName(raw);
+  if (!cleaned) return null;
+  // Explicit Vietnamese commune/town phrase in an address, e.g. "Thôn Sà Phìn, xã Sà Phìn, tỉnh Tuyên Quang" -> "Sà Phìn".
+  const adminMatch = /(?:^|[,\-(]\s*)(?:x[aã]|th[iị]\s+tr[aấ]n|ph[uư][oờ]ng)\s+([^,()\-–;]+?)(?=[,()\-–;]|$)/iu.exec(cleaned);
+  if (adminMatch?.[1]) {
+    const candidate = capitalizeKnownPlaces(adminMatch[1].trim());
+    const foldedCandidate = fold(candidate);
+    if (foldedCandidate && !PROVINCE_ONLY.has(foldedCandidate) && !LANDMARK_PREFIX.test(candidate)) {
+      if (/^ha\s+giang(?:\s+\d+)?$/u.test(foldedCandidate)) return "TP Hà Giang";
+      return candidate;
+    }
+  }
+  for (const [pattern, label] of SPECIFIC_HA_GIANG_AREAS) {
+    if (pattern.test(cleaned)) return label;
+  }
+  return null;
+}
+
+/** Returns the nearest Hà Giang overnight town center name for given coordinates. */
+export function nearestOvernightTown(point: { latitude: number; longitude: number }): string | null {
+  if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)) return null;
+  let bestName: string | null = null;
+  let bestDistSq = Number.POSITIVE_INFINITY;
+  for (const [name, center] of Object.entries(OVERNIGHT_TOWN_CENTERS)) {
+    const dLat = center.latitude - point.latitude;
+    const dLng = (center.longitude - point.longitude) * Math.cos((point.latitude * Math.PI) / 180);
+    const distSq = dLat * dLat + dLng * dLng;
+    if (distSq < bestDistSq) {
+      bestDistSq = distSq;
+      bestName = name;
+    }
+  }
+  return bestName;
+}
+
+export type OvernightAreaContext = {
+  chosenLodgingName?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
 /**
- * Resolves a specific overnight area label for "Tối nay · nghỉ ở {khu vực}" from the day's last stop.
- * Ignores generic province placeholders such as "khu vực hà giang" / "Hà Giang" and extracts the
- * town/district from `lastStopName` (e.g. "[Tam] Rừng thông Yên Minh" → "Yên Minh") or uses the cleaned stop name.
+ * Bug 9: resolves a commune or town name for "Tối nay · nghỉ ở {khu vực}" — never a landmark, pass, or river.
+ * Priority:
+ *   1. Chosen lodging's commune/town (when chosen lodging names one)
+ *   2. Administrative commune/town of the day's last stop (address -> non-landmark area -> known town in stop name)
+ *   3. Nearest town in `OVERNIGHT_TOWN_CENTERS` from coordinates
+ *   4. Fallback generic area (never a sightseeing attraction, pass, or river name).
  */
 export function resolveOvernightAreaLabel(
   area: string | null | undefined,
   lastStopName?: string | null | undefined,
+  context?: OvernightAreaContext,
 ): string {
+  // 1. Chosen lodging (extract town/commune if named, e.g. "Sà Phìn Homestay" -> "Sà Phìn")
+  const fromLodging = extractAdminCommuneOrTown(context?.chosenLodgingName);
+  if (fromLodging) return fromLodging;
+
+  // 2a. Administrative commune/town from last stop's address field (e.g. "xã Sà Phìn" -> "Sà Phìn", "xã Mèo Vạc" -> "Mèo Vạc")
+  const fromAddress = extractAdminCommuneOrTown(context?.address);
+  if (fromAddress) return fromAddress;
+
+  // 2b. Explicit non-generic, non-landmark `area` field
   const specificArea = cleanAreaDisplayLabel(area);
   if (specificArea) {
-    return cleanOvernightAreaLabel(specificArea);
-  }
-  const cleanStop = cleanPlaceDisplayName(lastStopName ?? "");
-  if (cleanStop) {
-    for (const [pattern, label] of SPECIFIC_HA_GIANG_AREAS) {
-      if (pattern.test(cleanStop)) return label;
+    const cleanedArea = cleanOvernightAreaLabel(specificArea);
+    if (cleanedArea && !LANDMARK_PREFIX.test(cleanedArea)) {
+      return cleanedArea;
     }
-    return capitalizeKnownPlaces(cleanStop);
   }
-  return cleanOvernightAreaLabel(area);
+
+  // 2c. Known town/commune embedded in lastStopName (e.g. "[Tam] Rừng thông Yên Minh" -> "Yên Minh"), never raw landmark names
+  const fromStopName = extractAdminCommuneOrTown(lastStopName);
+  if (fromStopName) return fromStopName;
+
+  // 3. Nearest town in OVERNIGHT_TOWN_CENTERS using coordinates
+  if (
+    typeof context?.latitude === "number"
+    && typeof context?.longitude === "number"
+    && Number.isFinite(context.latitude)
+    && Number.isFinite(context.longitude)
+  ) {
+    const nearest = nearestOvernightTown({ latitude: context.latitude, longitude: context.longitude });
+    if (nearest) return nearest;
+  }
+
+  // 4. Never fall back to a landmark/pass/river name like "Dinh thự họ Vương", "Sông Nho Quế", "Đèo Mã Pì Lèng"
+  const fallbackArea = cleanOvernightAreaLabel(area);
+  if (fallbackArea && !LANDMARK_PREFIX.test(fallbackArea)) return fallbackArea;
+  return "";
 }
 
 /** True when a Google Places result has a meaningless generic name like "Khu Vui Chơi". */

@@ -1433,6 +1433,9 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   totalDays: trip.days.length,
                   lastStopArea: lastVisit?.destination.area,
                   lastStopName: lastVisit?.destination.name,
+                  lastStopAddress: (lastVisit?.destination as { address?: string | null } | undefined)?.address ?? null,
+                  lastStopLatitude: lastVisit?.destination.latitude ?? null,
+                  lastStopLongitude: lastVisit?.destination.longitude ?? null,
                   chosenLodging: chosen
                     ? {
                         name: chosen.name,

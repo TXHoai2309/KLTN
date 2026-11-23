@@ -9,6 +9,9 @@ export interface BuildDayEveningPlanInput {
   totalDays: number;
   lastStopArea?: string | null;
   lastStopName?: string | null;
+  lastStopAddress?: string | null;
+  lastStopLatitude?: number | null;
+  lastStopLongitude?: number | null;
   chosenLodging?: { name: string; previewTarget?: PlacePreviewTarget | null } | null;
   lodgingSuggestions?: DayTimelineEveningPlan["lodgingSuggestions"];
   eveningPlaces: readonly DayTimelineNearbyItem[];
@@ -22,7 +25,12 @@ export interface BuildDayEveningPlanInput {
  */
 export function buildDayEveningPlan(input: BuildDayEveningPlanInput): DayTimelineEveningPlan | null {
   if (input.dayIndex >= input.totalDays) return null;
-  const overnightArea = resolveOvernightAreaLabel(input.lastStopArea, input.lastStopName);
+  const overnightArea = resolveOvernightAreaLabel(input.lastStopArea, input.lastStopName, {
+    chosenLodgingName: input.chosenLodging?.name ?? null,
+    address: input.lastStopAddress ?? null,
+    latitude: input.lastStopLatitude ?? null,
+    longitude: input.lastStopLongitude ?? null,
+  });
   return {
     nightIndex: input.dayIndex,
     overnightArea,

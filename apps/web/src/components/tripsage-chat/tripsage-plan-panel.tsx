@@ -374,6 +374,9 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         totalDays,
         lastStopArea: lastDayStop?.destination.area,
         lastStopName: lastDayStop?.destination.name,
+        lastStopAddress: lastDayStop?.destination.address,
+        lastStopLatitude: lastDayStop?.destination.latitude,
+        lastStopLongitude: lastDayStop?.destination.longitude,
         chosenLodging: chosen
           ? {
               name: chosen.name,

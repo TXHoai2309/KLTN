@@ -1,6 +1,13 @@
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { haversine } from "../trip-planner/planner-geography";
-import { cleanPlaceDisplayName, isGenericActivityPlaceName, resolveOvernightAreaLabel } from "../../lib/traveler-display-clean";
+import {
+  cleanPlaceDisplayName,
+  isGenericActivityPlaceName,
+  OVERNIGHT_TOWN_CENTERS,
+  resolveOvernightAreaLabel,
+} from "../../lib/traveler-display-clean";
+
+export { OVERNIGHT_TOWN_CENTERS };
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { EARLY_DAY_END_MINUTE, suggestionSchema, type TimelineSuggestion } from "./tripsage-timeline";
 
@@ -79,19 +86,6 @@ export type EveningAnchorDiagnostic = {
   reason: "ok" | "no_places_within_3km" | "all_filtered_out" | "places_unavailable" | "budget_exhausted";
 };
 
-/** Reference town centers for Hà Giang overnight areas, used when a day's last stop is outside town (e.g. Rừng thông Yên Minh). */
-export const OVERNIGHT_TOWN_CENTERS: Readonly<Record<string, { latitude: number; longitude: number }>> = {
-  "Yên Minh": { latitude: 23.1175, longitude: 105.1425 },
-  "Đồng Văn": { latitude: 23.2783, longitude: 105.3614 },
-  "Mèo Vạc": { latitude: 23.1638, longitude: 105.4091 },
-  "Quản Bạ": { latitude: 23.0703, longitude: 104.9798 },
-  "TP Hà Giang": { latitude: 22.8233, longitude: 104.9836 },
-  "Du Già": { latitude: 22.9303, longitude: 105.2232 },
-  "Lũng Cú": { latitude: 23.3622, longitude: 105.3127 },
-  "Hoàng Su Phì": { latitude: 22.7436, longitude: 104.6775 },
-  "Bắc Mê": { latitude: 22.7536, longitude: 105.2877 },
-};
-
 /** `FREE` is the free afternoon after the last stop; it shows as an `ACTIVITY` suggestion found with its own query. */
 export type ActivityAnchor = {
   slotId: string;
@@ -108,10 +102,15 @@ export type ActivityAnchor = {
  * (3) overnight area town center (e.g. TT Yên Minh), (4) day's last stop coordinates.
  */
 export function resolveEveningAnchorPoint(input: {
-  lastStop: { name?: string | null; area?: string | null; latitude: number; longitude: number };
+  lastStop: { name?: string | null; area?: string | null; address?: string | null; latitude: number; longitude: number };
   lodging?: OvernightLodgingPoint | null;
 }): { latitude: number; longitude: number; anchorSource: EveningAnchorSource; areaLabel?: string } {
-  const areaLabel = resolveOvernightAreaLabel(input.lastStop.area, input.lastStop.name) ?? undefined;
+  // Only snap the EVENING Places search anchor to a town center when the stop's area/address/name
+  // actually belongs to that town (not by snapping an unrelated distant stop to a faraway town).
+  const areaLabel =
+    resolveOvernightAreaLabel(input.lastStop.area, input.lastStop.name, {
+      address: input.lastStop.address ?? null,
+    }) || undefined;
   if (input.lodging && Number.isFinite(input.lodging.latitude) && Number.isFinite(input.lodging.longitude)) {
     return {
       latitude: input.lodging.latitude,
