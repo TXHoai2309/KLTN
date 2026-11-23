@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Map, X } from "lucide-react";
+import { Calendar, Columns2, Map, Maximize2, PanelRightClose, PanelRightOpen, X } from "lucide-react";
 
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
@@ -34,6 +34,34 @@ import type { ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
 import { resolveSaveStatusNotice, TripsageSaveSection } from "./tripsage-save-section";
 
 export type PlanPanelSubTab = "itinerary" | "map" | "cost" | "checks";
+export type PlanPanelMode = "collapsed" | "split" | "expanded";
+export const PLAN_PANEL_MODE_STORAGE_KEY = "kltn:assistant:plan-panel-mode";
+
+export function readPlanPanelMode(storage?: Pick<Storage, "getItem"> | null): PlanPanelMode {
+  try {
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : null);
+    const value = target?.getItem(PLAN_PANEL_MODE_STORAGE_KEY);
+    return value === "collapsed" || value === "split" || value === "expanded" ? value : "split";
+  } catch {
+    return "split";
+  }
+}
+
+export function writePlanPanelMode(
+  storage: Pick<Storage, "setItem"> | null | undefined,
+  mode: PlanPanelMode,
+): void {
+  try {
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : null);
+    target?.setItem(PLAN_PANEL_MODE_STORAGE_KEY, mode);
+  } catch {
+    // Ignore storage quota or private-mode security errors.
+  }
+}
+
+export function resolvePanelModeAfterCardOpen(currentMode: PlanPanelMode): PlanPanelMode {
+  return currentMode === "collapsed" ? "split" : currentMode;
+}
 
 export interface TripsagePlanPanelProps {
   proposal: PlannerResult;
@@ -53,6 +81,8 @@ export interface TripsagePlanPanelProps {
   /** Point 6: server-verified Trip id when this exact proposal was already saved. */
   savedTripId?: string | null;
   drawerOpen: boolean;
+  panelMode?: PlanPanelMode;
+  onPanelModeChange?: (mode: PlanPanelMode) => void;
   initialDayKey?: string;
   onCloseDrawer: () => void;
   onToggleChosenLodging: (nightIndex: number, placeId: string) => void;
@@ -126,6 +156,8 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   isOutdated = false,
   savedTripId = null,
   drawerOpen,
+  panelMode = "split",
+  onPanelModeChange,
   initialDayKey,
   onCloseDrawer,
   onToggleChosenLodging,
@@ -140,8 +172,8 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
   const [saveView, setSaveView] = useState<ChatSaveView | null>(null);
-  // Point 5: only mount the side-by-side map in `.tripsage-panel-map-col` when the panel is >= 760px wide
-  // (below 760px CSS hides `.tripsage-panel-map-col` with `display: none` and shows the dedicated "Bản đồ" tab instead).
+  // Point 5 / A2: only mount the side-by-side map in `.tripsage-panel-map-col` when panel width >= 760px
+  // Ignore widths < 120px (e.g. collapsed 56px strip) so collapsing & reopening never churns the map mount.
   const [isWidePanel, setIsWidePanel] = useState(true);
   const panelRef = useRef<HTMLElement | null>(null);
   const touchStartYRef = useRef<number | null>(null);
@@ -152,7 +184,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     const el = panelRef.current;
     if (!el) return;
     const syncWidth = () => {
-      if (el.clientWidth > 0) setIsWidePanel(el.clientWidth >= 760);
+      if (el.clientWidth >= 120) setIsWidePanel(el.clientWidth >= 760);
     };
     syncWidth();
     if (typeof ResizeObserver === "undefined") return;
@@ -160,6 +192,12 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (isWidePanel && subTab === "map") {
+      setSubTab("itinerary");
+    }
+  }, [isWidePanel, subTab]);
 
   // Ticket 11 (design §3.9): Android Back closes the mobile sheet instead of leaving the page,
   // and restores the chat transcript scroll position when closed.
@@ -213,6 +251,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       buildDataTripTitle({
         homeCity: accessLeg?.homeCity ?? tripInfo?.homeCity ?? null,
         originLabel: proposal.requirement.journey?.origin?.label ?? null,
+        hubName: accessLeg?.hubName ?? null,
         firstArea: firstStop?.destination.area ?? null,
         lastArea: lastStop?.destination.area ?? null,
         startDate: firstDate || "2026-12-01",
@@ -457,11 +496,28 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       )}
       <aside
         ref={panelRef}
-        className={`tripsage-plan-panel${drawerOpen ? " is-open" : ""}`}
+        className={`tripsage-plan-panel${drawerOpen ? " is-open" : ""}${panelMode === "collapsed" ? " is-panel-collapsed" : ""}${panelMode === "expanded" ? " is-panel-expanded" : ""}`}
         data-testid="tripsage-plan-panel"
         data-proposal-id={proposal.proposalId}
+        data-panel-mode={panelMode}
         aria-label="Panel lịch trình hiện hành"
       >
+        <div className="tripsage-panel-collapsed-strip" data-testid="tripsage-panel-collapsed-strip">
+          <button
+            type="button"
+            className="tripsage-panel-strip-btn"
+            data-testid="panel-reopen-btn"
+            aria-label="Mở lại panel lịch trình"
+            title="Chia đôi (mở panel lịch trình)"
+            onClick={() => onPanelModeChange?.("split")}
+          >
+            <PanelRightOpen size={18} aria-hidden="true" />
+          </button>
+          <Calendar size={16} className="tripsage-panel-strip-icon" aria-hidden="true" />
+          <span className="tripsage-panel-vertical-title">{panelTitle}</span>
+        </div>
+
+        <div className="tripsage-panel-inner">
         <div
           className="tripsage-sheet-drag-zone"
           onTouchStart={(event) => {
@@ -484,6 +540,45 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
             <p className="tripsage-panel-meta">{metaLine}</p>
           </div>
           <div className="tripsage-panel-header-actions">
+            <div
+              className="tripsage-panel-mode-group"
+              role="group"
+              aria-label="Chế độ hiển thị panel lịch trình"
+            >
+              <button
+                type="button"
+                className={`tripsage-panel-mode-btn${panelMode === "collapsed" ? " is-active" : ""}`}
+                data-testid="panel-mode-collapsed"
+                aria-label="Thu gọn"
+                title="Thu gọn"
+                aria-pressed={panelMode === "collapsed"}
+                onClick={() => onPanelModeChange?.("collapsed")}
+              >
+                <PanelRightClose size={15} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={`tripsage-panel-mode-btn${panelMode === "split" ? " is-active" : ""}`}
+                data-testid="panel-mode-split"
+                aria-label="Chia đôi"
+                title="Chia đôi"
+                aria-pressed={panelMode === "split"}
+                onClick={() => onPanelModeChange?.("split")}
+              >
+                <Columns2 size={15} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={`tripsage-panel-mode-btn${panelMode === "expanded" ? " is-active" : ""}`}
+                data-testid="panel-mode-expanded"
+                aria-label="Mở rộng"
+                title="Mở rộng"
+                aria-pressed={panelMode === "expanded"}
+                onClick={() => onPanelModeChange?.("expanded")}
+              >
+                <Maximize2 size={15} aria-hidden="true" />
+              </button>
+            </div>
             <div className="tripsage-panel-save-desktop">
               {!busy && !noticePresent && (
                 <TripsageSaveSection
@@ -724,6 +819,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
           returnFocusTo={preview?.trigger ?? null}
           onClose={() => setPreview(null)}
         />
+        </div>
       </aside>
     </>
   );

@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { FileText, Menu, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles, Square } from "lucide-react";
+import { FileText, Menu, MessageSquare, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles, Square } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { createIdempotencyKey } from "@/lib/mutation-client";
@@ -63,7 +63,13 @@ import { TripsageCostCard } from "./tripsage-cost-card";
 import { parseItineraryPart } from "./tripsage-itinerary-view";
 import { TripsageMarkdown } from "./tripsage-markdown";
 import { TripsageMemoryPanel } from "./tripsage-memory-panel";
-import { TripsagePlanPanel } from "./tripsage-plan-panel";
+import {
+  readPlanPanelMode,
+  resolvePanelModeAfterCardOpen,
+  TripsagePlanPanel,
+  writePlanPanelMode,
+  type PlanPanelMode,
+} from "./tripsage-plan-panel";
 import { TripsagePlanProgress, planProgressRetryPrompt } from "./tripsage-plan-progress";
 import { TripsagePlanSummaryCard } from "./tripsage-plan-summary-card";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
@@ -124,6 +130,8 @@ export function TripsageChatClient({
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const [isDesktopSplitViewport, setIsDesktopSplitViewport] = useState(false);
+  const [planPanelMode, setPlanPanelMode] = useState<PlanPanelMode>("split");
   const userToggledSidebarRef = useRef(false);
   const [conversations, setConversations] = useState<UnifiedConversationItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -423,11 +431,17 @@ export function TripsageChatClient({
 
   const hasActivePlan = Boolean(latestItinerary && !legacyReadOnly);
 
+  useEffect(() => {
+    setPlanPanelMode(readPlanPanelMode());
+  }, []);
+
   // Desktop uses 48px icon rail when plan panel is open unless user persisted open; mobile keeps sheet.
   useEffect(() => {
     const sync = () => {
       const desktop = window.innerWidth >= 1024;
+      const splitDesktop = window.innerWidth >= 1200;
       setIsDesktopViewport(desktop);
+      setIsDesktopSplitViewport(splitDesktop);
       if (!desktop) {
         setSidebarOpen(false);
       } else if (!userToggledSidebarRef.current) {
@@ -440,7 +454,22 @@ export function TripsageChatClient({
     sync();
     window.addEventListener("resize", sync);
     return () => window.removeEventListener("resize", sync);
-  }, [hasActivePlan]);
+  }, [hasActivePlan, planPanelMode]);
+
+  function handlePlanPanelModeChange(next: PlanPanelMode) {
+    setPlanPanelMode(next);
+    writePlanPanelMode(undefined, next);
+  }
+
+  function handleOpenPlanFromSummaryCard() {
+    setPlanDrawerOpen(true);
+    if (isDesktopSplitViewport) {
+      const next = resolvePanelModeAfterCardOpen(planPanelMode);
+      if (next !== planPanelMode) {
+        handlePlanPanelModeChange(next);
+      }
+    }
+  }
 
   function handleOpenSidebar() {
     userToggledSidebarRef.current = true;
@@ -660,6 +689,7 @@ export function TripsageChatClient({
       className={`assistant-chat assistant-v2-chat${hasActivePlan ? " has-plan" : ""}${isDesktopViewport ? " has-sidebar-rail" : ""}`}
       data-runtime="tripsage-unified"
       data-has-plan={hasActivePlan ? "true" : "false"}
+      data-panel-mode={hasActivePlan ? planPanelMode : "none"}
       aria-label="Trợ lý AI"
       aria-busy={busy || loadingConversation}
       lang="vi"
@@ -687,7 +717,21 @@ export function TripsageChatClient({
         onSearchChange={setSearchQuery}
       />
 
-      <div className="assistant-chat-main assistant-chat-fullscreen">
+      <div className="assistant-workspace">
+      <div className={`assistant-chat-main assistant-chat-fullscreen${hasActivePlan && planPanelMode === "expanded" ? " is-chat-collapsed" : ""}`}>
+        <div className="assistant-chat-collapsed-strip" aria-label="Khung chat thu gọn">
+          <button
+            type="button"
+            className="tripsage-panel-strip-btn"
+            data-testid="chat-reopen-btn"
+            onClick={() => handlePlanPanelModeChange("split")}
+            aria-label="Mở lại khung chat"
+            title="Mở lại khung chat"
+          >
+            <MessageSquare size={18} aria-hidden="true" />
+          </button>
+          <span className="tripsage-panel-vertical-title">Trò chuyện</span>
+        </div>
         {/* Ticket 11 (design §4.1): 48px mobile top bar (☰ · conversation title · +) replacing floating sidebar pill */}
         <header className="assistant-mobile-topbar">
           <button
@@ -876,8 +920,8 @@ export function TripsageChatClient({
                             cost={isCurrentPlanMessage ? (state.cost?.data ?? cost) : null}
                             isCurrent={isCurrentPlanMessage}
                             isOutdated={isCurrentPlanMessage && planOutdated}
-                            isPanelOpen={planDrawerOpen}
-                            onOpenPanel={isCurrentPlanMessage ? () => setPlanDrawerOpen(true) : undefined}
+                            isPanelOpen={isDesktopSplitViewport && hasActivePlan ? planPanelMode !== "collapsed" : planDrawerOpen}
+                            onOpenPanel={isCurrentPlanMessage ? handleOpenPlanFromSummaryCard : undefined}
                           />
                         )}
                         {/* Standalone cost or access-leg card when no itinerary exists in this turn */}
@@ -1069,6 +1113,8 @@ export function TripsageChatClient({
               : null
           }
           drawerOpen={planDrawerOpen}
+          panelMode={planPanelMode}
+          onPanelModeChange={handlePlanPanelModeChange}
           onCloseDrawer={() => setPlanDrawerOpen(false)}
           onToggleChosenLodging={handleToggleChosenLodging}
           onRequestMeals={day => send(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
@@ -1078,6 +1124,7 @@ export function TripsageChatClient({
           onSaveStateChange={setSaveState}
         />
       )}
+      </div>
     </section>
   );
 }

@@ -96,6 +96,15 @@
   position: relative;
 }
 
+.assistant-workspace {
+  display: flex;
+  flex: 1 1 0%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .assistant-chat-main {
   display: flex;
   flex-direction: column;
@@ -106,6 +115,10 @@
   overflow: hidden;
   background: transparent;
   position: relative;
+}
+
+.assistant-chat-collapsed-strip {
+  display: none;
 }
 
 /* ==========================================================================
@@ -3351,6 +3364,56 @@
   overflow: hidden;
 }
 
+.tripsage-panel-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tripsage-panel-collapsed-strip {
+  display: none;
+}
+
+.tripsage-panel-strip-btn {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--tv-radius-sm);
+  background: transparent;
+  color: var(--tv-ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.tripsage-panel-strip-btn:hover {
+  background: var(--tv-sunken);
+  color: var(--tv-ink);
+}
+
+.tripsage-panel-strip-icon {
+  color: var(--tv-ink-3);
+  flex-shrink: 0;
+}
+
+.tripsage-panel-vertical-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tv-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-height: 360px;
+}
+
 .tripsage-sheet-handle,
 .tripsage-sheet-footer {
   display: none;
@@ -3395,6 +3458,41 @@
   align-items: center;
   gap: var(--tv-space-2);
   flex-shrink: 0;
+}
+
+.tripsage-panel-mode-group {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--tv-radius-sm);
+  background: var(--tv-sunken);
+  border: 1px solid var(--tv-border);
+}
+
+.tripsage-panel-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tv-ink-2);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tripsage-panel-mode-btn:hover {
+  color: var(--tv-ink);
+}
+
+.tripsage-panel-mode-btn.is-active {
+  background: var(--tv-surface);
+  color: var(--tv-ink);
 }
 
 .tripsage-panel-close {
@@ -3506,7 +3604,7 @@
 
 .tripsage-panel-split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 42%);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 39%);
   gap: var(--tv-space-4);
   align-items: start;
 }
@@ -3554,16 +3652,101 @@
   }
 }
 
-/* Desktop >= 1200px split-screen when plan exists (design §4.1) */
+/* Desktop >= 1200px split-screen with 3-state collapsible/expandable plan panel (A2) */
 @media (min-width: 1200px) {
+  .tripsage-panel-mode-group {
+    display: inline-flex;
+  }
+
+  .assistant-chat.has-plan .assistant-chat-main,
+  .assistant-chat.has-plan .tripsage-plan-panel {
+    transition: width 200ms ease, min-width 200ms ease, max-width 200ms ease, flex-basis 200ms ease;
+  }
+
   .assistant-chat.has-plan .assistant-chat-main {
-    flex: 0 0 460px;
-    max-width: 480px;
-    min-width: 440px;
+    flex: 0 0 max(420px, 45%);
+    width: max(420px, 45%);
+    max-width: none;
+    min-width: 420px;
   }
 
   .assistant-chat.has-plan .tripsage-plan-panel {
-    flex: 1 1 auto;
+    flex: 1 1 0%;
+    width: min(55%, calc(100% - 420px));
+    min-width: 0;
+    max-width: none;
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="collapsed"] {
+    --chat-col-max: 760px;
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="collapsed"] .assistant-chat-main {
+    flex: 1 1 0%;
+    width: calc(100% - 56px);
+    min-width: 420px;
+    max-width: none;
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="collapsed"] .tripsage-plan-panel {
+    flex: 0 0 56px;
+    width: 56px;
+    min-width: 56px;
+    max-width: 56px;
+    background: var(--tv-ground);
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="collapsed"] .tripsage-plan-panel .tripsage-panel-inner {
+    display: none;
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="collapsed"] .tripsage-panel-collapsed-strip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 6px;
+    width: 100%;
+    height: 100%;
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="expanded"] .assistant-chat-main {
+    flex: 0 0 56px;
+    width: 56px;
+    min-width: 56px;
+    max-width: 56px;
+    border-right: 1px solid var(--tv-line);
+    background: var(--tv-ground);
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="expanded"] .assistant-chat-main .assistant-floating-header,
+  .assistant-chat.has-plan[data-panel-mode="expanded"] .assistant-chat-main .assistant-transcript,
+  .assistant-chat.has-plan[data-panel-mode="expanded"] .assistant-chat-main .assistant-bottom-dock {
+    display: none;
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="expanded"] .assistant-chat-collapsed-strip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 6px;
+    width: 100%;
+    height: 100%;
+  }
+
+  .assistant-chat.has-plan[data-panel-mode="expanded"] .tripsage-plan-panel {
+    flex: 1 1 0%;
+    width: calc(100% - 56px);
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-chat.has-plan .assistant-chat-main,
+  .assistant-chat.has-plan .tripsage-plan-panel {
+    transition: none;
   }
 }
 

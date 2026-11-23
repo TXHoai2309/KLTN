@@ -6,7 +6,12 @@ import { CHECK_KEYS, type PlannerResult } from "@/modules/trip-planner/planner-c
 import { tripRequirementInputSchema } from "@/modules/trip-requirement/trip-requirement-contract";
 import { estimateTripCost } from "@/modules/tripsage-chat/tripsage-cost";
 import { TripsagePlanSummaryCard } from "./tripsage-plan-summary-card";
-import { TripsagePlanPanel } from "./tripsage-plan-panel";
+import {
+  readPlanPanelMode,
+  resolvePanelModeAfterCardOpen,
+  TripsagePlanPanel,
+  writePlanPanelMode,
+} from "./tripsage-plan-panel";
 
 function makeProposal(id = "prop-v2"): PlannerResult {
   return {
@@ -432,5 +437,79 @@ describe("Ticket 10: Plan summary card & desktop split panel / tablet drawer (sl
     );
     expect(v3Html).toContain(">Lưu chuyến<");
     expect(v3Html).not.toContain("/trips/cmwt3nfzl000107lbf8uetc0l");
+  });
+
+  it("A2: renders 3-state panel mode controls (Thu gọn / Chia đôi / Mở rộng), collapsed strip with persistent inner tree, and safe localStorage helpers", () => {
+    const splitHtml = renderToStaticMarkup(
+      createElement(TripsagePlanPanel, {
+        proposal: makeProposal("prop-a2"),
+        suggestions: [],
+        chosenLodgings: {},
+        pinnedItems: [],
+        drawerOpen: false,
+        panelMode: "split",
+        onPanelModeChange: () => {},
+        onCloseDrawer: () => {},
+        onToggleChosenLodging: () => {},
+        onRequestMeals: () => {},
+        onAskAccess: () => {},
+        onSelectSavingsOption: () => {},
+        onSaved: () => {},
+        onSaveStateChange: () => {},
+      }),
+    );
+    expect(splitHtml).toContain("Chế độ hiển thị panel lịch trình");
+    expect(splitHtml).toContain('aria-label="Thu gọn"');
+    expect(splitHtml).toContain('aria-label="Chia đôi"');
+    expect(splitHtml).toContain('aria-label="Mở rộng"');
+    expect(splitHtml).toContain('aria-pressed="true"');
+
+    const collapsedHtml = renderToStaticMarkup(
+      createElement(TripsagePlanPanel, {
+        proposal: makeProposal("prop-a2"),
+        suggestions: [],
+        chosenLodgings: {},
+        pinnedItems: [],
+        drawerOpen: false,
+        panelMode: "collapsed",
+        onPanelModeChange: () => {},
+        onCloseDrawer: () => {},
+        onToggleChosenLodging: () => {},
+        onRequestMeals: () => {},
+        onAskAccess: () => {},
+        onSelectSavingsOption: () => {},
+        onSaved: () => {},
+        onSaveStateChange: () => {},
+      }),
+    );
+    expect(collapsedHtml).toContain("is-panel-collapsed");
+    expect(collapsedHtml).toContain("tripsage-panel-collapsed-strip");
+    expect(collapsedHtml).toContain('aria-label="Mở lại panel lịch trình"');
+    expect(collapsedHtml).toContain("tripsage-panel-inner");
+
+    expect(resolvePanelModeAfterCardOpen("collapsed")).toBe("split");
+    expect(resolvePanelModeAfterCardOpen("split")).toBe("split");
+    expect(resolvePanelModeAfterCardOpen("expanded")).toBe("expanded");
+
+    const badStorage: Pick<Storage, "getItem" | "setItem"> = {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("quota");
+      },
+    };
+    expect(readPlanPanelMode(badStorage)).toBe("split");
+    expect(() => writePlanPanelMode(badStorage, "expanded")).not.toThrow();
+
+    const backing = new Map<string, string>();
+    const okStorage: Pick<Storage, "getItem" | "setItem"> = {
+      getItem: k => backing.get(k) ?? null,
+      setItem: (k, v) => {
+        backing.set(k, v);
+      },
+    };
+    writePlanPanelMode(okStorage, "collapsed");
+    expect(readPlanPanelMode(okStorage)).toBe("collapsed");
   });
 });
