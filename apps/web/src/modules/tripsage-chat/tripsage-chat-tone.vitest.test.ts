@@ -8,6 +8,7 @@ import { fixtureRoutes, planningCandidate, planningNow } from "../../test/planni
 import { sourcesPartSchema } from "./tripsage-chat-context";
 import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
+import { TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 
 let seq = 0;
@@ -116,5 +117,39 @@ describe("Ticket 03: tone rules & document source scoping", () => {
       { text: "Phần này là kiến thức mở rộng." },
     ], { knowledge: () => async () => [] });
     expect(all.some(p => p.type === "data-sources")).toBe(false);
+  });
+
+  it("Point 3: resolves short D1/D2 destination codes on first try (0 INVALID_AI_PLAN) and forbids internal-mechanics jargon in persona & fallback notes", async () => {
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("TUYỆT ĐỐI KHÔNG nhắc cơ chế hay thuật ngữ nội bộ");
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Mình bỏ bớt Cột cờ Lũng Cú và Sủng Là để kịp giờ");
+
+    // 1. Short codes D1, D2 returned by listDestinations succeed on 1st proposeItinerary call with 0 INVALID_AI_PLAN
+    const shortCodeRun = await runTurn("Lập lịch 1 ngày, điểm đầu chơi 45 phút thôi", [
+      { tool: "listDestinations", input: {} },
+      { tool: "proposeItinerary", input: { selection: { days: [["D1", "D2"]] }, visitMinutes: { D1: 45 } } },
+      { text: "Mình đã lên lịch 1 ngày cho bạn." },
+    ]);
+    const listOutput = JSON.stringify(shortCodeRun.model.doStreamCalls[1]!.prompt);
+    expect(listOutput).toContain('"code":"D1"');
+    expect(listOutput).toContain('"code":"D2"');
+    const proposeToolMsgs = JSON.stringify(shortCodeRun.model.doStreamCalls[2]!.prompt.filter(m => m.role === "tool"));
+    expect(proposeToolMsgs).not.toContain("INVALID_AI_PLAN");
+    expect(proposeToolMsgs).toContain('"status":"PROPOSAL_READY"');
+    const itin = shortCodeRun.all.find(p => p.type === "data-itinerary")?.data as {
+      days: { stops: { destination: { id: string }; visitDurationMinutes: number }[] }[];
+    } | undefined;
+    expect(itin?.days[0]?.stops.map(s => s.destination.id)).toEqual(["a", "b"]);
+    expect(itin?.days[0]?.stops[0]?.visitDurationMinutes).toBe(45);
+
+    // 2. If fallback autoSelected triggers after 2 bad selections, its note tells model NOT to leak internal terms
+    const fallbackRun = await runTurn("Lập lịch giúp mình", [
+      { tool: "proposeItinerary", input: { selection: { days: [["bad-1"]] } } },
+      { tool: "proposeItinerary", input: { selection: { days: [["bad-2"]] } } },
+      { text: "Mình đã gợi ý trước lịch trình 1 ngày, bạn muốn đổi điểm nào không?" },
+    ]);
+    const fallbackPrompt = JSON.stringify(fallbackRun.model.doStreamCalls[2]!.prompt);
+    expect(fallbackPrompt).toContain("autoSelected");
+    expect(fallbackPrompt).toContain("TUYỆT ĐỐI KHÔNG nhắc từ ngữ nội bộ");
+    expect(fallbackPrompt).not.toContain("Nói ngắn với người dùng rằng đây là bản nháp tự chọn");
   });
 });
