@@ -3,8 +3,11 @@ import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { AppError } from "../../server/http/app-error";
 import { originSelectionSchema } from "../trip-origin/trip-origin-contract";
+import { DAILY_DRIVING_WARNING_HOURS } from "../trip-origin/journey-planner";
+import { driveWithRest, restProfileOf, type RestMode } from "../trip-origin/rest-policy";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 import { haversine } from "../trip-planner/planner-geography";
+import type { TripTransport } from "../trip-requirement/trip-requirement-contract";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { TRIP_HUBS } from "./trip-hubs";
 
@@ -342,6 +345,111 @@ export function isFarHomeCityName(place: string): boolean {
     const escaped = alias.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
     return new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`, "u").test(folded);
   });
+}
+
+/** Approximate geographic centers for distant Vietnam cities (system-level distance estimate when routing is unavailable). */
+const FAR_CITY_CENTERS: readonly { aliases: readonly string[]; latitude: number; longitude: number }[] = [
+  { aliases: ["ho chi minh", "tphcm", "tp hcm", "hcm", "sai gon", "saigon"], latitude: 10.7769, longitude: 106.7009 },
+  { aliases: ["da nang"], latitude: 16.0544, longitude: 108.2022 },
+  { aliases: ["can tho"], latitude: 10.0452, longitude: 105.7469 },
+  { aliases: ["hue", "thua thien hue"], latitude: 16.4637, longitude: 107.5909 },
+  { aliases: ["nha trang", "khanh hoa"], latitude: 12.2388, longitude: 109.1967 },
+  { aliases: ["da lat", "lam dong"], latitude: 11.9404, longitude: 108.4583 },
+  { aliases: ["quy nhon", "binh dinh"], latitude: 13.7829, longitude: 109.2197 },
+  { aliases: ["vung tau", "ba ria vung tau"], latitude: 10.346, longitude: 107.0843 },
+  { aliases: ["buon ma thuot", "dak lak"], latitude: 12.6667, longitude: 108.05 },
+  { aliases: ["pleiku", "gia lai"], latitude: 13.9833, longitude: 108.0 },
+  { aliases: ["phu quoc", "kien giang"], latitude: 10.227, longitude: 103.957 },
+  { aliases: ["vinh", "nghe an"], latitude: 18.6796, longitude: 105.6813 },
+  { aliases: ["ha tinh"], latitude: 18.3428, longitude: 105.9057 },
+  { aliases: ["dong hoi", "quang binh"], latitude: 17.4689, longitude: 106.6223 },
+  { aliases: ["quang tri"], latitude: 16.75, longitude: 107.185 },
+  { aliases: ["quang nam", "hoi an"], latitude: 15.8801, longitude: 108.338 },
+  { aliases: ["quang ngai"], latitude: 15.1214, longitude: 108.8044 },
+  { aliases: ["tuy hoa", "phu yen"], latitude: 13.0955, longitude: 109.3209 },
+  { aliases: ["phan thiet", "binh thuan"], latitude: 10.9289, longitude: 108.1021 },
+  { aliases: ["bien hoa", "dong nai"], latitude: 10.9574, longitude: 106.8427 },
+  { aliases: ["binh duong"], latitude: 10.9804, longitude: 106.6519 },
+  { aliases: ["ca mau"], latitude: 9.1768, longitude: 105.1524 },
+];
+
+export function lookupFarCityPoint(place: string): { latitude: number; longitude: number } | null {
+  const folded = foldVietnamese(place);
+  if (!folded) return null;
+  for (const city of FAR_CITY_CENTERS) {
+    if (city.aliases.some(alias => folded === alias || new RegExp(`(?:^|\\s)${alias.replace(/\s+/gu, "\\s+")}(?:\\s|$)`, "u").test(folded))) {
+      return { latitude: city.latitude, longitude: city.longitude };
+    }
+  }
+  return null;
+}
+
+const DIRECT_SELF_DRIVE_PATTERNS: readonly RegExp[] = [
+  /\b(?:chay|lai|phuot)\s+(?:xe\s+may|o\s+to|xe)\s+thang\b/u,
+  /\btu\s+(?:chay|lai)(?:\s+(?:xe\s+may|o\s+to|xe))?\s+(?:thang\s+)?(?:tu\s+.{2,35}\s+)?(?:ra|len|toi|den)\s+ha\s+giang\b/u,
+  /\b(?:chay|lai|di)\s+(?:xe\s+may|o\s+to)\s+thang\s+(?:ra|len|toi|den)\s+ha\s+giang\b/u,
+];
+const INDIRECT_ACCESS_PATTERNS = /\b(?:bay|may\s+bay|tau\s+hoa|di\s+tau|xe\s+khach|xe\s+giuong\s+nam|thue\s+xe(?:\s+may|\s+o\s+to)?\s+(?:o|tai))\b/u;
+
+/** Bug 5: true when the traveler explicitly asks to drive/ride straight from a far home city to Hà Giang. */
+export function wantsDirectDriveFromHome(text: string): boolean {
+  const folded = foldVietnamese(text);
+  if (!folded || INDIRECT_ACCESS_PATTERNS.test(folded)) return false;
+  return DIRECT_SELF_DRIVE_PATTERNS.some(pattern => pattern.test(folded));
+}
+
+export type MinimumSelfDriveEstimate = {
+  oneWayKm: number;
+  oneWayDrivingHours: number;
+  oneWayTotalHoursWithRest: number;
+  maxDailyDrivingHours: number;
+  oneWayTravelDays: number;
+  roundTripMinDays: number;
+};
+
+/**
+ * Bug 5: deterministic minimum-days calculation for self-driving from a distant home city to Hà Giang and back.
+ * Uses the rest policy's daily driving cap (`DAILY_DRIVING_WARNING_HOURS`: 6h/day motorbike, 8h/day car)
+ * and `driveWithRest` break durations.
+ */
+export function computeMinimumSelfDriveDays(input: {
+  oneWayDistanceKm: number;
+  oneWayDrivingSeconds: number;
+  transport: TripTransport;
+  sightseeingDays?: number;
+  restMode?: RestMode;
+}): MinimumSelfDriveEstimate {
+  const oneWayKm = Math.max(1, Math.round(input.oneWayDistanceKm));
+  const drivingSeconds = Math.max(60, Math.round(input.oneWayDrivingSeconds));
+  const restMinutes = driveWithRest(drivingSeconds, 0, restProfileOf({ transport: input.transport, restMode: input.restMode })).restMinutes;
+  const oneWayDrivingHours = Math.round((drivingSeconds / 3600) * 10) / 10;
+  const oneWayTotalHoursWithRest = Math.round(((drivingSeconds + restMinutes * 60) / 3600) * 10) / 10;
+  const maxDailyDrivingHours = DAILY_DRIVING_WARNING_HOURS[input.transport];
+  const oneWayTravelDays = Math.max(1, Math.ceil(oneWayDrivingHours / maxDailyDrivingHours));
+  const sightseeing = Math.max(1, Math.min(14, Math.round(input.sightseeingDays ?? 2)));
+  const roundTripMinDays = oneWayTravelDays * 2 + sightseeing;
+  return {
+    oneWayKm,
+    oneWayDrivingHours,
+    oneWayTotalHoursWithRest,
+    maxDailyDrivingHours,
+    oneWayTravelDays,
+    roundTripMinDays,
+  };
+}
+
+/** Deterministic road-distance & driving-time fallback from coordinates when live routing is unavailable (never arbitrary text). */
+export function estimateRoadFromCoordinates(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number },
+  transport: TripTransport,
+): { distanceKm: number; drivingSeconds: number } {
+  // Vietnamese North–South highway + mountain pass winding factor (~1.38x great-circle)
+  const straightKm = haversine(from, to);
+  const distanceKm = Math.max(1, Math.round(straightKm * 1.38));
+  const avgKmh = transport === "CAR" ? 55 : 45;
+  const drivingSeconds = Math.round((distanceKm / avgKmh) * 3600);
+  return { distanceKm, drivingSeconds };
 }
 
 const TENTATIVE_DATE_CUE = /\b(?:khoang|tam|du\s+kien|chung|quanh)\b/u;

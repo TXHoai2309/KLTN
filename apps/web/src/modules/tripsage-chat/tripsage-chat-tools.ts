@@ -21,18 +21,22 @@ import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, f
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
+  computeMinimumSelfDriveDays,
+  estimateRoadFromCoordinates,
   extractStatedDateFromText,
   FAR_HOME_TRANSPORT_CHIPS,
   FIXED_HUB_CANDIDATES,
   isDateConfirmationOnlyReplies,
   isFarFromHubs,
   isFarHomeCityName,
+  lookupFarCityPoint,
   matchFixedHub,
   MAX_ORIGIN_CANDIDATES,
   namesOrAgreesOrigin,
   permitsOriginConfirmation,
   sameOriginPlace,
   statesSoleOrigin,
+  wantsDirectDriveFromHome,
   type SignedOriginCandidate,
   type VerifiedOriginCandidates,
 } from "./tripsage-chat-origin";
@@ -206,12 +210,92 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     }
     return null;
   };
-  const farHomeCityResponse = (cityLabel: string) => {
+  const farHomeCityResponse = async (
+    cityLabel: string,
+    resolvedPoint?: { latitude: number; longitude: number } | null,
+    signal?: AbortSignal,
+  ) => {
     const resolvedHomeCity = tripInfo.homeCity?.trim() || cityLabel.trim();
     if (!tripInfo.homeCity && resolvedHomeCity) {
       tripInfo = { ...tripInfo, homeCity: resolvedHomeCity.slice(0, 60) };
       context.emitTripInfo?.(tripInfo);
     }
+    const latest = context.latestUserText ?? "";
+    const directDrive = wantsDirectDriveFromHome(latest);
+    const daysMatch = /\b(\d{1,2})\s*ng[aà]y\b/iu.exec(latest);
+    const requestedDays = tripInfo.durationDays ?? (daysMatch ? Number(daysMatch[1]) : undefined);
+    const transport = tripInfo.transport ?? (/\b(?:o\s*to|ô\s*tô|xe\s*h[oơ]i)\b/iu.test(latest) ? "CAR" : "MOTORCYCLE");
+
+    // Bug 5: when a far traveler explicitly asks to drive/ride straight from home in an infeasible number of days,
+    // explain briefly using real routing (or system coordinate estimate) and offer 3 concrete alternative chips.
+    if (directDrive && requestedDays && requestedDays >= 1) {
+      const point = resolvedPoint ?? lookupFarCityPoint(resolvedHomeCity);
+      const haGiangHub = FIXED_HUB_CANDIDATES.find(h => h.id === "hub:HA_GIANG_CITY")!;
+      if (point) {
+        let distanceKm: number;
+        let drivingSeconds: number;
+        let metricSource: "ROUTING" | "SYSTEM_ESTIMATE" = "SYSTEM_ESTIMATE";
+        if (context.planning.routes.coordinateRoute) {
+          const timeout = AbortSignal.timeout(4_000);
+          const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+          const routed = await context.planning.routes
+            .coordinateRoute({ from: point, to: { latitude: haGiangHub.latitude, longitude: haGiangHub.longitude }, transport }, combined)
+            .catch(() => null);
+          if (routed && routed.status === "VERIFIED" && routed.distanceMeters && routed.durationSeconds) {
+            distanceKm = routed.distanceMeters / 1000;
+            drivingSeconds = routed.durationSeconds;
+            metricSource = "ROUTING";
+          } else {
+            const est = estimateRoadFromCoordinates(point, haGiangHub, transport);
+            distanceKm = est.distanceKm;
+            drivingSeconds = est.drivingSeconds;
+          }
+        } else {
+          const est = estimateRoadFromCoordinates(point, haGiangHub, transport);
+          distanceKm = est.distanceKm;
+          drivingSeconds = est.drivingSeconds;
+        }
+        const minDays = computeMinimumSelfDriveDays({
+          oneWayDistanceKm: distanceKm,
+          oneWayDrivingSeconds: drivingSeconds,
+          transport,
+          sightseeingDays: requestedDays,
+        });
+        if (requestedDays < minDays.roundTripMinDays) {
+          const kmRounded = Math.round(minDays.oneWayKm / 50) * 50;
+          const hoursFloor = Math.floor(minDays.oneWayDrivingHours);
+          const vehicleLabel = transport === "CAR" ? "ô tô" : "xe máy";
+          const sourceLabel = metricSource === "ROUTING" ? "theo định tuyến" : "ước tính hệ thống";
+          const chips = [
+            "Bay ra Hà Nội rồi thuê xe",
+            `Vẫn chạy xe — cần khoảng ${minDays.roundTripMinDays} ngày`,
+            "Đổi sang xe khách",
+          ];
+          context.emitQuickReplies?.(chips);
+          return {
+            ok: true as const,
+            farHomeCity: true as const,
+            homeCity: resolvedHomeCity,
+            count: 0,
+            candidates: [] as { candidateId: string; label: string }[],
+            fixedHubs: fixedHubPublic,
+            infeasibleDirectDrive: {
+              oneWayKm: minDays.oneWayKm,
+              oneWayDrivingHours: minDays.oneWayDrivingHours,
+              oneWayTotalHoursWithRest: minDays.oneWayTotalHoursWithRest,
+              maxDailyDrivingHours: minDays.maxDailyDrivingHours,
+              roundTripMinDays: minDays.roundTripMinDays,
+              requestedDays,
+              transport,
+              source: metricSource,
+            },
+            suggestedReplies: chips,
+            note: `Yêu cầu chạy ${vehicleLabel} thẳng từ ${resolvedHomeCity} ra Hà Giang trong ${requestedDays} ngày là BẤT KHẢ THI (${sourceLabel}: một chiều khoảng ${kmRounded.toLocaleString("vi-VN")} km, chừng ${hoursFloor}+ giờ chạy xe, tối đa ${minDays.maxDailyDrivingHours} giờ/ngày theo chính sách nghỉ → đi và về kèm tham quan cần khoảng ${minDays.roundTripMinDays} ngày). Hãy giải thích ngắn gọn bằng đúng số liệu này (không bịa số khác), rồi mời người dùng chọn 1 trong 3 nút đã hiện sẵn: "${chips[0]}", "${chips[1]}", "${chips[2]}".`,
+          };
+        }
+      }
+    }
+
     context.emitQuickReplies?.([...FAR_HOME_TRANSPORT_CHIPS]);
     return {
       ok: true as const,
@@ -332,7 +416,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       } else {
         // Slim D17: travelers from far cities (Đà Nẵng, TP HCM, ...) never get local district/landmark candidates.
         if (isFarHomeCityName(query) || (tripInfo.homeCity && isFarHomeCityName(tripInfo.homeCity) && sameOriginPlace(tripInfo.homeCity, query))) {
-          return farHomeCityResponse(query);
+          return await farHomeCityResponse(query, null, options?.abortSignal);
         }
         const outcome = context.originSearch ? await context.originSearch(query, options?.abortSignal) : ({ status: "UNAVAILABLE" } as const);
         if (outcome.status === "BUSY") {
@@ -346,7 +430,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           return { ok: true as const, count: 0, candidates: [], fixedHubs: fixedHubPublic, note: "Không tìm thấy địa điểm hợp lệ trong lãnh thổ Việt Nam. Hỏi người dùng ghi rõ quận/huyện, tỉnh/thành hoặc chọn một điểm tập kết cố định." };
         }
         if (supported.every(result => isFarFromHubs(result))) {
-          return farHomeCityResponse(tripInfo.homeCity || query);
+          return await farHomeCityResponse(tripInfo.homeCity || query, supported[0], options?.abortSignal);
         }
         signedList = supported.map((result, index) => ({
           id: `oc-${originSearches}-${index + 1}`,

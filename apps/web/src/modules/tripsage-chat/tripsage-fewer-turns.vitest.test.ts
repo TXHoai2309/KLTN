@@ -5,12 +5,14 @@ import type { AuthorizationDependencies } from "../../server/authorization/guard
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
 import { fixtureRoutes, planningCandidate } from "../../test/planning-fixtures";
 import {
+  computeMinimumSelfDriveDays,
   extractStatedDateFromText,
   FAR_HOME_TRANSPORT_CHIPS,
   FIXED_HUB_CANDIDATES,
   isFarFromHubs,
   isFarHomeCityName,
   permitsOriginConfirmation,
+  wantsDirectDriveFromHome,
 } from "./tripsage-chat-origin";
 import { TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
@@ -281,5 +283,75 @@ describe("Ticket 03: far home city & no redundant date confirmation", () => {
     expect(journey?.journey?.origin?.label).toBe("TP Hà Giang (bến xe phía Nam)");
     expect(journey?.journey?.origin?.confirmed).toBe(true);
     expect(emitted.some(p => p.type === "data-itinerary")).toBe(true);
+  });
+
+  it("Bug 5: computes minimum self-drive days from distance/rest policy and explains infeasible direct drive with 3 chips", async () => {
+    expect(wantsDirectDriveFromHome("Mình ở TP Hồ Chí Minh, muốn chạy xe máy thẳng ra Hà Giang chơi 2 ngày cuối tuần này rồi về, đi 1 mình.")).toBe(true);
+    expect(wantsDirectDriveFromHome("Bay ra Hà Nội rồi thuê xe máy đi Hà Giang")).toBe(false);
+
+    // 1,900 km / 42h motorbike one-way -> ceil(42/6)=7 days each way + 2 days sightseeing = 16 days
+    const hcmMoto = computeMinimumSelfDriveDays({
+      oneWayDistanceKm: 1900,
+      oneWayDrivingSeconds: 42 * 3600,
+      transport: "MOTORCYCLE",
+      sightseeingDays: 2,
+    });
+    expect(hcmMoto.maxDailyDrivingHours).toBe(6);
+    expect(hcmMoto.oneWayTravelDays).toBe(7);
+    expect(hcmMoto.roundTripMinDays).toBe(16);
+    expect(hcmMoto.oneWayTotalHoursWithRest).toBeGreaterThan(42);
+
+    // Car allows 8h/day -> fewer travel days for same duration
+    const hcmCar = computeMinimumSelfDriveDays({
+      oneWayDistanceKm: 1900,
+      oneWayDrivingSeconds: 36 * 3600,
+      transport: "CAR",
+      sightseeingDays: 2,
+    });
+    expect(hcmCar.maxDailyDrivingHours).toBe(8);
+    expect(hcmCar.oneWayTravelDays).toBe(5);
+    expect(hcmCar.roundTripMinDays).toBe(12);
+
+    // Route test reproducing chat 068a84db with real routing metrics (1,900 km, 42h)
+    const { sse, model } = await chat(
+      [{ id: "u1", role: "user", text: "Mình ở TP Hồ Chí Minh, muốn chạy xe máy thẳng ra Hà Giang chơi 2 ngày cuối tuần này rồi về, đi 1 mình." }],
+      [
+        {
+          tool: "recordTripInfo",
+          input: { homeCity: "TP Hồ Chí Minh", durationDays: 2, transport: "MOTORCYCLE", travelers: 1 },
+        },
+        { tool: "findOrigin", input: { query: "TP Hồ Chí Minh" } },
+        { text: "Chạy xe máy từ TP Hồ Chí Minh ra Hà Giang khoảng 1.900 km, chừng 42+ giờ chạy, không kịp trong 2 ngày." },
+      ],
+      {},
+      {
+        planning: () => ({
+          candidates: async () => [planningCandidate("a", 90)],
+          routes: {
+            route: fixtureRoutes.route,
+            coordinateRoute: async () => ({
+              status: "VERIFIED",
+              reason: null,
+              distanceMeters: 1_900_000,
+              durationSeconds: 42 * 3600,
+              provider: "GOOGLE_MAPS",
+            }),
+          },
+          now: () => FIXED_NOW,
+        }),
+      },
+    );
+
+    const emitted = parts(sse);
+    const toolPrompts = JSON.stringify(model.doStreamCalls.map(c => c.prompt));
+    expect(toolPrompts).toContain("infeasibleDirectDrive");
+    expect(toolPrompts).toContain("1.900 km");
+    expect(toolPrompts).toContain("42+ giờ");
+    const quickReplies = emitted.find(p => p.type === "data-quick-replies")?.data as { replies: string[] } | undefined;
+    expect(quickReplies?.replies).toEqual([
+      "Bay ra Hà Nội rồi thuê xe",
+      "Vẫn chạy xe — cần khoảng 16 ngày",
+      "Đổi sang xe khách",
+    ]);
   });
 });
