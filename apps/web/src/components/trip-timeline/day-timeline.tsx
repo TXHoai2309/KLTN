@@ -364,7 +364,33 @@ export function DayTimeline({
                         )}
                       </div>
 
-                      {cleanDescription && <p className="dt-visit-desc">{cleanDescription}</p>}
+                      {cleanDescription && (
+                        <div className="dt-visit-desc-wrap">
+                          <p className="dt-visit-desc">{cleanDescription}</p>
+                          {cleanDescription.length > (variant === "compact" ? 90 : 140) &&
+                            (stop.previewTarget && onPreview && canPreviewPlace(stop.previewTarget) ? (
+                              <button
+                                type="button"
+                                className="dt-visit-more-link"
+                                aria-label={`Xem thêm về ${cleanName}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onPreview(stop.previewTarget!, event.currentTarget);
+                                }}
+                              >
+                                Xem thêm
+                              </button>
+                            ) : stop.href && !stop.unavailable && !stop.external ? (
+                              <Link
+                                href={stop.href as Route}
+                                className="dt-visit-more-link"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                Xem thêm
+                              </Link>
+                            ) : null)}
+                        </div>
+                      )}
                       {stop.weatherSlot}
 
                       {stop.unavailable && (

@@ -68,7 +68,18 @@
   min-height: 320px;
   display: flex;
   flex-direction: column;
-  background: #f8fbf9;
+  background: var(--tv-ground, #f8fbf9);
+  overflow-y: auto;
+}
+
+.place-preview-description {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: var(--tv-text-sm, 13px);
+  line-height: 1.5;
+  color: var(--tv-ink-2, #4f6357);
+  background: var(--tv-surface, #ffffff);
+  border-bottom: 1px solid var(--tv-line, #e2ebe4);
 }
 
 .place-preview-iframe {

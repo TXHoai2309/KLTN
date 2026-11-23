@@ -81,6 +81,7 @@ function previewTargetForStop(stop: PlannerResult["days"][number]["stops"][numbe
     latitude: stop.destination.latitude,
     longitude: stop.destination.longitude,
     address: stop.destination.address ?? null,
+    description: cleanTravelerDisplay(stop.destination.description) || null,
     verifiedGoogleMapsUrl: stop.destination.googleMapsUrl ?? null,
   };
   return canPreviewPlace(target) ? target : null;

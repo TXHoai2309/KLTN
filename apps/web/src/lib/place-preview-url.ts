@@ -16,6 +16,7 @@ export type PlacePreviewTarget =
       latitude: number;
       longitude: number;
       address?: string | null;
+      description?: string | null;
       verifiedGoogleMapsUrl?: string | null;
     };
 

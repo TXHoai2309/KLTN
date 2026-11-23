@@ -225,6 +225,44 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     expect(i4).toBeGreaterThan(iLunch);
   });
 
+  it("clamps long stop descriptions via CSS line-clamp (3 full, 2 compact) with 'Xem thêm' while keeping full source text (Bug F)", () => {
+    const longDesc =
+      "Cổng trời Quản Bạ nằm ở độ cao hơn 1.500 m so với mực nước biển, là cửa ngõ mở vào Công viên địa chất toàn cầu Cao nguyên đá Đồng Văn với tầm nhìn bao quát thung lũng Tam Sơn và Núi Đôi Cô Tiên nổi tiếng khắp vùng Tây Bắc.";
+    const longDay: DayTimelineDay = {
+      dayIndex: 1,
+      localDate: "2026-12-13",
+      stops: [
+        {
+          id: "v-long-1",
+          destinationId: "d-long-1",
+          order: 1,
+          name: "Cổng trời Quản Bạ",
+          startMinute: 492,
+          durationMinutes: 60,
+          description: longDesc,
+          previewTarget: {
+            kind: "CATALOG",
+            name: "Cổng trời Quản Bạ",
+            latitude: 23.0493,
+            longitude: 104.9927,
+            description: longDesc,
+          },
+        },
+      ],
+    };
+
+    for (const variant of ["full", "compact"] as const) {
+      const html = renderToStaticMarkup(createElement(DayTimeline, { day: longDay, variant, onPreview: () => {} }));
+      expect(html).toContain(longDesc); // Never truncates underlying source data
+      expect(html).toContain("dt-visit-more-link");
+      expect(html).toContain("Xem thêm");
+    }
+
+    const css = readFileSync(resolve(process.cwd(), "src/components/trip-timeline/day-timeline.css"), "utf8");
+    expect(css).toMatch(/\.dt-visit-desc\s*\{[^}]*-webkit-line-clamp\s*:\s*3/);
+    expect(css).toMatch(/\.dt-day--compact\s+\.dt-visit-desc\s*\{[^}]*-webkit-line-clamp\s*:\s*2/);
+  });
+
   it("keeps day-timeline.css compliant with --tv-* tokens (no hardcoded hex, no 650/700+, no card shadows)", () => {
     const css = readFileSync(resolve(process.cwd(), "src/components/trip-timeline/day-timeline.css"), "utf8");
     expect(css).not.toMatch(/font-weight\s*:\s*(650|700|750|800|900)\b/);
