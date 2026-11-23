@@ -761,7 +761,7 @@ export function TripsageChatClient({
                     const isLatestAssistant = message.role === "assistant" && message.id === messages.at(-1)?.id;
                     const budgetSavingsChips =
                       !busy && (cost || isCurrentPlanMessage) && (isLatestAssistant || state.cost?.messageId === message.id)
-                        ? resolveBudgetSavingsChips(activeTurnCost, state.accessLeg?.data ?? null)
+                        ? resolveBudgetSavingsChips(activeTurnCost, state.accessLeg?.data ?? null, state.tripInfo?.transport ?? null)
                         : [];
                     const messageAccessLeg = message.role === "assistant"
                       ? [...message.parts].reverse().map(part => (part.type === "data-access-leg" ? accessLegPartSchema.safeParse(part.data) : null)).find(res => res?.success)?.data ?? null

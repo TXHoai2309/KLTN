@@ -424,9 +424,66 @@ export type FallbackQuickRepliesInput = {
   tripInfo: TripsageTripInfo | null;
 };
 
+function hubTransportChipsFor(tripInfo: TripsageTripInfo | null): string[] {
+  return tripInfo?.flightDeclined
+    ? ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Thêm ngày để tự chạy xe"]
+    : ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Đi máy bay ra Hà Nội"];
+}
+
+const HUB_TRANSPORT_QUESTION_RE =
+  /(?:ra|đ[eế]n|t[oớ]i)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|tp\.?\s*h[aà]\s+giang).*(?:b[aằ]ng\s+c[aá]ch\s+n[aà]o|b[aằ]ng\s+g[iì]|ph[uươ]ng\s+ti[eệ]n|m[aá]y\s+bay|t[aà]u\s+h[oỏ]a|xe\s+kh[aá]ch)|ph[uươ]ng\s+ti[eệ]n\s+(?:ra|đ[eế]n)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|h[aà]\s+giang)/iu;
+
+export type ReconcileQuickRepliesInput = {
+  text: string;
+  emittedReplies: readonly string[] | null;
+  hasOriginCandidates: boolean;
+  itinerary: PlannerResult | null;
+  cost: CostPart | null;
+  accessLeg: AccessLegPart | null;
+  tripInfo: TripsageTripInfo | null;
+};
+
 /**
- * Point 4: deterministic server-side fallback quick replies when a turn ends with a choice question ("?")
- * without calling `suggestReplies`. Every option maps to an action the assistant can actually execute.
+ * Point 3: verifies already-emitted chips match the closing question; returns replacement chips only when
+ * there is a clear mismatch (e.g. L2 hub-transport question paired with stale "Giảm còn 3 điểm/ngày" chips).
+ */
+export function reconcileQuickRepliesWithQuestion(input: ReconcileQuickRepliesInput): string[] | null {
+  if (input.hasOriginCandidates || !input.emittedReplies?.length) return null;
+  const trimmed = input.text.trim();
+  if (!trimmed || !/[?？]\s*$/u.test(trimmed)) return null;
+
+  const lines = trimmed.split(/\r?\n/u).map(l => l.trim()).filter(Boolean);
+  const questionLine = lines.at(-1) ?? trimmed;
+
+  const pick = (candidates: readonly string[]): string[] | null => {
+    const parsed = quickRepliesPartSchema.safeParse({ replies: [...candidates] });
+    return parsed.success ? parsed.data.replies : null;
+  };
+
+  if (HUB_TRANSPORT_QUESTION_RE.test(questionLine)) {
+    const hasTransportChip = input.emittedReplies.some(r =>
+      /xe\s+kh[aá]ch|t[aà]u\s+h[oỏ]a|m[aá]y\s+bay|t[uự]\s+ch[aạ]y|t[uự]\s+l[aá]i|thu[eê]\s+xe|so\s+s[aá]nh/iu.test(r),
+    );
+    if (!hasTransportChip) {
+      return pick(hubTransportChipsFor(input.tripInfo));
+    }
+  }
+
+  // Strip absurd "Bớt 1 ngày (còn 1 ngày)" chips if a 2-day trip ever emitted one.
+  const days = input.cost?.days ?? input.tripInfo?.durationDays ?? input.itinerary?.days.length ?? null;
+  if (days !== null && days <= 2 && input.emittedReplies.some(r => /b[oớ]t\s*1\s*ng[aà]y|c[oò]n\s*1\s*ng[aà]y/iu.test(r))) {
+    const cleaned = input.emittedReplies.filter(r => !/b[oớ]t\s*1\s*ng[aà]y|c[oò]n\s*1\s*ng[aà]y/iu.test(r));
+    if (cleaned.length > 0) return pick(cleaned);
+    return pick(["Homestay tiết kiệm hơn", "Đổi sang xe máy tự lái", "Giữ nguyên lịch này"]);
+  }
+
+  return null;
+}
+
+/**
+ * Point 4 (and Point 3 alignment): deterministic server-side fallback quick replies when a turn ends with
+ * a choice question ("?") without calling `suggestReplies`. Every option matches the question and maps to
+ * an action the assistant can actually execute.
  */
 export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): string[] | null {
   if (input.hasEmittedQuickReplies || input.hasOriginCandidates) return null;
@@ -441,12 +498,20 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
     return parsed.success ? parsed.data.replies : null;
   };
 
+  // Point 3: honor explicit closing-question intent first (e.g. "Bạn muốn ra điểm tập kết bằng cách nào?").
+  if (HUB_TRANSPORT_QUESTION_RE.test(questionLine)) {
+    return pick(hubTransportChipsFor(input.tripInfo));
+  }
+
   if (input.cost?.isIncomplete || (input.accessLeg?.missingPriceSegments?.length ?? 0) > 0) {
     return pick(["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"]);
   }
 
   if (input.cost?.withinCap === false && (input.cost.overBy ?? 0) > 0) {
-    return pick(["Bớt 1 ngày", "Homestay tiết kiệm hơn", "Giữ nguyên lịch này"]);
+    const days = input.cost.days ?? input.tripInfo?.durationDays ?? input.itinerary?.days.length ?? 0;
+    return days >= 3
+      ? pick(["Bớt 1 ngày", "Homestay tiết kiệm hơn", "Giữ nguyên lịch này"])
+      : pick(["Homestay tiết kiệm hơn", "Đổi sang xe máy tự lái", "Giữ nguyên lịch này"]);
   }
 
   const hasLongDriveIssue =
@@ -525,6 +590,7 @@ export function streamTripsageChat(input: {
       let suggestionsPart = 0;
       let hotelsPart = 0;
       let emittedQuickReplies = false;
+      let latestEmittedQuickReplies: string[] | null = null;
       let emittedOriginCandidates = false;
       let latestEmittedItinerary: PlannerResult | null = null;
       let latestEmittedCost: CostPart | null = null;
@@ -601,6 +667,7 @@ export function streamTripsageChat(input: {
           const parsed = quickRepliesPartSchema.safeParse({ replies });
           if (!parsed.success) return;
           emittedQuickReplies = true;
+          latestEmittedQuickReplies = parsed.data.replies;
           const part = { type: "data-quick-replies" as const, id: "quick-replies", data: parsed.data };
           writer.write(part);
           recordDataPart(part);
@@ -743,7 +810,16 @@ export function streamTripsageChat(input: {
                 }
               }
             }
-            const fallback = resolveFallbackQuickReplies({
+            const reconciled = reconcileQuickRepliesWithQuestion({
+              text: fullText,
+              emittedReplies: latestEmittedQuickReplies,
+              hasOriginCandidates: emittedOriginCandidates,
+              itinerary: latestEmittedItinerary,
+              cost: latestEmittedCost,
+              accessLeg: latestEmittedAccessLeg ?? input.accessLeg ?? null,
+              tripInfo: latestEmittedTripInfo ?? input.tripInfo ?? null,
+            });
+            const fallback = reconciled ?? resolveFallbackQuickReplies({
               text: fullText,
               hasEmittedQuickReplies: emittedQuickReplies,
               hasOriginCandidates: emittedOriginCandidates,

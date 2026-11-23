@@ -131,6 +131,8 @@ export function findReferenceBusPricePerPerson(from: string, to: string): number
 
 export const SAVINGS_REFERENCE = {
   budgetHomestayPerRoomNightVnd: 350_000,
+  /** docs/fixtures/price-reference-ha-giang.md: Thuê xe máy ~180.000–250.000đ/ngày. */
+  motorbikeRentalPerBikeDayVnd: 200_000,
 } as const;
 
 export function formatSavingsShortVnd(amount: number): string {
@@ -152,6 +154,7 @@ export function formatSavingsShortVnd(amount: number): string {
 export function computeBudgetSavingsChips(
   cost: CostPart,
   accessLeg?: AccessLegPart | null,
+  transport?: TripTransport | null,
 ): BudgetSavingsChip[] {
   if (cost.withinCap !== false || !cost.overBy || cost.overBy <= 0) return [];
 
@@ -159,6 +162,7 @@ export function computeBudgetSavingsChips(
   const travelers = Math.max(1, cost.travelers);
   const nights = Math.max(1, cost.days - 1);
   const rooms = Math.max(1, Math.ceil(travelers / 2));
+  const bikes = Math.max(1, Math.ceil(travelers / 2));
 
   if (accessLeg) {
     const flightSegments = [...accessLeg.outbound, ...accessLeg.return].filter(
@@ -183,6 +187,33 @@ export function computeBudgetSavingsChips(
     }
   }
 
+  // Point 3: vehicle-aware savings — hired car/driver vs motorbike rental in Hà Giang.
+  const localTransportLines = cost.lines.filter(
+    (line) => line.category === "transport" && !/ch[aặ]ng\s+ti[eế]p\s+c[aậ]n/iu.test(line.label),
+  );
+  const carHireTotal = localTransportLines
+    .filter((line) => /ô\s*tô|o\s*to|t[aà]i\s*x[eế]|xe\s*(?:4|7|16)\s*ch[oỗ]/iu.test(line.label))
+    .reduce((sum, line) => sum + line.amount, 0);
+  if (carHireTotal >= 1_000_000 && (transport === "CAR" || !transport)) {
+    const motoRentalEst = bikes * cost.days * SAVINGS_REFERENCE.motorbikeRentalPerBikeDayVnd;
+    const fuelLine = localTransportLines.find((line) => /^x[aă]ng$/iu.test(line.label.trim()));
+    const fuelSavings = fuelLine
+      ? Math.round(
+          fuelLine.amount
+          * Math.max(0, 1 - (PRICE_REFERENCE.litersPer100Km.MOTORCYCLE * bikes) / PRICE_REFERENCE.litersPer100Km.CAR),
+        )
+      : 0;
+    const switchSavings = Math.round(carHireTotal - motoRentalEst + fuelSavings);
+    if (switchSavings >= 300_000) {
+      chips.push({
+        id: "switch-motorbike",
+        label: `Đổi sang xe máy tự lái · −${formatSavingsShortVnd(switchSavings)} (ước tính)`,
+        prompt: "Đổi sang thuê xe máy tự lái tại Hà Giang để giảm chi phí đi lại.",
+        estimatedSavingsVnd: switchSavings,
+      });
+    }
+  }
+
   const lodgingTotal = cost.lines
     .filter((line) => line.category === "lodging")
     .reduce((sum, line) => sum + line.amount, 0);
@@ -200,13 +231,16 @@ export function computeBudgetSavingsChips(
     }
   }
 
-  if (cost.days >= 2) {
+  // Point 3: never offer "Bớt 1 ngày" when trip is <= 2 days (minimum 2 days), and include per-day local vehicle cost.
+  if (cost.days >= 3) {
     const foodTotal = cost.lines
       .filter((line) => line.category === "food")
       .reduce((sum, line) => sum + line.amount, 0);
+    const localTransportTotal = localTransportLines.reduce((sum, line) => sum + line.amount, 0);
     const perNightLodging = lodgingTotal > 0 ? lodgingTotal / nights : 0;
     const perDayFood = foodTotal > 0 ? foodTotal / cost.days : 0;
-    const rawDaily = Math.round(perNightLodging + perDayFood);
+    const perDayLocalTransport = localTransportTotal > 0 ? localTransportTotal / cost.days : 0;
+    const rawDaily = Math.round(perNightLodging + perDayFood + perDayLocalTransport);
     const savings = rawDaily >= 200_000 ? rawDaily : Math.round(cost.total / cost.days);
     if (savings >= 200_000) {
       const targetDays = cost.days - 1;
@@ -241,8 +275,9 @@ export function computeBudgetSavingsChips(
 export function resolveBudgetSavingsChips(
   cost: CostPart | null | undefined,
   accessLeg?: AccessLegPart | null,
+  transport?: TripTransport | null,
 ): BudgetSavingsChip[] {
   if (!cost || cost.withinCap !== false || !cost.overBy || cost.overBy <= 0) return [];
   if (cost.savingsOptions && cost.savingsOptions.length > 0) return cost.savingsOptions;
-  return computeBudgetSavingsChips(cost, accessLeg);
+  return computeBudgetSavingsChips(cost, accessLeg, transport);
 }

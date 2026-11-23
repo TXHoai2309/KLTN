@@ -943,9 +943,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         latestProposalDecisionIssues = decisionIssues;
         latestProposalReadyToSave = Boolean(result.eligibleForFinalConfirmation && blockingAssumed.length === 0 && decisionIssues.length === 0);
 
-        // A plan with an unmet overnight constraint or violation never ends the turn without a next step; the model may still replace these buttons.
+        // A plan with an unmet overnight constraint, hub hint, or violation never ends the turn without a next step; the model may still replace these buttons.
         if (overnightCheck.unmet.length > 0) {
           context.emitQuickReplies?.(overnightCheck.unmet[0]!.chips);
+        } else if (shouldSuggestHub(result)) {
+          context.emitQuickReplies?.(
+            effective.flightDeclined
+              ? ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Thêm ngày để tự chạy xe"]
+              : ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Đi máy bay ra Hà Nội"],
+          );
         } else if (result.checks.some(check => check.status === "VIOLATION")) {
           context.emitQuickReplies?.(statedDate?.tentative ? ["Đổi ngày", "Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"] : ["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"]);
         } else if (statedDate?.tentative) {
@@ -1218,7 +1224,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           accessLegId: latestAccessLeg?.id ?? null,
           ...(missingItems.length ? { missingItems } : {}),
         });
-        const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg);
+        const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg, ctx.transport);
         const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
         latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
         latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
@@ -1259,7 +1265,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       accessLegId: latestAccessLeg.id ?? null,
       ...(missingItems.length ? { missingItems } : {}),
     });
-    const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg);
+    const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg, lastCostComputeContext.transport);
     const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
     latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
     latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
