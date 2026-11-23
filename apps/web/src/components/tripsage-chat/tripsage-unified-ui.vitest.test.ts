@@ -86,7 +86,7 @@ describe("unified sidebar history and saved-card restoration (ticket 04)", () =>
     expect(state.cost?.data.total).toBe(500_000);
   });
 
-  it("renders the delete-all action in AssistantSidebar when provided", () => {
+  it("renders header overflow menu trigger without footer delete-all button when onDeleteAll is provided (A1)", () => {
     const html = renderToStaticMarkup(createElement(AssistantSidebar, {
       conversations: [{ id: "new-1", title: "Lịch Hà Giang", context: { type: "GENERAL" }, createdAt: new Date().toISOString(), lastActivityAt: new Date().toISOString() }],
       activeConversationId: "new-1",
@@ -105,7 +105,9 @@ describe("unified sidebar history and saved-card restoration (ticket 04)", () =>
       searchQuery: "",
       onSearchChange: () => {},
     }));
-    expect(html).toContain("Xóa tất cả");
+    expect(html).toContain("Tùy chọn lịch sử");
+    expect(html).not.toContain("assistant-sidebar-footer");
+    expect(html).not.toContain("Xóa tất cả");
   });
 });
 

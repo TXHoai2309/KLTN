@@ -6,8 +6,10 @@ import {
   ChevronDown,
   Loader2,
   MessageSquare,
+  MoreHorizontal,
   MoreVertical,
   PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
   Search,
@@ -16,6 +18,43 @@ import {
 } from "lucide-react";
 import type { QaConversationSummary } from "../../modules/ai/qa-contract";
 import { groupConversationsByDate } from "./assistant-conversation-groups";
+
+export type SidebarPreference = "open" | "collapsed";
+export const SIDEBAR_PREFERENCE_STORAGE_KEY = "kltn:assistant:sidebar-preference";
+
+export function readSidebarPreference(
+  storage?: Pick<Storage, "getItem"> | null,
+): SidebarPreference | null {
+  try {
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : null);
+    const value = target?.getItem(SIDEBAR_PREFERENCE_STORAGE_KEY);
+    return value === "open" || value === "collapsed" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSidebarPreference(
+  storage: Pick<Storage, "setItem"> | null | undefined,
+  preference: SidebarPreference,
+): void {
+  try {
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : null);
+    target?.setItem(SIDEBAR_PREFERENCE_STORAGE_KEY, preference);
+  } catch {
+    // Ignore storage quota or private-mode security errors.
+  }
+}
+
+/** Resolves desktop sidebar expanded state: auto-collapses when plan is open unless user chose otherwise. */
+export function resolveDesktopSidebarOpen(input: {
+  hasOpenPlan: boolean;
+  storedPreference: SidebarPreference | null;
+}): boolean {
+  if (input.storedPreference === "open") return true;
+  if (input.storedPreference === "collapsed") return false;
+  return !input.hasOpenPlan;
+}
 
 export type AssistantSidebarProps = {
   conversations: QaConversationSummary[];
@@ -26,6 +65,8 @@ export type AssistantSidebarProps = {
   onRetry?: () => void;
   hasMore: boolean;
   isOpen: boolean;
+  railOnDesktop?: boolean;
+  onOpen?: () => void;
   onClose: () => void;
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
@@ -47,6 +88,8 @@ export function AssistantSidebar({
   onRetry,
   hasMore,
   isOpen,
+  railOnDesktop = false,
+  onOpen,
   onClose,
   onNewChat,
   onSelectConversation,
@@ -61,11 +104,15 @@ export function AssistantSidebar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
 
   const editInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const pendingFocusSearchRef = useRef(false);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
 
   // Focus input when editing starts
@@ -76,18 +123,35 @@ export function AssistantSidebar({
     }
   }, [editingId]);
 
+  useEffect(() => {
+    if (isOpen && pendingFocusSearchRef.current) {
+      pendingFocusSearchRef.current = false;
+      searchInputRef.current?.focus();
+    }
+  }, [isOpen]);
+
   // Close menus on outside click or escape
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         if (editingId) setEditingId(null);
         if (activeMenuId) setActiveMenuId(null);
+        if (headerMenuOpen) setHeaderMenuOpen(false);
         if (deletingId) setDeletingId(null);
       }
     }
+    function handlePointerDown(e: MouseEvent) {
+      if (headerMenuOpen && headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
+        setHeaderMenuOpen(false);
+      }
+    }
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editingId, activeMenuId, deletingId]);
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [editingId, activeMenuId, headerMenuOpen, deletingId]);
 
   function startEditing(conv: QaConversationSummary) {
     setEditingId(conv.id);
@@ -145,15 +209,54 @@ export function AssistantSidebar({
 
       <aside
         ref={sidebarRef}
-        className={`assistant-sidebar ${isOpen ? "open" : "collapsed"}`}
+        className={`assistant-sidebar ${isOpen ? "open" : railOnDesktop ? "collapsed has-rail" : "collapsed"}`}
         aria-label="Lịch sử hội thoại"
-        aria-hidden={!isOpen}
+        aria-hidden={!isOpen && !railOnDesktop ? true : undefined}
       >
+        {railOnDesktop && !isOpen && (
+          <div className="assistant-sidebar-rail" aria-label="Thanh lịch sử thu gọn">
+            <button
+              type="button"
+              className="assistant-sidebar-rail-btn"
+              data-testid="sidebar-rail-expand"
+              onClick={() => onOpen?.()}
+              aria-label="Mở thanh lịch sử"
+              title="Mở thanh lịch sử"
+            >
+              <PanelLeftOpen size={18} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="assistant-sidebar-rail-btn"
+              data-testid="sidebar-rail-new"
+              onClick={onNewChat}
+              aria-label="Tạo cuộc trò chuyện mới"
+              title="Đoạn chat mới"
+            >
+              <Plus size={18} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="assistant-sidebar-rail-btn"
+              data-testid="sidebar-rail-search"
+              onClick={() => {
+                pendingFocusSearchRef.current = true;
+                onOpen?.();
+              }}
+              aria-label="Tìm kiếm cuộc trò chuyện"
+              title="Tìm kiếm"
+            >
+              <Search size={18} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
+        <div className="assistant-sidebar-panel">
         {/* Top Header */}
         <div className="assistant-sidebar-header">
           <button
             type="button"
-            className="assistant-sidebar-new-btn"
+            className="tv-btn tv-btn--ghost tv-btn--sm assistant-sidebar-new-btn"
             onClick={() => {
               onNewChat();
               // On small screens, close sidebar when starting new chat
@@ -161,24 +264,83 @@ export function AssistantSidebar({
             }}
             aria-label="Tạo cuộc trò chuyện mới"
           >
-            <Plus aria-hidden="true" />
+            <Plus size={14} aria-hidden="true" />
             <span>Đoạn chat mới</span>
           </button>
-          <button
-            type="button"
-            className="assistant-sidebar-toggle-btn"
-            onClick={onClose}
-            aria-label="Thu nhỏ thanh bên lịch sử"
-            title="Thu nhỏ thanh bên"
-          >
-            <PanelLeftClose aria-hidden="true" />
-          </button>
+          <div className="assistant-sidebar-header-actions">
+            {onDeleteAll && conversations.length > 0 && (
+              <div className="assistant-sidebar-header-menu" ref={headerMenuRef}>
+                <button
+                  type="button"
+                  className="assistant-sidebar-header-btn"
+                  onClick={() => setHeaderMenuOpen(prev => !prev)}
+                  aria-label="Tùy chọn lịch sử"
+                  title="Tùy chọn lịch sử"
+                  aria-haspopup="menu"
+                  aria-expanded={headerMenuOpen}
+                >
+                  <MoreHorizontal size={16} aria-hidden="true" />
+                </button>
+                {headerMenuOpen && (
+                  <div className="assistant-sidebar-menu-dropdown assistant-sidebar-header-dropdown" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="assistant-sidebar-menu-item delete"
+                      disabled={actionBusy}
+                      onClick={() => {
+                        setHeaderMenuOpen(false);
+                        setConfirmingDeleteAll(true);
+                      }}
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                      <span>Xóa tất cả</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              className="assistant-sidebar-toggle-btn"
+              onClick={onClose}
+              aria-label="Thu gọn thanh lịch sử"
+              title="Thu gọn thanh lịch sử"
+            >
+              <PanelLeftClose size={16} aria-hidden="true" />
+            </button>
+          </div>
         </div>
+
+        {onDeleteAll && conversations.length > 0 && confirmingDeleteAll && (
+          <div className="assistant-sidebar-delete-confirm assistant-sidebar-delete-all-confirm" role="alertdialog" aria-label="Xác nhận xóa toàn bộ lịch sử">
+            <span className="assistant-sidebar-delete-prompt">Xóa toàn bộ lịch sử?</span>
+            <button
+              type="button"
+              className="assistant-sidebar-delete-btn confirm"
+              disabled={actionBusy}
+              onClick={() => void confirmDeleteAll()}
+              aria-label="Xác nhận xóa tất cả"
+            >
+              Xóa hết
+            </button>
+            <button
+              type="button"
+              className="assistant-sidebar-delete-btn cancel"
+              disabled={actionBusy}
+              onClick={() => setConfirmingDeleteAll(false)}
+              aria-label="Hủy xóa tất cả"
+            >
+              Hủy
+            </button>
+          </div>
+        )}
 
         {/* Search bar */}
         <div className="assistant-sidebar-search">
           <Search className="assistant-sidebar-search-icon" aria-hidden="true" />
           <input
+            ref={searchInputRef}
             type="search"
             placeholder="Tìm kiếm cuộc trò chuyện…"
             value={searchQuery}
@@ -402,44 +564,7 @@ export function AssistantSidebar({
             </div>
           )}
         </div>
-
-        {onDeleteAll && conversations.length > 0 && (
-          <div className="assistant-sidebar-footer">
-            {confirmingDeleteAll ? (
-              <div className="assistant-sidebar-delete-confirm">
-                <span className="assistant-sidebar-delete-prompt">Xóa toàn bộ lịch sử?</span>
-                <button
-                  type="button"
-                  className="assistant-sidebar-delete-btn confirm"
-                  disabled={actionBusy}
-                  onClick={() => void confirmDeleteAll()}
-                  aria-label="Xác nhận xóa tất cả"
-                >
-                  Xóa hết
-                </button>
-                <button
-                  type="button"
-                  className="assistant-sidebar-delete-btn cancel"
-                  disabled={actionBusy}
-                  onClick={() => setConfirmingDeleteAll(false)}
-                  aria-label="Hủy xóa tất cả"
-                >
-                  Hủy
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="assistant-sidebar-delete-all-btn"
-                disabled={actionBusy}
-                onClick={() => setConfirmingDeleteAll(true)}
-              >
-                <Trash2 aria-hidden="true" />
-                <span>Xóa tất cả</span>
-              </button>
-            )}
-          </div>
-        )}
+        </div>
       </aside>
     </>
   );

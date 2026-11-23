@@ -35,7 +35,12 @@ import type { PinControl } from "./tripsage-pin-button";
 import type { ConfirmedTurn } from "@/components/assistant/assistant-controller";
 import { deleteConversation, fetchConversationDetail, fetchConversations, renameConversation, type ConversationDetailResult } from "@/components/assistant/assistant-conversation-client";
 import { AssistantLandscape } from "@/components/assistant/assistant-landscape";
-import { AssistantSidebar } from "@/components/assistant/assistant-sidebar";
+import {
+  AssistantSidebar,
+  readSidebarPreference,
+  resolveDesktopSidebarOpen,
+  writeSidebarPreference,
+} from "@/components/assistant/assistant-sidebar";
 import { consumePlanningAuthDraft } from "@/components/assistant/planning-auth-handoff";
 
 import {
@@ -118,6 +123,8 @@ export function TripsageChatClient({
   const [historyNotice, setHistoryNotice] = useState<string | null>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const userToggledSidebarRef = useRef(false);
   const [conversations, setConversations] = useState<UnifiedConversationItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
@@ -414,13 +421,45 @@ export function TripsageChatClient({
     if (retained?.text) setDraft(retained.text);
   }, [identity]);
 
-  // Desktop opens sidebar by default; mobile starts collapsed.
+  const hasActivePlan = Boolean(latestItinerary && !legacyReadOnly);
+
+  // Desktop uses 48px icon rail when plan panel is open unless user persisted open; mobile keeps sheet.
   useEffect(() => {
-    const sync = () => setSidebarOpen(window.innerWidth >= 1024);
+    const sync = () => {
+      const desktop = window.innerWidth >= 1024;
+      setIsDesktopViewport(desktop);
+      if (!desktop) {
+        setSidebarOpen(false);
+      } else if (!userToggledSidebarRef.current) {
+        setSidebarOpen(resolveDesktopSidebarOpen({
+          hasOpenPlan: hasActivePlan,
+          storedPreference: readSidebarPreference(),
+        }));
+      }
+    };
     sync();
     window.addEventListener("resize", sync);
     return () => window.removeEventListener("resize", sync);
-  }, []);
+  }, [hasActivePlan]);
+
+  function handleOpenSidebar() {
+    userToggledSidebarRef.current = true;
+    setSidebarOpen(true);
+    if (isDesktopViewport) writeSidebarPreference(undefined, "open");
+  }
+
+  function handleCloseSidebar() {
+    if (isDesktopViewport) {
+      userToggledSidebarRef.current = true;
+      writeSidebarPreference(undefined, "collapsed");
+    }
+    setSidebarOpen(false);
+  }
+
+  function handleToggleSidebar() {
+    if (sidebarOpen) handleCloseSidebar();
+    else handleOpenSidebar();
+  }
 
   async function loadHistory(search = "") {
     listFetch.current?.abort();
@@ -616,11 +655,9 @@ export function TripsageChatClient({
   const composer = useRef<HTMLTextAreaElement>(null);
   const subject = initialContext?.type === "DESTINATION" && destinationName?.trim() ? destinationName.trim() : "Hà Giang";
 
-  const hasActivePlan = Boolean(latestItinerary && !legacyReadOnly);
-
   return (
     <section
-      className={`assistant-chat assistant-v2-chat${hasActivePlan ? " has-plan" : ""}`}
+      className={`assistant-chat assistant-v2-chat${hasActivePlan ? " has-plan" : ""}${isDesktopViewport ? " has-sidebar-rail" : ""}`}
       data-runtime="tripsage-unified"
       data-has-plan={hasActivePlan ? "true" : "false"}
       aria-label="Trợ lý AI"
@@ -636,7 +673,9 @@ export function TripsageChatClient({
         onRetry={() => void loadHistory(searchQuery)}
         hasMore={false}
         isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        railOnDesktop={isDesktopViewport}
+        onOpen={handleOpenSidebar}
+        onClose={handleCloseSidebar}
         onNewChat={startNewChat}
         onSelectConversation={id => void handleSelectConversation(id)}
         onRenameConversation={handleRenameConversation}
@@ -654,7 +693,7 @@ export function TripsageChatClient({
           <button
             type="button"
             className="assistant-mobile-topbar-btn"
-            onClick={() => setSidebarOpen(open => !open)}
+            onClick={handleToggleSidebar}
             aria-label={sidebarOpen ? "Đóng lịch sử hội thoại" : "Mở lịch sử hội thoại"}
           >
             <Menu size={18} aria-hidden="true" />
@@ -678,9 +717,9 @@ export function TripsageChatClient({
             <button
               type="button"
               className="assistant-sidebar-toggle-btn"
-              onClick={() => setSidebarOpen(open => !open)}
-              aria-label={sidebarOpen ? "Thu nhỏ thanh bên lịch sử" : "Mở thanh bên lịch sử (phóng to)"}
-              title={sidebarOpen ? "Thu nhỏ thanh bên" : "Mở thanh bên (phóng to)"}
+              onClick={handleToggleSidebar}
+              aria-label={sidebarOpen ? "Thu gọn thanh lịch sử" : "Mở thanh lịch sử"}
+              title={sidebarOpen ? "Thu gọn thanh lịch sử" : "Mở thanh lịch sử"}
             >
               {sidebarOpen ? <PanelLeft aria-hidden="true" /> : <PanelLeftOpen aria-hidden="true" />}
             </button>
