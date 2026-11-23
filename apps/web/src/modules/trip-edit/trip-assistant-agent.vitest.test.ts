@@ -394,5 +394,6 @@ describe("Saved-trip assistant AI SDK reasoning loop (ADR-40 Ticket 01)", () => 
     expect(TRIP_ASSISTANT_AGENT_INSTRUCTIONS).toContain("giả định");
     expect(TRIP_ASSISTANT_AGENT_INSTRUCTIONS).toContain("apply_to_draft");
     expect(TRIP_ASSISTANT_AGENT_INSTRUCTIONS).toContain("show_options");
+    expect(TRIP_ASSISTANT_AGENT_INSTRUCTIONS).toContain("Nguồn tài liệu:");
   });
 });

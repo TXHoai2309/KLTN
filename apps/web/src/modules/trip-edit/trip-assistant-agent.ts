@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 
 import { isPreferenceExtractionError } from "../preference-extraction/preference-extraction-errors";
+import { stripInlineSourceLines } from "../tripsage-chat/assistant-conversation-contract";
 import type { EditIntentResult } from "./edit-intent-contract";
 import type { EditIntentPromptServerContext } from "./edit-intent-prompt";
 import {
@@ -163,7 +164,7 @@ export const TRIP_ASSISTANT_AGENT_INSTRUCTIONS = [
   "- Ngày bắt đầu, số ngày và phương tiện của chuyến là trường khung cố định, không thể đổi tại đây.",
   "- Chỉ dùng `originClocks` khi `journeyEditable` là true. Khi thêm điểm luôn điền `startTime` và `durationMinutes` (lấy thời lượng gợi ý từ `search_destinations`).",
   "- Kết quả PASS/VIOLATION/INSUFFICIENT_DATA chỉ lấy từ máy chủ. Nếu lịch hiện tại có vi phạm hoặc thiếu dữ liệu, tuyệt đối không nói lịch hiện tại đã hợp lệ hay sẵn sàng lưu.",
-  "- Không bịa tên điểm, giá tiền, giờ mở cửa hay số liệu đường đi; thiếu dữ liệu thì nói thẳng. Thời tiết chỉ mang tính tham khảo, không cam kết an toàn tuyệt đối. Phần kiến thức ngoài tài liệu địa phương phải ghi rõ `[Kiến thức mở rộng]`.",
+  "- Không bịa tên điểm, giá tiền, giờ mở cửa hay số liệu đường đi; thiếu dữ liệu thì nói thẳng. Thời tiết chỉ mang tính tham khảo, không cam kết an toàn tuyệt đối. Phần kiến thức ngoài tài liệu địa phương phải ghi rõ `[Kiến thức mở rộng]`. TUYỆT ĐỐI không tự viết dòng 'Nguồn tài liệu:', 'Nguồn:' hay 'Source:' trong lời văn vì giao diện đã hiển thị nguồn riêng.",
   "- Với chuyến `UPCOMING` (chưa khởi hành), nói theo ngữ cảnh kế hoạch dự kiến.",
   "- Tuyệt đối không viết visitId, destination id, simulationId, URL hay thẻ HTML trong lời trả lời gửi người dùng. Không lặp nguyên văn câu trả lời lượt trước.",
 ].join("\n");
@@ -803,7 +804,8 @@ function finalizeAgentOutcome(input: {
   reply: string;
   knownIds: ReadonlySet<string>;
 }): { outcome: TripAssistantAgentOutcome; correction: boolean } {
-  const { ctx, state, reply, knownIds } = input;
+  const { ctx, state, knownIds } = input;
+  const reply = state.knowledge?.citations?.length ? stripInlineSourceLines(input.reply) || input.reply : input.reply;
   const { proposed, suggestionSims, guardStatus } = resolveAgentDecision(ctx, state);
   const rejection = groundedAdviceRejection(reply, { overallStatus: guardStatus }, knownIds);
   let correctionNote: string | undefined;

@@ -43,6 +43,7 @@ describe("Ticket 06: Useful Answers Under Current Information Uncertainty", () =
       const prompt = messages.map(m => m.content).join("\n");
       expect(prompt).toContain("không thu phí chung' does NOT mean all local homestays/services are free");
       expect(prompt).toContain("Historical records of past festival events or recognitions do NOT certify current year dates");
+      expect(prompt).toContain("never write standalone or inline source labels");
     });
   });
 

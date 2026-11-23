@@ -6,6 +6,7 @@ import {
   assistantConversationDetailSchema,
   assistantConversationListSchema,
   extractSuggestRepliesDirectives,
+  stripInlineSourceLines,
   type AssistantConversationDetail,
   type AssistantConversationMessage,
   type AssistantConversationSummary,
@@ -63,12 +64,21 @@ export function storedMessagesToUiMessages(messages: readonly AssistantConversat
     const cleanedParts: unknown[] = [];
     const extractedReplies: string[] = [];
     let hasQuickReplies = false;
+    const hasSources = message.parts.some(
+      part =>
+        part.type === "data-sources" &&
+        typeof part.data === "object" &&
+        part.data !== null &&
+        Array.isArray((part.data as { sources?: unknown[] }).sources) &&
+        ((part.data as { sources: unknown[] }).sources.length > 0),
+    );
     for (const part of message.parts) {
       if (part.type === "data-quick-replies") hasQuickReplies = true;
       if (part.type === "text") {
-        const { text, replies } = extractSuggestRepliesDirectives(part.text);
-        if (replies.length > 0 && extractedReplies.length === 0) {
-          extractedReplies.push(...replies);
+        const extracted = extractSuggestRepliesDirectives(part.text);
+        const text = hasSources ? stripInlineSourceLines(extracted.text) : extracted.text;
+        if (extracted.replies.length > 0 && extractedReplies.length === 0) {
+          extractedReplies.push(...extracted.replies);
         }
         if (text) cleanedParts.push({ ...part, text });
         continue;

@@ -199,6 +199,17 @@ describe("sanitizeStoredParts", () => {
     expect(sanitizeStoredParts([{ type: "data-journey", id: "journey", data: { journey: hubJourney } }]).map(p => p.type)).toEqual(["data-journey"]);
     expect(sanitizeStoredParts([{ type: "data-journey", id: "journey", data: { journey: { ...hubJourney, origin: { ...hubJourney.origin, latitude: 10.1 } } } }])).toEqual([]);
   });
+
+  it("C4: strips inline 'Nguồn tài liệu:' / 'Nguồn:' / 'Source:' lines when data-sources is present without deleting mid-sentence 'nguồn'", () => {
+    const out = sanitizeStoredParts([
+      {
+        type: "text",
+        text: "Dệt lanh là nguồn thu nhập ổn định của bản. Nguồn: tư liệu địa phương về Lùng Tám.\n\nNguồn tài liệu: Làng dệt lanh Lùng Tám",
+      },
+      { type: "data-sources", id: "sources", data: { sources: [{ kind: "DOCUMENT", title: "Làng dệt lanh Lùng Tám" }] } },
+    ]);
+    expect(out[0]).toEqual({ type: "text", text: "Dệt lanh là nguồn thu nhập ổn định của bản." });
+  });
 });
 
 describe("assistant conversation store (ticket 03)", () => {

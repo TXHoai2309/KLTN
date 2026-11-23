@@ -94,19 +94,56 @@ export function extractSuggestRepliesDirectives(raw: string): { text: string; re
   return { text: cleaned, replies };
 }
 
+/** Matches standalone inline source-attribution lines such as "Nguồn tài liệu: ...", "Nguồn: ...", or "Source: ...". */
+export const STANDALONE_INLINE_SOURCE_LINE_RE =
+  /^\s*(?:[>#\-*•]+\s*)?(?:\(\s*|[*_]{1,2}\s*){0,2}(?:ngu[oôồ]n\s+t[aà]i\s+li[eệ]u(?:\s+tham\s+kh[aả]o)?|ngu[oôồ]n\s+tham\s+kh[aả]o|t[aà]i\s+li[eệ]u\s+tham\s+kh[aả]o|ngu[oôồ]n|sources?|references?)(?:\s*[:：]\s*[*_]{1,2}|\s*[*_]{1,2}\s*[:：]|\s*[:：])\s*.*$/iu;
+
+const INLINE_SOURCE_TAIL_RE =
+  /(?:(?<=[.!?…])\s+|\s+[—–-]\s+)(?:\(\s*|[*_]{1,2}\s*){0,2}(?:ngu[oôồ]n\s+t[aà]i\s+li[eệ]u(?:\s+tham\s+kh[aả]o)?|ngu[oôồ]n\s+tham\s+kh[aả]o|t[aà]i\s+li[eệ]u\s+tham\s+kh[aả]o|ngu[oôồ]n|sources?|references?)(?:\s*[:：]\s*[*_]{1,2}|\s*[*_]{1,2}\s*[:：]|\s*[:：])\s*.*$/iu;
+
+const TRAILING_PAREN_SOURCE_RE =
+  /\s*\(\s*[*_]{0,2}(?:ngu[oôồ]n\s+t[aà]i\s+li[eệ]u(?:\s+tham\s+kh[aả]o)?|ngu[oôồ]n\s+tham\s+kh[aả]o|t[aà]i\s+li[eệ]u\s+tham\s+kh[aả]o|ngu[oôồ]n|sources?|references?)\s*[:：][^)\n]*\)(?=\s*[.!?…]?\s*$)/iu;
+
+/** Removes trailing inline source attributions from one non-standalone line while preserving normal mid-sentence "nguồn". */
+export function cleanInlineSourceLine(line: string): string {
+  return line
+    .replace(INLINE_SOURCE_TAIL_RE, "")
+    .replace(TRAILING_PAREN_SOURCE_RE, "")
+    .trimEnd();
+}
+
+/** Strips redundant inline "Nguồn tài liệu:" / "Nguồn:" / "Source:" lines and trailing tails across prose (B2 / C4). */
+export function stripInlineSourceLines(raw: string): string {
+  const lines = raw.split(/\r?\n/u);
+  const kept: string[] = [];
+  for (const line of lines) {
+    if (STANDALONE_INLINE_SOURCE_LINE_RE.test(line)) continue;
+    kept.push(cleanInlineSourceLine(line));
+  }
+  return kept
+    .join("\n")
+    .replace(/\n{3,}/gu, "\n\n")
+    .trim();
+}
+
 /** Filters an arbitrary list of UI/stream parts down to strictly schema-valid storable display parts. */
 export function sanitizeStoredParts(parts: readonly unknown[]): StoredAssistantPart[] {
   const out: StoredAssistantPart[] = [];
   const extractedReplies: string[] = [];
   let hasQuickReplies = false;
+  const hasDataSources = parts.some((part) => {
+    const parsed = storedAssistantPartSchema.safeParse(part);
+    return parsed.success && parsed.data.type === "data-sources" && parsed.data.data.sources.length > 0;
+  });
   for (const part of parts) {
     if (out.length >= ASSISTANT_CONVERSATION_MAX_PARTS) break;
     const parsed = storedAssistantPartSchema.safeParse(part);
     if (!parsed.success) continue;
     if (parsed.data.type === "text") {
-      const { text, replies } = extractSuggestRepliesDirectives(parsed.data.text);
-      if (replies.length > 0 && extractedReplies.length === 0) {
-        extractedReplies.push(...replies);
+      const extracted = extractSuggestRepliesDirectives(parsed.data.text);
+      const text = hasDataSources ? stripInlineSourceLines(extracted.text) : extracted.text;
+      if (extracted.replies.length > 0 && extractedReplies.length === 0) {
+        extractedReplies.push(...extracted.replies);
       }
       if (!text) continue;
       out.push({ type: "text", text });

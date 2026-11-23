@@ -419,4 +419,55 @@ describe("Point 2 — knowledge source relevance & actual-usage filtering", () =
     ]);
     expect(f21).toEqual([]);
   });
+
+  it("C4: removes redundant inline 'Nguồn tài liệu:', 'Nguồn:', and 'Source:' lines in Vietnamese and English Q&A without removing normal 'nguồn'", () => {
+    const viMixed = [
+      "Nghề dệt lanh là nguồn thu nhập chính của nhiều hộ gia đình. Nguồn: tư liệu địa phương về Lùng Tám.",
+      "Bạn nên mang áo khoác ấm khi đi sớm (Nguồn: Cao nguyên đá Đồng Văn).",
+      "",
+      "Nguồn tài liệu: tư liệu địa phương về người Lô Lô và văn hóa bản địa.",
+      "> **Nguồn tham khảo:** Lô Lô Chải",
+    ].join("\n");
+    expect(stripRedundantInlineSourceLines(viMixed, { lang: "vi" })).toBe(
+      "Nghề dệt lanh là nguồn thu nhập chính của nhiều hộ gia đình.\nBạn nên mang áo khoác ấm khi đi sớm.",
+    );
+
+    const enMixed = [
+      "This clear mountain stream is a vital water source for the village. Source: Dong Van knowledge document.",
+      "Visit on Sunday morning to see the market (Sources: Meo Vac guide).",
+      "",
+      "**Sources:** Cao nguyên đá Đồng Văn",
+      "Reference: Ha Giang travel notes.",
+    ].join("\n");
+    expect(stripRedundantInlineSourceLines(enMixed, { lang: "en" })).toBe(
+      "This clear mountain stream is a vital water source for the village.\nVisit on Sunday morning to see the market.",
+    );
+
+    // Chunked streaming holds trailing parenthetical / bare source markers without stalling normal "Nguồn nước"
+    const viFilter = createInlineSourceStreamFilter({ lang: "vi" });
+    let viOut = "";
+    for (const chunk of [
+      "Nguồn nước tự nhiên ở đây ",
+      "rất trong và là nguồn sống quý",
+      " (Nguồn: Tài liệu Hà Giang).",
+      "\n\nNguồn: tư liệu địa phương về Quản Bạ.",
+    ]) {
+      viOut += viFilter.push(chunk);
+    }
+    viOut += viFilter.end();
+    expect(viOut.trim()).toBe("Nguồn nước tự nhiên ở đây rất trong và là nguồn sống quý.");
+
+    const enFilter = createInlineSourceStreamFilter({ lang: "en" });
+    let enOut = "";
+    for (const chunk of [
+      "Local markets rely on bamboo as a ",
+      "source of craft income. ",
+      "Source: Dong Van doc.",
+      "\nSources: Ha Giang notes.",
+    ]) {
+      enOut += enFilter.push(chunk);
+    }
+    enOut += enFilter.end();
+    expect(enOut.trim()).toBe("Local markets rely on bamboo as a source of craft income.");
+  });
 });

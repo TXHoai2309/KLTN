@@ -1,4 +1,9 @@
-import { extractSuggestRepliesDirectives } from "./assistant-conversation-contract";
+import {
+  cleanInlineSourceLine,
+  extractSuggestRepliesDirectives,
+  STANDALONE_INLINE_SOURCE_LINE_RE,
+  stripInlineSourceLines,
+} from "./assistant-conversation-contract";
 import { formatDocumentSourceTitle } from "./tripsage-chat-context";
 
 /**
@@ -341,12 +346,6 @@ export function normalizeExpandedKnowledgeLanguage(line: string, lang: ReplyLang
   );
 }
 
-const STANDALONE_SOURCE_LINE_RE =
-  /^\s*(?:[-*•]\s*)?(?:\(\s*)?(?:[*_]{1,2}\s*)?(?:ngu[oôồ]n\s+t[aà]i\s+li[eệ]u(?:\s+tham\s+kh[aả]o)?|ngu[oôồ]n\s+tham\s+kh[aả]o|ngu[oôồ]n|t[aà]i\s+li[eệ]u\s+tham\s+kh[aả]o|sources?|references?)(?:\s*:\s*[*_]{1,2}|\s*[*_]{1,2}\s*:|\s*:)\s*.*$/iu;
-
-const INLINE_SOURCE_TAIL_RE =
-  /(?<=[.!?…])\s+(?:\(\s*)?(?:[*_]{1,2}\s*)?(?:(?:ngu[oôồ]n\s+t[aà]i\s+li[eệ]u(?:\s+tham\s+kh[aả]o)?|ngu[oôồ]n\s+tham\s+kh[aả]o|t[aà]i\s+li[eệ]u\s+tham\s+kh[aả]o|sources?|references?)(?:\s*:\s*[*_]{1,2}|\s*[*_]{1,2}\s*:|\s*:)|\([*_]*ngu[oôồ]n\s*:)\s*[^.\n]*(?:\.[^.\n]*)?(?:\s*\))?\s*$/iu;
-
 /**
  * Strips self-inserted "Nguồn tài liệu:" / "Nguồn:" / "Source:" prose lines and trailing tails
  * when the UI renders structured `data-sources` cards separately (B2 / C4).
@@ -354,14 +353,9 @@ const INLINE_SOURCE_TAIL_RE =
  */
 export function stripRedundantInlineSourceLines(raw: string, options?: { lang?: ReplyLanguage }): string {
   const lang = options?.lang ?? "vi";
-  const lines = raw.split(/\r?\n/u);
-  const kept: string[] = [];
-  for (const line of lines) {
-    if (STANDALONE_SOURCE_LINE_RE.test(line)) continue;
-    const stripped = line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd();
-    kept.push(normalizeExpandedKnowledgeLanguage(stripped, lang));
-  }
-  return kept
+  return stripInlineSourceLines(raw)
+    .split("\n")
+    .map(line => normalizeExpandedKnowledgeLanguage(line, lang))
     .join("\n")
     .replace(/\n{3,}/gu, "\n\n")
     .trim();
@@ -379,9 +373,9 @@ const SOURCE_TRIGGERS_FOLDED = [
 ];
 
 function couldStartSourceLabel(rawCandidate: string, lang: ReplyLanguage = "vi"): boolean {
-  const stripped = rawCandidate.replace(/^[\s\-*•(\[_]+/u, "");
+  const stripped = rawCandidate.replace(/^[\s>#\-*•(\[_—–]+/u, "");
   if (!stripped) return true;
-  if (STANDALONE_SOURCE_LINE_RE.test(rawCandidate)) return true;
+  if (STANDALONE_INLINE_SOURCE_LINE_RE.test(rawCandidate)) return true;
   const folded = stripped
     .normalize("NFKD")
     .toLowerCase()
@@ -393,8 +387,11 @@ function couldStartSourceLabel(rawCandidate: string, lang: ReplyLanguage = "vi")
   ) {
     return true;
   }
-  return SOURCE_TRIGGERS_FOLDED.some(
-    (trigger) => trigger.startsWith(folded) || folded.startsWith(trigger.replace(/:$/u, "")),
+  return (
+    SOURCE_TRIGGERS_FOLDED.some((trigger) => trigger.startsWith(folded)) ||
+    /^(?:nguon(?:\s+tai\s+lieu(?:\s+tham\s+khao)?|\s+tham\s+khao)?|tai\s+lieu\s+tham\s+khao|sources?|references?)\s*[*_]{0,2}\s*[:：]/u.test(
+      folded,
+    )
   );
 }
 
@@ -406,11 +403,12 @@ function couldStartDirectiveFence(rawCandidate: string): boolean {
 
 /**
  * Stateful streaming filter that removes redundant inline source lines and `:::...` directive fences
- * (extracting valid `:::suggest_replies` quick-reply arrays) without stalling normal text chunks (B2 / B3 / C1).
+ * (extracting valid `:::suggest_replies` quick-reply arrays) without stalling normal text chunks (B2 / B3 / C1 / C4).
  */
 export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage }) {
   const lang = options?.lang ?? "vi";
   let pendingLine = "";
+  let flushedCurrentLine = false;
   let consecutiveBlankLines = 0;
   let inDirectiveBlock = false;
   let directiveBuffer = "";
@@ -424,6 +422,8 @@ export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage 
   };
 
   const formatCompletedLine = (lineWithNewline: boolean, line: string): string => {
+    const wasFlushedMidLine = flushedCurrentLine;
+    if (lineWithNewline) flushedCurrentLine = false;
     if (inDirectiveBlock) {
       directiveBuffer += `${line}\n`;
       if (/^[ \t]*:::[ \t]*$/u.test(line)) {
@@ -442,9 +442,17 @@ export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage 
       directiveBuffer = `${line}\n`;
       return "";
     }
-    if (STANDALONE_SOURCE_LINE_RE.test(line)) return "";
+    if (wasFlushedMidLine && /^\s*\(/u.test(line)) {
+      const cleanedTail = normalizeExpandedKnowledgeLanguage(cleanInlineSourceLine(line), lang);
+      if (!cleanedTail) {
+        return lineWithNewline && consecutiveBlankLines <= 1 ? "\n" : "";
+      }
+      consecutiveBlankLines = 0;
+      return lineWithNewline ? `${cleanedTail}\n` : cleanedTail;
+    }
+    if (STANDALONE_INLINE_SOURCE_LINE_RE.test(line)) return "";
     const cleaned = normalizeExpandedKnowledgeLanguage(
-      line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd(),
+      cleanInlineSourceLine(line),
       lang,
     );
     if (!cleaned && !line.trim()) {
@@ -474,21 +482,21 @@ export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage 
         const normalized = normalizeExpandedKnowledgeLanguage(pendingLine, lang);
         pendingLine = normalized;
         let holdStart = pendingLine.length;
-        const tailBoundaryRe = /[.!?…]\s+/gu;
+        const tailBoundaryRe = /(?:[.!?…]\s+|\s+(?=\(|[—–]\s+))/gu;
         let match: RegExpExecArray | null;
         while ((match = tailBoundaryRe.exec(pendingLine)) !== null) {
+          const isSentenceBoundary = /^[.!?…]/u.test(match[0]);
+          const holdFrom = isSentenceBoundary ? match.index + match[0].length : match.index;
           const candidateTail = pendingLine.slice(match.index + match[0].length);
           if (!candidateTail || couldStartSourceLabel(candidateTail, lang)) {
-            holdStart = match.index + match[0].length;
+            holdStart = holdFrom;
             break;
           }
-        }
-        if (holdStart === pendingLine.length && /[.!?…]\s*$/u.test(pendingLine)) {
-          holdStart = pendingLine.length;
         }
         if (holdStart > 0) {
           out += pendingLine.slice(0, holdStart);
           pendingLine = pendingLine.slice(holdStart);
+          flushedCurrentLine = true;
           consecutiveBlankLines = 0;
         }
       }
