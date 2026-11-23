@@ -98,4 +98,23 @@ describe("Bug H: Cost table redesign (design §3.8 & §2)", () => {
     expect(css).not.toMatch(/\.tripsage-cost\s*\{[^}]*overflow-x\s*:\s*auto/);
     expect(css).toMatch(/@container\s*\(max-width:\s*639px\)\s*\{[\s\S]*?\.tripsage-cost-basis-desktop/);
   });
+
+  it("Bug 3: right-aligns tbody amounts with equal specificity, uses 2-col minmax(0,1fr) auto below 640px, and never overrides .tripsage-cost-basis-mobile later in CSS", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/components/assistant/assistant.css"), "utf8");
+
+    // tbody td.tripsage-cost-amount must be explicitly right-aligned so .tripsage-cost-table tbody td { text-align: left } cannot override it
+    expect(css).toMatch(/\.tripsage-cost-table\s+tbody\s+td\.tripsage-cost-amount[\s\S]*?text-align\s*:\s*right/);
+
+    // @container (max-width: 639px) must define 2-column grid rows and show .tripsage-cost-basis-mobile in --tv-ink-3
+    const containerIdx = css.indexOf("@container (max-width: 639px)");
+    expect(containerIdx).toBeGreaterThan(-1);
+    const containerBlock = css.slice(containerIdx, containerIdx + 1800);
+    expect(containerBlock).toMatch(/grid-template-columns\s*:\s*minmax\(0,\s*1fr\)\s+auto/);
+    expect(containerBlock).toMatch(/\.tripsage-cost-basis-mobile\s*\{[^}]*display\s*:\s*block/);
+    expect(containerBlock).toMatch(/\.tripsage-cost-basis-mobile\s*\{[^}]*color\s*:\s*var\(--tv-ink-3\)/);
+
+    // No later top-level `.tripsage-cost-basis-mobile { display: none; }` after @container (max-width: 639px)
+    const afterContainer = css.slice(containerIdx);
+    expect(afterContainer).not.toMatch(/\.tripsage-cost-basis-mobile\s*\{\s*display\s*:\s*none/);
+  });
 });

@@ -2781,13 +2781,20 @@
   font-weight: 400;
 }
 .tripsage-cost-basis-desktop { color: var(--tv-ink-2); font-size: var(--tv-text-sm); }
+.tripsage-cost-basis-mobile { display: none; }
 .tripsage-cost-amount {
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   color: var(--tv-ink);
 }
-.tripsage-cost-table thead th.tripsage-cost-amount { text-align: right; }
+.tripsage-cost-table thead th.tripsage-cost-amount,
+.tripsage-cost-table tbody td.tripsage-cost-amount,
+.tripsage-cost-table tfoot td.tripsage-cost-amount {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .tripsage-cost-table tfoot th,
 .tripsage-cost-table tfoot td {
   padding: 4px 8px;
@@ -2795,7 +2802,6 @@
   background: transparent;
   text-align: left;
 }
-.tripsage-cost-table tfoot td.tripsage-cost-amount { text-align: right; }
 .tripsage-cost-table tfoot .tripsage-cost-tfoot-first th,
 .tripsage-cost-table tfoot .tripsage-cost-tfoot-first td { padding-top: var(--tv-space-3); }
 .tripsage-cost-table tfoot .tripsage-cost-total-foot th,
@@ -2847,6 +2853,50 @@
 }
 .tripsage-pin-btn { justify-self: start; }
 @container (max-width: 639px) {
+  .tripsage-cost-table,
+  .tripsage-cost-table thead,
+  .tripsage-cost-table tbody,
+  .tripsage-cost-table tfoot {
+    display: block;
+    width: 100%;
+  }
+  .tripsage-cost-table thead tr,
+  .tripsage-cost-table tbody tr,
+  .tripsage-cost-table tfoot tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--tv-space-3);
+    align-items: baseline;
+  }
+  .tripsage-cost-table tbody tr {
+    border-bottom: 1px solid var(--tv-sunken);
+  }
+  .tripsage-cost-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .tripsage-cost-table tbody td {
+    border-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .tripsage-cost-table thead th {
+    border-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .tripsage-cost-table thead tr {
+    border-bottom: 1px solid var(--tv-sunken);
+  }
+  .tripsage-cost-table tfoot th,
+  .tripsage-cost-table tfoot td {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .tripsage-cost-table .tripsage-cost-amount {
+    justify-self: end;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
   .tripsage-cost-basis-col,
   .tripsage-cost-basis-desktop {
     display: none;
@@ -2856,7 +2906,7 @@
     margin-top: 2px;
     font-size: var(--tv-text-xs);
     line-height: var(--tv-leading-xs);
-    color: var(--tv-ink-2);
+    color: var(--tv-ink-3);
     font-weight: 400;
   }
 }
@@ -3367,10 +3417,6 @@
   display: none;
 }
 
-.tripsage-cost-basis-mobile {
-  display: none;
-}
-
 /* Slim single-line composer (design §3.6) */
 .assistant-composer-input {
   display: flex;
@@ -3554,20 +3600,6 @@
   .tripsage-sheet-footer a.tv-btn {
     width: 100%;
     justify-content: center;
-  }
-
-  /* Design §3.8: 2-column cost list on mobile, basis stacked as gray sub-line */
-  .tripsage-cost-table thead th:nth-child(2),
-  .tripsage-cost-basis-desktop {
-    display: none;
-  }
-
-  .tripsage-cost-basis-mobile {
-    display: block;
-    margin-top: 2px;
-    font-size: var(--tv-text-xs);
-    color: var(--tv-ink-2);
-    font-weight: 400;
   }
 }
 
