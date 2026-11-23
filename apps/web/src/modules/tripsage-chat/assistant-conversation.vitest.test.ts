@@ -442,4 +442,120 @@ describe("assistant conversations HTTP and chat route persistence (ticket 03)", 
     // Owner-2's conversation is still intact.
     expect((await store.get("owner-2", other.data.conversationId)).conversation.id).toBe(other.data.conversationId);
   });
+
+  it("Point 6: restores savedTripId + savedProposalId when reloading a saved itinerary and clears savedProposalId after a newer v3 edit", async () => {
+    const { db, conversations } = createFakeDb();
+    const savedTrips = new Map<string, {
+      id: string;
+      userId: string;
+      startDate: Date;
+      durationDays: number;
+      transport: string;
+      journeySnapshot: { revision: string; visitFingerprint: string };
+      createdAt: Date;
+    }>();
+    (db as unknown as Record<string, unknown>).trip = {
+      findFirst: async ({ where }: { where: { id: string; userId: string } }) => {
+        const t = savedTrips.get(where.id);
+        return t && t.userId === where.userId ? t : null;
+      },
+    };
+    const store = createAssistantConversationStore(db, { now: () => new Date("2026-11-23T10:05:00Z") });
+    const u1 = await store.recordUserMessage({ userId: "owner-1", clientMessageId: "u-save-1", text: "Lập lịch 1 ngày" });
+    if (u1.status !== "SUCCESS") throw new Error("expected success");
+    const convId = u1.data.conversationId;
+
+    const makeProposal = (proposalId: string, visitDurationMinutes: number) => ({
+      proposalId,
+      phase: "PRELIMINARY_PROPOSAL" as const,
+      status: "PROPOSAL_READY" as const,
+      requirement: {
+        startDate: "2026-12-13",
+        durationDays: 1,
+        transport: "MOTORCYCLE" as const,
+        interests: ["NATURE" as const],
+        pace: "PACKED" as const,
+      },
+      timezone: "Asia/Ho_Chi_Minh" as const,
+      days: [{
+        day: 1,
+        date: "2026-12-13",
+        distanceMeters: 20_000,
+        travelSeconds: 1800,
+        stops: [{
+          order: 1,
+          destination: {
+            id: "cmvsa4ob3000108l8upj3ccfu",
+            name: "Đèo Mã Pì Lèng",
+            description: "Đèo",
+            area: "Mèo Vạc",
+            address: null,
+            category: "Cảnh quan",
+            latitude: 23.24,
+            longitude: 105.4,
+            image: null,
+          },
+          arrivalMinute: 480,
+          departureMinute: 480 + visitDurationMinutes,
+          visitDurationMinutes,
+          scheduleState: "PLANNED" as const,
+          inbound: null,
+          validationStatus: "PASS" as const,
+        }],
+      }],
+      checks: [
+        { key: "OPENING_HOURS" as const, status: "PASS" as const, issues: [] },
+        { key: "MINIMUM_DURATION" as const, status: "PASS" as const, issues: [] },
+        { key: "TRAVEL_TIME" as const, status: "PASS" as const, issues: [] },
+        { key: "SCHEDULE_CONFLICTS" as const, status: "PASS" as const, issues: [] },
+        { key: "MOBILITY" as const, status: "PASS" as const, issues: [] },
+      ],
+      warnings: [],
+      reasonCodes: [],
+      eligibleForFinalConfirmation: true,
+    });
+
+    await store.recordAssistantMessage({
+      userId: "owner-1",
+      conversationId: convId,
+      clientMessageId: "a-save-1",
+      parts: [
+        { type: "text", text: "Bản lịch v2 đã đạt." },
+        { type: "data-itinerary", id: "itinerary", data: makeProposal("prop-v2", 30) },
+      ],
+    });
+    // Mark conversation as saved to cmwt3nfzl000107lbf8uetc0l with matching fingerprint
+    (conversations.get(convId) as unknown as { savedTripId?: string | null }).savedTripId = "cmwt3nfzl000107lbf8uetc0l";
+    savedTrips.set("cmwt3nfzl000107lbf8uetc0l", {
+      id: "cmwt3nfzl000107lbf8uetc0l",
+      userId: "owner-1",
+      startDate: new Date("2026-12-13T00:00:00Z"),
+      durationDays: 1,
+      transport: "MOTORCYCLE",
+      journeySnapshot: {
+        revision: "journey-save-v1",
+        visitFingerprint: '[[1,[["cmvsa4ob3000108l8upj3ccfu",1,480,30]]]]',
+      },
+      createdAt: new Date("2026-11-23T10:05:10Z"),
+    });
+
+    // Reload: server confirms prop-v2 matches cmwt3nfzl000107lbf8uetc0l
+    const reloaded = await store.get("owner-1", convId);
+    expect(reloaded.conversation.savedTripId).toBe("cmwt3nfzl000107lbf8uetc0l");
+    expect(reloaded.conversation.savedProposalId).toBe("prop-v2");
+
+    // Newer edit v3 changes visit duration to 60 min -> fingerprint diverges -> savedProposalId becomes null
+    await store.recordAssistantMessage({
+      userId: "owner-1",
+      conversationId: convId,
+      clientMessageId: "a-save-2",
+      parts: [
+        { type: "text", text: "Bản lịch v3 đã chỉnh." },
+        { type: "data-itinerary", id: "itinerary", data: makeProposal("prop-v3", 60) },
+      ],
+    });
+    const afterEdit = await store.get("owner-1", convId);
+    expect(afterEdit.conversation.savedTripId).toBe("cmwt3nfzl000107lbf8uetc0l");
+    expect(afterEdit.conversation.savedProposalId).toBeNull();
+  });
 });

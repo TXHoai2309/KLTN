@@ -385,4 +385,52 @@ describe("Ticket 10: Plan summary card & desktop split panel / tablet drawer (sl
     expect(afterHeader).toContain("tripsage-panel-status-strip--warn");
     expect(afterHeader).toContain("Bản nháp đang dùng giả định — cần xác nhận nơi xuất phát và ngày khởi hành trước khi lưu hành trình.");
   });
+
+  it("Point 6: renders 'Đã lưu' + 'Mở chuyến đi' link in BOTH desktop header and mobile sheet footer when savedTripId is restored", () => {
+    const proposal = makeProposal("prop-saved-v2");
+    const savedHtml = renderToStaticMarkup(
+      createElement(TripsagePlanPanel, {
+        proposal,
+        suggestions: [],
+        chosenLodgings: {},
+        pinnedItems: [],
+        savedTripId: "cmwt3nfzl000107lbf8uetc0l",
+        drawerOpen: true,
+        onCloseDrawer: () => {},
+        onToggleChosenLodging: () => {},
+        onRequestMeals: () => {},
+        onAskAccess: () => {},
+        onSelectSavingsOption: () => {},
+        onSaved: () => {},
+        onSaveStateChange: () => {},
+      }),
+    );
+
+    const openLinks = savedHtml.match(/href="\/trips\/cmwt3nfzl000107lbf8uetc0l"/g) ?? [];
+    expect(openLinks.length).toBe(2); // Desktop header + Mobile sheet footer
+    expect(savedHtml).toContain("Đã lưu");
+    expect(savedHtml).toContain("Mở chuyến đi");
+    expect(savedHtml).not.toContain(">Lưu chuyến<");
+
+    // When a newer proposal v3 has no matching savedTripId (null), 'Lưu chuyến' reappears
+    const v3Html = renderToStaticMarkup(
+      createElement(TripsagePlanPanel, {
+        proposal: makeProposal("prop-v3-new"),
+        suggestions: [],
+        chosenLodgings: {},
+        pinnedItems: [],
+        savedTripId: null,
+        drawerOpen: true,
+        onCloseDrawer: () => {},
+        onToggleChosenLodging: () => {},
+        onRequestMeals: () => {},
+        onAskAccess: () => {},
+        onSelectSavingsOption: () => {},
+        onSaved: () => {},
+        onSaveStateChange: () => {},
+      }),
+    );
+    expect(v3Html).toContain(">Lưu chuyến<");
+    expect(v3Html).not.toContain("/trips/cmwt3nfzl000107lbf8uetc0l");
+  });
 });

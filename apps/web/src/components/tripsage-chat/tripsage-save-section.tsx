@@ -29,6 +29,7 @@ export function resolveSaveStatusNotice(input: {
   outdatedReason?: string | null;
   noticePresent?: boolean;
   saveView?: ChatSaveView | null;
+  savedTripId?: string | null;
 }): SaveStatusNotice | null {
   if (input.outdatedReason) {
     return { tone: "warn", text: input.outdatedReason };
@@ -38,6 +39,15 @@ export function resolveSaveStatusNotice(input: {
   }
   if (input.saveView?.state === "unknown" && input.saveView.message) {
     return { tone: "warn", text: input.saveView.message };
+  }
+  if (input.savedTripId || (input.saveView?.state === "success" && input.saveView.tripId)) {
+    if (input.saveView?.state === "success" && input.saveView.unchecked.length > 0) {
+      return {
+        tone: "info",
+        text: `Hành trình được lưu kèm ${input.saveView.unchecked.length} mục chưa kiểm; các mục này không được tính là đã đạt.`,
+      };
+    }
+    return null;
   }
   const currentAssumed = input.tripInfo ? input.tripInfo.assumedFields : input.result.assumedFields;
   const blockingAssumed = blockingAssumedFields(currentAssumed);
@@ -84,6 +94,7 @@ export function TripsageSaveSection({
   hideInlineMessages = false,
   describedById,
   initialView,
+  savedTripId = null,
   onSaved,
   onStateChange,
   onViewChange,
@@ -106,6 +117,8 @@ export function TripsageSaveSection({
   describedById?: string;
   /** Test seam for rendering saved / pending / failed / unknown states cleanly. */
   initialView?: ChatSaveView;
+  /** Point 6: server-verified Trip id when this exact proposal was already saved (restored on reload). */
+  savedTripId?: string | null;
   onSaved?: (tripId: string) => void;
   onStateChange?: (state: SaveState) => void;
   onViewChange?: (view: ChatSaveView) => void;
@@ -120,6 +133,26 @@ export function TripsageSaveSection({
   const [confirmed, setConfirmed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  const resolvedSavedTripId = view.state === "success" && view.tripId ? view.tripId : savedTripId;
+  if (resolvedSavedTripId && !outdatedReason) {
+    return (
+      <div className="tripsage-save tripsage-save--saved" aria-live="polite" data-testid="tripsage-save-saved">
+        <span role="status" className="tripsage-save-status">Đã lưu</span>
+        <Link
+          className={travelerButtonClassName({ variant: buttonSize === "lg" ? "primary" : "link", size: buttonSize })}
+          href={`/trips/${encodeURIComponent(resolvedSavedTripId)}`}
+        >
+          Mở chuyến đi
+        </Link>
+        {!hideInlineMessages && view.unchecked.length > 0 && (
+          <p role="note" className="tripsage-save-note">
+            Hành trình được lưu kèm {view.unchecked.length} mục chưa kiểm; các mục này không được tính là đã đạt.
+          </p>
+        )}
+      </div>
+    );
+  }
 
   if (outdatedReason) {
     return (

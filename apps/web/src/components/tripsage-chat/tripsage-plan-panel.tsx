@@ -50,6 +50,8 @@ export interface TripsagePlanPanelProps {
   noticePresent?: boolean;
   /** Bug 7: true when trip requirements changed after this proposal was built. */
   isOutdated?: boolean;
+  /** Point 6: server-verified Trip id when this exact proposal was already saved. */
+  savedTripId?: string | null;
   drawerOpen: boolean;
   initialDayKey?: string;
   onCloseDrawer: () => void;
@@ -122,6 +124,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   busy = false,
   noticePresent = false,
   isOutdated = false,
+  savedTripId = null,
   drawerOpen,
   initialDayKey,
   onCloseDrawer,
@@ -438,6 +441,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         outdatedReason,
         noticePresent,
         saveView,
+        savedTripId,
       })
     : null;
   const statusNoticeId = `tripsage-panel-status-${proposal.proposalId}`;
@@ -490,6 +494,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
                   pinnedItems={pinnedItems}
                   primaryLabel="Lưu chuyến"
                   outdatedReason={outdatedReason}
+                  savedTripId={savedTripId}
                   hideInlineMessages
                   describedById={statusNotice ? statusNoticeId : undefined}
                   onSaved={onSaved}
@@ -703,6 +708,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
               primaryLabel="Lưu chuyến"
               buttonSize="lg"
               outdatedReason={outdatedReason}
+              savedTripId={savedTripId}
               hideInlineMessages
               describedById={statusNotice ? statusNoticeId : undefined}
               onSaved={onSaved}

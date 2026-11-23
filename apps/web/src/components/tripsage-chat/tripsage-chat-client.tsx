@@ -193,9 +193,10 @@ export function TripsageChatClient({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   // True while the saved answer is being fetched back after the stream dropped: the user sees progress, not a red error.
   const [recoveryFailed, setRecoveryFailed] = useState(false);
-  // ADR-47: items pinned from cards. Before the trip is saved they ride along with the save; after, each pin is written at once.
+  // ADR-47 & Point 6: items pinned from cards, plus server-verified saved trip scoped to (conversationId, proposalId).
   const [pinned, setPinned] = useState<PinnedItem[]>([]);
-  const [savedTripId, setSavedTripId] = useState<string | null>(null);
+  const [savedRecord, setSavedRecord] = useState<{ conversationId: string | null; tripId: string; proposalId: string | null } | null>(null);
+  const savedTripId = savedRecord && savedRecord.conversationId === activeConversationId ? savedRecord.tripId : null;
   const [pinMessage, setPinMessage] = useState<string | null>(null);
   const pinKeys = useMemo(() => new Set(pinned.map(pinKey)), [pinned]);
   // The way to the meeting hub travels with the saved trip (owner-only), so the trip page shows the whole journey.
@@ -352,8 +353,8 @@ export function TripsageChatClient({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
   }, [draft]);
-  // Pins and the saved trip belong to one conversation.
-  useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); setPlanProgress(null); }, [activeConversationId]);
+  // Pins belong to one conversation; savedRecord is already scoped by conversationId + proposalId.
+  useEffect(() => { setPinned([]); setPinMessage(null); setPlanProgress(null); }, [activeConversationId]);
   // PARITY BR-3 & BR-4: before saving, keep any pinned ACCESS synced to the current access leg; after saving, keep the saved snapshot unchanged.
   useEffect(() => {
     if (savedTripId || !state.accessLeg?.data) return;
@@ -447,6 +448,15 @@ export function TripsageChatClient({
         if (detail) {
           setLegacyReadOnly(null);
           setActiveConversationId(detail.conversation.id);
+          setSavedRecord(
+            detail.conversation.savedTripId && detail.conversation.savedProposalId
+              ? {
+                  conversationId: detail.conversation.id,
+                  tripId: detail.conversation.savedTripId,
+                  proposalId: detail.conversation.savedProposalId,
+                }
+              : null,
+          );
           bodyRef.current = { ...bodyRef.current, conversationId: detail.conversation.id };
           setMessages(storedMessagesToUiMessages(detail.messages));
           syncUrl(detail.conversation.id);
@@ -484,7 +494,7 @@ export function TripsageChatClient({
     setPlanProgress(null);
     streamedMessageIdsRef.current.clear();
     setFinishedTextIds(new Set());
-    setPinned([]); setSavedTripId(null); setPinMessage(null);
+    setPinned([]); setSavedRecord(null); setPinMessage(null);
     lastSyncedProposalRef.current = null;
     bodyRef.current = { journey: null, tripInfo: null, itinerary: null, originCandidatesToken: null, conversationId: null };
     setMessages([]);
@@ -513,7 +523,11 @@ export function TripsageChatClient({
   }
 
   function handleTripSaved(tripId: string) {
-    setSavedTripId(tripId);
+    setSavedRecord({
+      conversationId: activeConversationId,
+      tripId,
+      proposalId: latestItinerary?.proposalId ?? null,
+    });
     const convId = activeConversationId;
     if (!convId) return;
     void markAssistantConversationSavedTrip(convId, tripId, createIdempotencyKey()).then(ok => {
@@ -966,6 +980,13 @@ export function TripsageChatClient({
           busy={busy}
           noticePresent={Boolean(notice)}
           isOutdated={planOutdated}
+          savedTripId={
+            savedRecord
+            && savedRecord.conversationId === activeConversationId
+            && savedRecord.proposalId === latestItinerary.proposalId
+              ? savedRecord.tripId
+              : null
+          }
           drawerOpen={planDrawerOpen}
           onCloseDrawer={() => setPlanDrawerOpen(false)}
           onToggleChosenLodging={handleToggleChosenLodging}

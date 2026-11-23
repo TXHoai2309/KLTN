@@ -165,13 +165,33 @@ export function chatSavePlan(result: PlannerResult): { proposal: TripProposal; u
 }
 
 /**
+ * Point 6: deterministic Idempotency-Key derived from `(proposalId, signature)` so clicking Save
+ * on the identical itinerary across reloads or tabs replays the existing Trip instead of creating a duplicate.
+ */
+export function deterministicSaveIdempotencyKey(proposalId: string, signature: string): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let i = 0; i < signature.length; i += 1) {
+    const code = signature.charCodeAt(i);
+    h1 ^= code;
+    h1 = Math.imul(h1, 0x01000193);
+    h2 ^= code + i;
+    h2 = Math.imul(h2, 0x85ebca6b);
+  }
+  const safeProposal = proposalId.replace(/[^a-zA-Z0-9_-]/gu, "").slice(0, 48) || "plan";
+  const digest = `${(h1 >>> 0).toString(16).padStart(8, "0")}${(h2 >>> 0).toString(16).padStart(8, "0")}`;
+  return `tripsage-save-${safeProposal}-${digest}`;
+}
+
+/**
  * Save is a separate JSON call to the existing `POST /api/trips` (never part of the stream). The server rebuilds the
- * validation from its own destination, Google and routing data; this controller only keeps the request and Idempotency-Key
- * stable, so an UNKNOWN retry sends the identical payload and key and cannot create a second Trip. For unchecked items it
- * sends nothing until the user confirms, and it echoes the list the user saw; the server decides whether it matches.
+ * validation from its own destination, Google and routing data; this controller keeps the request and Idempotency-Key
+ * deterministic for a given proposal + payload, so retries after UNKNOWN and repeat clicks after reload cannot create a
+ * second Trip. For unchecked items it sends nothing until the user confirms, and it echoes the list the user saw; the
+ * server decides whether it matches.
  */
 export function createChatSaveController(options: { fetcher?: typeof fetch; newKey?: () => string } = {}) {
-  const newKey = options.newKey ?? (() => crypto.randomUUID());
+  const customNewKey = options.newKey;
   let attempt: {
     signature: string;
     key: string;
@@ -205,9 +225,10 @@ export function createChatSaveController(options: { fetcher?: typeof fetch; newK
     const nearby = choice.nearbySuggestions?.length ? [...choice.nearbySuggestions] : undefined;
     const pinned = choice.pinnedItems?.length ? [...choice.pinnedItems] : undefined;
     const signature = JSON.stringify({ proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings, nearby, pinned });
-    // Retry after UNKNOWN reuses the stored payload and key; a changed schedule, confirmation, or chosen lodging gets a new key.
+    // Retry after UNKNOWN reuses the stored payload and key; identical proposal+payload across reloads derives the same key.
     if (!attempt || attempt.signature !== signature) {
-      attempt = { signature, key: newKey(), proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings, nearby, pinned };
+      const key = customNewKey ? customNewKey() : deterministicSaveIdempotencyKey(result.proposalId, signature);
+      attempt = { signature, key, proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings, nearby, pinned };
     }
     inFlight = true;
     view = { state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: shown };

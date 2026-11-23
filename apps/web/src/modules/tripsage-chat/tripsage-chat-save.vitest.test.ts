@@ -197,4 +197,36 @@ describe("Tripsage chat Save through POST /api/trips", () => {
     }
     expect(result.eligibleForFinalConfirmation).toBe(true);
   });
+
+  it("Point 6: re-saving the identical proposal from a fresh controller (after reload) sends the same deterministic Idempotency-Key and never creates a duplicate Trip", async () => {
+    const db = store();
+    const result = await chatItinerary();
+    const sentKeys: string[] = [];
+    const inner = fetchTo(db.dependencies);
+    const fetcher: typeof fetch = async (url, init) => {
+      sentKeys.push((init!.headers as Record<string, string>)["Idempotency-Key"]!);
+      return inner(url, init);
+    };
+
+    // First save before reload
+    const c1 = createChatSaveController({ fetcher });
+    const v1 = await c1.save(result);
+    expect(v1).toMatchObject({ state: "success", tripId: "trip-1" });
+    expect(db.trips).toHaveLength(1);
+
+    // Simulated reload: brand-new controller saving the identical proposal replays trip-1 with zero duplicate rows
+    const c2 = createChatSaveController({ fetcher });
+    const v2 = await c2.save(result);
+    expect(v2).toMatchObject({ state: "success", tripId: "trip-1" });
+    expect(sentKeys).toHaveLength(2);
+    expect(sentKeys[1]).toBe(sentKeys[0]);
+    expect(db.trips).toHaveLength(1);
+
+    // Editing to a new proposalId produces a distinct key and saves a distinct Trip
+    const c3 = createChatSaveController({ fetcher });
+    const v3 = await c3.save({ ...result, proposalId: `${result.proposalId}-v2` });
+    expect(v3).toMatchObject({ state: "success", tripId: "trip-2" });
+    expect(sentKeys[2]).not.toBe(sentKeys[0]);
+    expect(db.trips).toHaveLength(2);
+  });
 });

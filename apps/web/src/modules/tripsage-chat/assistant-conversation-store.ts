@@ -5,6 +5,8 @@ import type { MutationOutcome } from "../../lib/mutation-contract";
 import { AppError } from "../../server/http/app-error";
 import { executeIdempotentWrite } from "../../server/http/idempotency";
 import { generateConversationTitle } from "../ai/qa-conversation-title";
+import { journeyVisitFingerprint } from "../trip-origin/journey-saved-contract";
+import type { PlannerResult } from "../trip-planner/planner-contract";
 import { autoTitleFromAssistantParts } from "./conversation-auto-title";
 import {
   ASSISTANT_CONVERSATION_RETENTION_DAYS,
@@ -81,6 +83,52 @@ function decodeCursor(cursor: string): { updatedAt: Date; id: string } | null {
   } catch {
     return null;
   }
+}
+
+function proposalVisitFingerprint(proposal: PlannerResult): string | null {
+  const days = [];
+  for (const day of proposal.days) {
+    const visits = [];
+    for (const stop of day.stops) {
+      if (stop.arrivalMinute === null) return null;
+      visits.push({
+        destinationId: stop.destination.id,
+        order: stop.order,
+        startMinute: stop.arrivalMinute,
+        plannedDurationMinutes: stop.visitDurationMinutes,
+      });
+    }
+    days.push({ dayIndex: day.day, visits });
+  }
+  return journeyVisitFingerprint(days);
+}
+
+function isoDateOf(value: Date | string): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
+function doesProposalMatchSavedTrip(
+  proposal: PlannerResult,
+  savedTrip: {
+    startDate: Date | string;
+    durationDays: number;
+    transport: string;
+    journeySnapshot?: unknown;
+    createdAt: Date;
+  },
+  proposalMessageCreatedAt: Date,
+): boolean {
+  if (proposal.requirement.startDate && isoDateOf(savedTrip.startDate) !== proposal.requirement.startDate) return false;
+  if (savedTrip.durationDays !== proposal.requirement.durationDays) return false;
+  if (savedTrip.transport !== proposal.requirement.transport) return false;
+  const snapshotFp =
+    savedTrip.journeySnapshot && typeof savedTrip.journeySnapshot === "object"
+      ? (savedTrip.journeySnapshot as { visitFingerprint?: unknown }).visitFingerprint
+      : undefined;
+  if (typeof snapshotFp === "string" && snapshotFp.length > 0) {
+    return snapshotFp === proposalVisitFingerprint(proposal);
+  }
+  return proposalMessageCreatedAt.getTime() <= savedTrip.createdAt.getTime() + 5_000;
 }
 
 export function createAssistantConversationStore(db: Database, options: { now?: () => Date } = {}): AssistantConversationStore {
@@ -164,12 +212,57 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
         }))
         .filter(msg => msg.parts.length > 0);
       const extra = row as { titleCustomized?: boolean; savedTripId?: string | null };
+      let resolvedSavedTripId: string | null | undefined = extra.savedTripId;
+      let resolvedSavedProposalId: string | null | undefined;
+      if (extra.savedTripId) {
+        let latestItinerary: { proposal: PlannerResult; createdAt: Date } | null = null;
+        for (const msg of row.messages) {
+          if (msg.role !== "assistant" || !Array.isArray(msg.parts)) continue;
+          const sanitized = sanitizeStoredParts(msg.parts);
+          for (const part of sanitized) {
+            if (part.type === "data-itinerary") {
+              latestItinerary = { proposal: part.data, createdAt: msg.createdAt };
+            }
+          }
+        }
+        const tripClient = (db as unknown as {
+          trip?: {
+            findFirst?: (args: unknown) => Promise<{
+              id: string;
+              startDate: Date | string;
+              durationDays: number;
+              transport: string;
+              journeySnapshot?: unknown;
+              createdAt: Date;
+            } | null>;
+          };
+        }).trip;
+        if (typeof tripClient?.findFirst === "function") {
+          const savedTrip = await tripClient.findFirst({
+            where: { id: extra.savedTripId, userId },
+            select: { id: true, startDate: true, durationDays: true, transport: true, journeySnapshot: true, createdAt: true },
+          });
+          if (!savedTrip) {
+            resolvedSavedTripId = null;
+            resolvedSavedProposalId = null;
+          } else {
+            resolvedSavedTripId = savedTrip.id;
+            resolvedSavedProposalId =
+              latestItinerary && doesProposalMatchSavedTrip(latestItinerary.proposal, savedTrip, latestItinerary.createdAt)
+                ? latestItinerary.proposal.proposalId
+                : null;
+          }
+        } else {
+          resolvedSavedProposalId = latestItinerary?.proposal.proposalId ?? null;
+        }
+      }
       return assistantConversationDetailSchema.parse({
         conversation: {
           id: row.id,
           title: row.title,
           ...(typeof extra.titleCustomized === "boolean" ? { titleCustomized: extra.titleCustomized } : {}),
-          ...(extra.savedTripId !== undefined ? { savedTripId: extra.savedTripId } : {}),
+          ...(resolvedSavedTripId !== undefined ? { savedTripId: resolvedSavedTripId } : {}),
+          ...(resolvedSavedProposalId !== undefined ? { savedProposalId: resolvedSavedProposalId } : {}),
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
         },

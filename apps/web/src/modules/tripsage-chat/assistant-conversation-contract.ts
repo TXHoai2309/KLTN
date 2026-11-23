@@ -51,6 +51,8 @@ export const assistantConversationSummarySchema = z.object({
   title: z.string().min(1).max(120),
   titleCustomized: z.boolean().optional(),
   savedTripId: z.string().min(1).max(128).nullable().optional(),
+  /** Proposal id of the latest itinerary when it matches `savedTripId` (Point 6). Null/absent when a newer proposal was created after saving. */
+  savedProposalId: z.string().min(1).max(128).nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 }).strict();
