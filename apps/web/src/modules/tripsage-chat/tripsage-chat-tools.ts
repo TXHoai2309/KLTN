@@ -540,6 +540,16 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         }
       }
       const hasMealReply = replies.some(r => /qu[aá]n\s+[aă]n|t[iì]m\s+th[eê]m\s+qu[aá]n/iu.test(r));
+      const hasAskUserForPriceReply = replies.some(r =>
+        /g[uử]i\s+gi[aá]|nh[aậ]p\s+gi[aá]|t[uự]\s*(?:đ[aặ]t|tra|cho|nh[aậ]p)\s+gi[aá]|d[uù]ng\s+gi[aá]\s+v[eé]|m[uứ]c\s+gi[aá]\s+(?:v[eé]|d[uự]\s*ki[eế]n)/iu.test(r),
+      );
+      if (hasAskUserForPriceReply) {
+        return {
+          ok: false as const,
+          code: "NEVER_ASK_USER_FOR_PRICE",
+          message: "Không bao giờ hỏi người dùng tự đặt hay gửi giá vé. Khi thiếu giá, hãy dùng nút hành động thực tế như 'Tra lại vé máy bay', 'Đổi sang xe khách', 'Bỏ qua, lưu trước'.",
+        };
+      }
       if (latestCostOverBudget && hasMealReply) {
         return {
           ok: false as const,
@@ -551,7 +561,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         return {
           ok: false as const,
           code: "INCOMPLETE_COST_PRIORITY",
-          message: `Bảng chi phí đang thiếu giá (${latestCostMissingItems.join(", ")}). Không hỏi sang tìm quán ăn; hãy kết thúc bằng câu hỏi về đoạn chưa có giá kèm nút lựa chọn phù hợp.`,
+          message: `Bảng chi phí đang thiếu giá (${latestCostMissingItems.join(", ")}). Không hỏi sang tìm quán ăn và không hỏi người dùng tự đặt giá; hãy đưa nút hành động ('Tra lại vé máy bay', 'Đổi sang xe khách', 'Bỏ qua, lưu trước').`,
         };
       }
       if (latestProposalDecisionIssues.length > 0 && hasMealReply) {
@@ -1048,7 +1058,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           : latestCostOverBudget
             ? "Bảng chi phí vượt ngân sách (chưa gửi được nút giảm chi phí tự động). Không tự đổi lịch và KHÔNG nói các nút giảm chi phí đã hiện; câu hỏi duy nhất cuối tin PHẢI hỏi người dùng muốn giảm chi phí theo hướng nào (đổi phương tiện, hạng phòng hay bớt ngày) và KHÔNG hỏi sang chuyện tìm quán ăn."
             : emittedCost.isIncomplete
-              ? `Bảng chi phí CHƯA ĐẦY ĐỦ vì chưa tính: ${(emittedCost.missingItems ?? []).join(", ")}. TUYỆT ĐỐI KHÔNG nói tổng nằm trong ngân sách hay vừa ngân sách; câu hỏi cuối tin PHẢI hỏi về đoạn chưa có giá (mời bổ sung mức giá dự kiến hoặc đổi phương tiện có giá tham khảo; KHÔNG hỏi sang tìm quán ăn).`
+              ? `Bảng chi phí CHƯA ĐẦY ĐỦ vì chưa tính: ${(emittedCost.missingItems ?? []).join(", ")}. Nói ngắn gọn 'chưa có giá đoạn đó, tổng đang thiếu khoản này'. TUYỆT ĐỐI KHÔNG nói tổng nằm trong ngân sách hay vừa ngân sách và TUYỆT ĐỐI KHÔNG hỏi người dùng tự đặt hay gửi mức giá vé; đưa suggestReplies hành động thực tế ('Tra lại vé máy bay', 'Đổi sang xe khách', 'Bỏ qua, lưu trước'; KHÔNG hỏi sang tìm quán ăn).`
               : latestProposalReadyToSave && !latestUserAskedFood()
                 ? "Bảng chi phí đã hiện cho người dùng và lịch trình đã đạt. Câu kết ưu tiên mời người dùng bấm nút 'Lưu chuyến' trong panel ('Lưu chuyến này nhé?') hoặc xem chi phí; KHÔNG hỏi tìm quán ăn nếu người dùng không nhắc chuyện ăn uống."
                 : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };

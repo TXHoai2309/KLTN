@@ -240,4 +240,47 @@ describe("Ticket 12: post-itinerary meal suggestions offer", () => {
     expect(foodToolPrompts).not.toContain("SAVE_OR_COST_PRIORITY");
     expect(foodAsk.all.some(p => p.type === "data-quick-replies")).toBe(true);
   });
+
+  it("Point 2: forbids asking travelers to supply ticket fares on missing-price access legs and accepts actionable chips instead", async () => {
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("KHÔNG BAO GIỜ hỏi người dùng tự đặt, tự nhập hay gửi mức giá vé");
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Tra lại vé máy bay");
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Bỏ qua, lưu trước");
+
+    const { all, model } = await chat({
+      text: "Chỉnh lại lịch giúp mình",
+      tripInfo: { transport: "MOTORCYCLE", durationDays: 1, startDate: "2026-12-01", homeCity: "Đà Nẵng", travelers: 4 },
+      steps: [
+        {
+          tool: "planAccessLeg",
+          input: {
+            hubId: "HA_GIANG_CITY",
+            outbound: [
+              { mode: "FLIGHT", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 90, priceVndPerPerson: 0 },
+              { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 360, priceVndPerPerson: 0 },
+            ],
+            return: [
+              { mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 360, priceVndPerPerson: 0 },
+              { mode: "FLIGHT", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 90, priceVndPerPerson: 0 },
+            ],
+          },
+        },
+        {
+          tool: "estimateCosts",
+          input: {
+            budgetCap: 20_000_000,
+            lines: [{ category: "food", label: "Ăn uống", amount: 2_000_000 }],
+          },
+        },
+        { tool: "suggestReplies", input: { replies: ["Gửi giá vé bay dự kiến", "Dùng giá vé mình tự tra"] } },
+        { tool: "suggestReplies", input: { replies: ["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"] } },
+        { text: "Chưa có giá đoạn Đà Nẵng ⇄ Hà Nội, tổng đang thiếu khoản này. Bạn muốn xử lý tiếp thế nào?" },
+      ],
+    });
+
+    const prompts = JSON.stringify(model.doStreamCalls.map(c => c.prompt));
+    expect(prompts).not.toContain("mời bổ sung mức giá dự kiến");
+    expect(prompts).toContain("NEVER_ASK_USER_FOR_PRICE");
+    const qr = all.find(p => p.type === "data-quick-replies")?.data as { replies?: string[] } | undefined;
+    expect(qr?.replies).toEqual(["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"]);
+  });
 });
