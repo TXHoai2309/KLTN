@@ -2,6 +2,7 @@
 
 import { Check, Pin } from "lucide-react";
 
+import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 
 /** ADR-47: what the chat gives a card so it can offer "Ghim vào chuyến đi". Absent means the card shows no pin button. */
@@ -13,13 +14,16 @@ export function PinButton({ item, control, label }: { item: PinnedItem | null; c
   return (
     <button
       type="button"
-      className={`tripsage-pin-btn${pinned ? " is-pinned" : ""}`}
+      className={travelerButtonClassName({
+        variant: "secondary",
+        size: "sm",
+        className: `tripsage-pin-btn${pinned ? " is-pinned" : ""}`,
+      })}
       aria-pressed={pinned}
       aria-label={pinned ? `Bỏ ghim ${label}` : `Ghim ${label} vào chuyến đi`}
       onClick={() => control.toggle(item)}
-     
     >
-      {pinned ? <Check size={13} aria-hidden="true" /> : <Pin size={13} aria-hidden="true" />}
+      {pinned ? <Check size={14} aria-hidden="true" /> : <Pin size={14} aria-hidden="true" />}
       <span>{pinned ? (control.saved ? "Đã ghim vào chuyến đi" : "Đã ghim, sẽ lưu cùng chuyến") : "Ghim vào chuyến đi"}</span>
     </button>
   );

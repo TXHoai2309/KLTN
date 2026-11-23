@@ -2672,15 +2672,194 @@
 .tripsage-timeline-footnote { margin: 0; font-size: var(--chat-xs-size, 0.75rem); line-height: 1.45; }
 .tripsage-travel-only-day { margin: 0.4rem 0; padding: 8px 10px; border-radius: 8px; background: var(--assistant-soft); border: 1px solid var(--assistant-line); font-size: var(--chat-meta-size, 0.8125rem); color: var(--assistant-ink); font-weight: 500; }
 @media (max-width: 480px) { .tripsage-timeline-item { grid-template-columns: 4.1rem 20px minmax(0, 1fr); gap: 6px; font-size: 0.875rem; } }
-.tripsage-cost { display: grid; gap: 0.45rem; margin-top: 0.6rem; padding: var(--chat-card-pad, 12px 14px); border: 1px solid var(--assistant-line); border-radius: var(--chat-card-radius, 10px); background: var(--assistant-card); min-width: 0; }
-.tripsage-cost h4 { margin: 0; font-size: var(--chat-meta-size, 0.8125rem); font-weight: 600; color: var(--assistant-green); }
-.tripsage-cost-table { width: 100%; border-collapse: collapse; font-size: var(--chat-meta-size, 0.8125rem); table-layout: auto; }
-.tripsage-cost-table th, .tripsage-cost-table td { padding: 6px 8px; border-bottom: 1px solid var(--assistant-line); vertical-align: top; text-align: left; }
-.tripsage-cost-table thead th { background: var(--assistant-green-light); font-weight: 600; color: var(--assistant-ink); border-bottom: 1px solid var(--assistant-line); }
-.tripsage-cost-cat { display: block; font-size: var(--chat-xs-size, 0.75rem); color: var(--assistant-green); font-weight: 600; }
-.tripsage-cost-amount { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.tripsage-cost tfoot th, .tripsage-cost tfoot td { background: var(--assistant-soft); font-weight: 600; }
-.tripsage-cost-notes { margin: 0; padding-left: 1.05rem; list-style: disc; font-size: var(--chat-xs-size, 0.75rem); color: var(--assistant-muted); line-height: 1.45; }
+.tripsage-cost {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--tv-space-3);
+  margin-top: var(--tv-space-2);
+  padding: var(--tv-space-4);
+  border: 0;
+  border-radius: var(--tv-radius-card);
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  min-width: 0;
+  overflow: visible;
+  max-height: none;
+  box-shadow: none;
+}
+.tripsage-panel-body .tripsage-cost { margin-top: 0; }
+.tripsage-cost-head { display: grid; gap: var(--tv-space-1); }
+.tripsage-cost-title {
+  margin: 0;
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-sm);
+  font-weight: 500;
+  line-height: var(--tv-leading-sm);
+  color: var(--tv-ink-2);
+}
+.tripsage-cost-total-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tv-space-2);
+}
+.tripsage-cost-total-amount {
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-2xl);
+  font-weight: 600;
+  line-height: var(--tv-leading-2xl);
+  letter-spacing: -0.02em;
+  color: var(--tv-ink);
+  font-variant-numeric: tabular-nums;
+}
+.tripsage-cost-warn-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--tv-radius-control);
+  background: var(--tv-warn-bg);
+  color: var(--tv-warn-ink);
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  line-height: var(--tv-leading-xs);
+  font-variant-numeric: tabular-nums;
+}
+.tripsage-cost-sub {
+  margin: 0;
+  font-size: var(--tv-text-sm);
+  font-weight: 400;
+  line-height: var(--tv-leading-sm);
+  color: var(--tv-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.tripsage-cost-table-wrap { width: 100%; overflow: visible; max-height: none; }
+.tripsage-cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-sm);
+  line-height: var(--tv-leading-sm);
+  table-layout: auto;
+}
+.tripsage-cost-table thead th {
+  padding: 0 8px 8px;
+  background: transparent;
+  border-bottom: 1px solid var(--tv-sunken);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  color: var(--tv-ink-2);
+  text-align: left;
+}
+.tripsage-cost-table tbody td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--tv-sunken);
+  background: transparent;
+  vertical-align: top;
+  text-align: left;
+  color: var(--tv-ink);
+}
+.tripsage-cost-table tbody tr:last-child td { border-bottom: 0; }
+.tripsage-cost-table thead th:first-child,
+.tripsage-cost-table tbody td:first-child,
+.tripsage-cost-table tfoot th { padding-left: 0; }
+.tripsage-cost-table thead th:last-child,
+.tripsage-cost-table tbody td:last-child,
+.tripsage-cost-table tfoot td:last-child { padding-right: 0; }
+.tripsage-cost-cat {
+  display: block;
+  margin-bottom: 2px;
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  color: var(--tv-ink-2);
+}
+.tripsage-cost-item-line { display: inline; }
+.tripsage-cost-item-name { color: var(--tv-ink); font-weight: 400; }
+.tripsage-cost-computed-tag {
+  color: var(--tv-ink-3);
+  font-size: var(--tv-text-xs);
+  font-weight: 400;
+}
+.tripsage-cost-basis-desktop { color: var(--tv-ink-2); font-size: var(--tv-text-sm); }
+.tripsage-cost-amount {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--tv-ink);
+}
+.tripsage-cost-table thead th.tripsage-cost-amount { text-align: right; }
+.tripsage-cost-table tfoot th,
+.tripsage-cost-table tfoot td {
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.tripsage-cost-table tfoot td.tripsage-cost-amount { text-align: right; }
+.tripsage-cost-table tfoot .tripsage-cost-tfoot-first th,
+.tripsage-cost-table tfoot .tripsage-cost-tfoot-first td { padding-top: var(--tv-space-3); }
+.tripsage-cost-table tfoot .tripsage-cost-total-foot th,
+.tripsage-cost-table tfoot .tripsage-cost-total-foot td,
+.tripsage-cost-table tfoot .tripsage-cost-total-foot strong {
+  font-weight: 600;
+  color: var(--tv-ink);
+}
+.tripsage-cost-table tfoot .tripsage-cost-budget-foot th,
+.tripsage-cost-table tfoot .tripsage-cost-budget-foot td {
+  font-weight: 500;
+  color: var(--tv-ink-2);
+}
+.tripsage-cost-table tfoot .tripsage-cost-budget-foot.is-over-budget th,
+.tripsage-cost-table tfoot .tripsage-cost-budget-foot.is-over-budget td {
+  font-weight: 600;
+  color: var(--tv-warn-ink);
+}
+.tripsage-cost-notes-details {
+  border-top: 1px solid var(--tv-sunken);
+  padding-top: var(--tv-space-2);
+}
+.tripsage-cost-notes-summary {
+  cursor: pointer;
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  color: var(--tv-ink-2);
+  list-style-position: inside;
+}
+.tripsage-cost-notes-summary:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.tripsage-cost-notes {
+  margin: var(--tv-space-2) 0 0;
+  padding-left: 1.05rem;
+  list-style: disc;
+  font-size: var(--tv-text-xs);
+  color: var(--tv-ink-2);
+  line-height: var(--tv-leading-xs);
+  display: grid;
+  gap: 4px;
+}
+.tripsage-cost-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.tripsage-pin-btn { justify-self: start; }
+@container (max-width: 639px) {
+  .tripsage-cost-basis-col,
+  .tripsage-cost-basis-desktop {
+    display: none;
+  }
+  .tripsage-cost-basis-mobile {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--tv-text-xs);
+    line-height: var(--tv-leading-xs);
+    color: var(--tv-ink-2);
+    font-weight: 400;
+  }
+}
 .tripsage-access { display: grid; gap: 0.45rem; margin-top: 0.6rem; padding: var(--chat-card-pad, 12px 14px); border: 1px dashed var(--assistant-green); border-radius: var(--chat-card-radius, 10px); background: var(--assistant-soft); }
 .tripsage-access h4 { margin: 0; font-size: var(--chat-meta-size, 0.8125rem); font-weight: 600; color: var(--assistant-green); }
 .tripsage-access h5 { margin: 0.2rem 0; font-size: var(--chat-meta-size, 0.8125rem); }
@@ -2739,7 +2918,7 @@
 .assistant-chat[data-runtime="tripsage-unified"] .planner-page { padding: 10px 0 4px; max-width: 100%; }
 .assistant-chat[data-runtime="tripsage-unified"] .planner-summary { padding: var(--chat-card-pad); margin-bottom: 10px; border-radius: var(--chat-card-radius); box-shadow: none; gap: 6px; }
 .assistant-chat[data-runtime="tripsage-unified"] .planner-overview { padding: var(--chat-card-pad); border-radius: var(--chat-card-radius); margin-bottom: 10px; }
-.assistant-chat[data-runtime="tripsage-unified"] .tripsage-cost { overflow-x: auto; }
+.assistant-chat[data-runtime="tripsage-unified"] .tripsage-cost { overflow: visible; max-height: none; }
 @media (max-width: 420px) {
   .assistant-chat[data-runtime="tripsage-unified"] .assistant-transcript-inner,
   .assistant-chat[data-runtime="tripsage-unified"] .assistant-bottom-dock-inner { padding-inline: 10px; }
@@ -2755,14 +2934,6 @@
 .tripsage-quick-replies button:hover:not(:disabled) { background: var(--assistant-green); color: var(--tv-surface); }
 .tripsage-quick-replies button:active:not(:disabled) { transform: scale(0.97); }
 .tripsage-quick-replies button:focus-visible { outline: 2px solid var(--assistant-green); outline-offset: 2px; }
-.tripsage-cost-head { display: grid; gap: 2px; }
-.tripsage-cost-head h4 { display: inline-flex; align-items: center; gap: 6px; }
-.tripsage-cost-total { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
-.tripsage-cost-total strong { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; color: var(--assistant-ink); font-variant-numeric: tabular-nums; }
-.tripsage-cost-total span { font-size: var(--chat-meta-size, 0.8125rem); color: var(--assistant-muted); }
-.tripsage-cost-table thead th { background: transparent; color: var(--assistant-muted); font-weight: 600; font-size: var(--chat-xs-size, 0.75rem); }
-.tripsage-cost tfoot th, .tripsage-cost tfoot td { background: transparent; }
-.tripsage-cost-cat { color: var(--assistant-ink); font-size: var(--chat-meta-size, 0.8125rem); }
 .tripsage-itinerary-actions { display: grid; gap: 0.6rem; }
 .assistant-chat[data-runtime="tripsage-unified"] .tripsage-itinerary-actions { padding-top: 0.6rem; }
 .tripsage-map-collapse { margin: 0; }
@@ -2849,7 +3020,7 @@
 .tripsage-savings-chips {
   display: grid;
   gap: var(--tv-space-2);
-  margin-top: var(--tv-space-3);
+  margin-top: 0;
   padding: var(--tv-space-3);
   border-radius: var(--tv-radius-control);
   background: var(--tv-sunken);
@@ -2960,7 +3131,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--tv-warn);
+  color: var(--tv-warn-ink);
   font-size: var(--tv-text-xs);
   font-weight: 500;
 }
@@ -2975,7 +3146,7 @@
 }
 
 .tripsage-plan-summary-check.has-warn {
-  color: var(--tv-warn);
+  color: var(--tv-warn-ink);
 }
 
 .tripsage-plan-summary-actions {
