@@ -7,8 +7,11 @@ import {
   ACTIVITY_MAX_ANCHORS,
   ACTIVITY_RADIUS_KM,
   EVENING_PER_SLOT,
+  OVERNIGHT_TOWN_CENTERS,
   activityAnchors,
+  isLodgingPlace,
   nearbyActivitySuggestions,
+  type EveningAnchorDiagnostic,
 } from "./tripsage-activities";
 import type { PlacesSearch } from "./tripsage-places";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
@@ -288,5 +291,101 @@ describe("Ticket 08: Khối Tối nay (PARITY AC-6, AC-8, AC-9, AC-10)", () => {
     const costB = estimateTripCost(baseInput);
     expect(costA.total).toBe(costB.total);
     expect(costA.lines).toEqual(costB.lines);
+  });
+
+  it("Bug 2: prioritizes EVENING anchor as chosen lodging -> nearest lodging suggestion -> town center -> last stop", () => {
+    const plan = {
+      days: [
+        { day: 1, stops: [stop("[Tam] Rừng thông Yên Minh", 23.120806, 105.144534)] },
+        { day: 2, stops: [stop("Phố cổ Đồng Văn", 23.2782612, 105.361378)] },
+        { day: 3, stops: [stop("Đèo Mã Pì Lèng", 23.24, 105.4)] },
+        { day: 4, stops: [stop("Điểm cuối không thuộc thị trấn", 22.91, 105.11)] },
+        { day: 5, stops: [stop("[Tam] Du Già", 22.930301, 105.223187)] },
+      ],
+    } as unknown as PlannerResult;
+
+    const { anchors } = activityAnchors(plan, {
+      overnightLodgings: {
+        2: { latitude: 23.281, longitude: 105.365, source: "chosen_lodging" },
+        3: { latitude: 23.21, longitude: 105.41, source: "lodging_suggestion" },
+      },
+    });
+    const bySlot = new Map(anchors.filter(a => a.kind === "EVENING").map(a => [a.slotId, a]));
+
+    // Night 1: no lodging yet -> Yên Minh town center (not out-of-town Rừng thông Yên Minh)
+    expect(bySlot.get("d1-overnight")?.anchorSource).toBe("town_center");
+    expect(bySlot.get("d1-overnight")?.latitude).toBeCloseTo(OVERNIGHT_TOWN_CENTERS["Yên Minh"].latitude, 4);
+    expect(bySlot.get("d1-overnight")?.longitude).toBeCloseTo(OVERNIGHT_TOWN_CENTERS["Yên Minh"].longitude, 4);
+
+    // Night 2: chosen lodging overrides town center & last stop
+    expect(bySlot.get("d2-overnight")?.anchorSource).toBe("chosen_lodging");
+    expect(bySlot.get("d2-overnight")?.latitude).toBe(23.281);
+
+    // Night 3: nearest lodging suggestion overrides last stop
+    expect(bySlot.get("d3-overnight")?.anchorSource).toBe("lodging_suggestion");
+    expect(bySlot.get("d3-overnight")?.latitude).toBe(23.21);
+
+    // Night 4: unknown area & no lodging -> falls back to last stop
+    expect(bySlot.get("d4-overnight")?.anchorSource).toBe("last_stop");
+    expect(bySlot.get("d4-overnight")?.latitude).toBe(22.91);
+  });
+
+  it("Bug 2: runs EVENING fallback query even when 16 anchors are queued, respects ACTIVITY_MAX_ANCHORS=16, filters camping, and reports diagnostics", async () => {
+    const plan = {
+      days: [
+        { day: 1, stops: [stop("S1", 23.04, 104.99), stop("S2", 23.05, 105.0), stop("S3", 23.06, 105.01), stop("[Tam] Rừng thông Yên Minh", 23.1208, 105.1445)] },
+        { day: 2, stops: [stop("S4", 23.36, 105.31), stop("S5", 23.35, 105.32), stop("Phố cổ Đồng Văn", 23.2783, 105.3614)] },
+        { day: 3, stops: [stop("S6", 23.25, 105.26), stop("S7", 23.22, 105.2), stop("[Tam] Thị trấn Mèo Vạc", 23.1638, 105.4091)] },
+        { day: 4, stops: [stop("S8", 23.19, 105.46), stop("S9", 23.02, 105.28), stop("[Tam] Du Già", 22.9303, 105.2232)] },
+      ],
+    } as unknown as PlannerResult;
+
+    const { anchors, stopNames } = activityAnchors(plan);
+    expect(anchors.length).toBe(ACTIVITY_MAX_ANCHORS);
+    expect(isLodgingPlace({ name: "Dn xê dịch camping" })).toBe(true);
+
+    const places: PlacesSearch = vi.fn(async (query, _s, near) => {
+      if (near && Math.abs(near.latitude - OVERNIGHT_TOWN_CENTERS["Yên Minh"].latitude) < 0.005) {
+        if (query === "quán ăn") {
+          return {
+            status: "RESULTS" as const,
+            places: [{ placeId: "ym-eatery", name: "Quán Cơm Phố Yên Minh", latitude: near.latitude + 0.002, longitude: near.longitude, types: ["restaurant"] }],
+          };
+        }
+        return { status: "NO_RESULTS" as const };
+      }
+      if (near && Math.abs(near.latitude - OVERNIGHT_TOWN_CENTERS["Đồng Văn"].latitude) < 0.005) {
+        return {
+          status: "RESULTS" as const,
+          places: [{ placeId: "dv-cafe", name: "Cà Phê Tam Giác Mạch", latitude: near.latitude + 0.001, longitude: near.longitude, types: ["cafe"] }],
+        };
+      }
+      if (near && Math.abs(near.latitude - OVERNIGHT_TOWN_CENTERS["Mèo Vạc"].latitude) < 0.005) {
+        return {
+          status: "RESULTS" as const,
+          places: [
+            { placeId: "mv-camp", name: "Dn xê dịch camping", latitude: near.latitude + 0.001, longitude: near.longitude },
+            { placeId: "mv-eatery", name: "Quán Ăn Mèo Vạc", latitude: near.latitude + 0.002, longitude: near.longitude, types: ["restaurant"] },
+          ],
+        };
+      }
+      return { status: "NO_RESULTS" as const };
+    });
+
+    const diagnostics: EveningAnchorDiagnostic[] = [];
+    const out = await nearbyActivitySuggestions({
+      places,
+      anchors,
+      stopNames,
+      now: () => 9e10,
+      onEveningDiagnostics: list => diagnostics.push(...list),
+    });
+
+    expect((places as ReturnType<typeof vi.fn>).mock.calls.length).toBeLessThanOrEqual(ACTIVITY_MAX_ANCHORS);
+    expect(out.filter(s => s.slotId === "d1-overnight" && s.kind === "EVENING").map(s => s.title)).toEqual(["Quán Cơm Phố Yên Minh"]);
+    expect(out.filter(s => s.slotId === "d2-overnight" && s.kind === "EVENING").map(s => s.title)).toEqual(["Cà Phê Tam Giác Mạch"]);
+    expect(out.filter(s => s.slotId === "d3-overnight" && s.kind === "EVENING").map(s => s.title)).toEqual(["Quán Ăn Mèo Vạc"]);
+    expect(diagnostics).toHaveLength(3);
+    expect(diagnostics.find(d => d.slotId === "d1-overnight")).toMatchObject({ anchorSource: "town_center", count: 1, reason: "ok" });
   });
 });

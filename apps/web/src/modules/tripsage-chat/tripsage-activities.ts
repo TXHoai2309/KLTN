@@ -1,6 +1,6 @@
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { haversine } from "../trip-planner/planner-geography";
-import { cleanPlaceDisplayName, isGenericActivityPlaceName } from "../../lib/traveler-display-clean";
+import { cleanPlaceDisplayName, isGenericActivityPlaceName, resolveOvernightAreaLabel } from "../../lib/traveler-display-clean";
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { EARLY_DAY_END_MINUTE, suggestionSchema, type TimelineSuggestion } from "./tripsage-timeline";
 
@@ -39,7 +39,7 @@ export const LODGING_PLACE_TYPES = new Set<string>([
 ]);
 
 const LODGING_NAME_PATTERN =
-  /\b(?:homestay|home\s*stay|hotel|khach\s+san|resort|nha\s+nghi|guest\s*house|hostel|motel|lodge|bungalow|campground|retreat)\b/iu;
+  /\b(?:homestay|home\s*stay|hotel|khach\s+san|resort|nha\s+nghi|guest\s*house|hostel|motel|lodge|bungalow|campground|camping|retreat)\b/iu;
 
 function foldName(value: string): string {
   return value
@@ -69,16 +69,84 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
 const CACHE_MAX = 200;
 
 type Kind = keyof typeof QUERIES;
+export type EveningAnchorSource = "chosen_lodging" | "lodging_suggestion" | "town_center" | "last_stop";
+export type OvernightLodgingPoint = { latitude: number; longitude: number; source: "chosen_lodging" | "lodging_suggestion" };
+export type EveningAnchorDiagnostic = {
+  slotId: string;
+  area?: string;
+  anchorSource: EveningAnchorSource;
+  count: number;
+  reason: "ok" | "no_places_within_3km" | "all_filtered_out" | "places_unavailable" | "budget_exhausted";
+};
+
+/** Reference town centers for Hà Giang overnight areas, used when a day's last stop is outside town (e.g. Rừng thông Yên Minh). */
+export const OVERNIGHT_TOWN_CENTERS: Readonly<Record<string, { latitude: number; longitude: number }>> = {
+  "Yên Minh": { latitude: 23.1175, longitude: 105.1425 },
+  "Đồng Văn": { latitude: 23.2783, longitude: 105.3614 },
+  "Mèo Vạc": { latitude: 23.1638, longitude: 105.4091 },
+  "Quản Bạ": { latitude: 23.0703, longitude: 104.9798 },
+  "TP Hà Giang": { latitude: 22.8233, longitude: 104.9836 },
+  "Du Già": { latitude: 22.9303, longitude: 105.2232 },
+  "Lũng Cú": { latitude: 23.3622, longitude: 105.3127 },
+  "Hoàng Su Phì": { latitude: 22.7436, longitude: 104.6775 },
+  "Bắc Mê": { latitude: 22.7536, longitude: 105.2877 },
+};
+
 /** `FREE` is the free afternoon after the last stop; it shows as an `ACTIVITY` suggestion found with its own query. */
-export type ActivityAnchor = { slotId: string; kind: Kind; latitude: number; longitude: number };
+export type ActivityAnchor = {
+  slotId: string;
+  kind: Kind;
+  latitude: number;
+  longitude: number;
+  anchorSource?: EveningAnchorSource;
+  areaLabel?: string;
+};
+
+/**
+ * Resolves the EVENING search anchor for a night in strict priority order:
+ * (1) chosen lodging coordinates, (2) nearest lodging suggestion coordinates,
+ * (3) overnight area town center (e.g. TT Yên Minh), (4) day's last stop coordinates.
+ */
+export function resolveEveningAnchorPoint(input: {
+  lastStop: { name?: string | null; area?: string | null; latitude: number; longitude: number };
+  lodging?: OvernightLodgingPoint | null;
+}): { latitude: number; longitude: number; anchorSource: EveningAnchorSource; areaLabel?: string } {
+  const areaLabel = resolveOvernightAreaLabel(input.lastStop.area, input.lastStop.name) ?? undefined;
+  if (input.lodging && Number.isFinite(input.lodging.latitude) && Number.isFinite(input.lodging.longitude)) {
+    return {
+      latitude: input.lodging.latitude,
+      longitude: input.lodging.longitude,
+      anchorSource: input.lodging.source,
+      areaLabel,
+    };
+  }
+  const townCenter = areaLabel ? OVERNIGHT_TOWN_CENTERS[areaLabel] : undefined;
+  if (townCenter) {
+    return {
+      latitude: townCenter.latitude,
+      longitude: townCenter.longitude,
+      anchorSource: "town_center",
+      areaLabel,
+    };
+  }
+  return {
+    latitude: input.lastStop.latitude,
+    longitude: input.lastStop.longitude,
+    anchorSource: "last_stop",
+    areaLabel,
+  };
+}
 
 /** shortcut: per-instance memory cache of lookups (keyed by rounded point and kind); upgrade to a shared cache if instances multiply. */
 const cache = new Map<string, { at: number; places: ExternalPlaceSuggestion[] }>();
 
 const norm = (value: string) => value.normalize("NFC").toLocaleLowerCase("vi").replace(/\s+/gu, " ").trim();
 
-/** Anchors in plan order: every stop first (`dN-visit-K`), then free afternoons (`dN-free`), then each night (`dN-overnight`), the last two anchored at the day's last stop. */
-export function activityAnchors(result: PlannerResult): { anchors: ActivityAnchor[]; stopNames: string[] } {
+/** Anchors in plan order: every stop first (`dN-visit-K`), then free afternoons (`dN-free`), then each night (`dN-overnight`, anchored by lodging → town center → last stop). */
+export function activityAnchors(
+  result: PlannerResult,
+  options?: { overnightLodgings?: Readonly<Record<number, OvernightLodgingPoint>> },
+): { anchors: ActivityAnchor[]; stopNames: string[] } {
   const visits: ActivityAnchor[] = []; const frees: ActivityAnchor[] = []; const nights: ActivityAnchor[] = []; const stopNames: string[] = [];
   result.days.forEach((day, index) => {
     day.stops.forEach((stop, stopIndex) => {
@@ -88,7 +156,25 @@ export function activityAnchors(result: PlannerResult): { anchors: ActivityAncho
     const last = day.stops.at(-1);
     const freeAfternoon = last && index < result.days.length - 1 && last.departureMinute !== null && last.departureMinute < EARLY_DAY_END_MINUTE;
     if (last && freeAfternoon) frees.push({ slotId: `d${day.day}-free`, kind: "FREE", latitude: last.destination.latitude, longitude: last.destination.longitude });
-    if (last && index < result.days.length - 1) nights.push({ slotId: `d${day.day}-overnight`, kind: "EVENING", latitude: last.destination.latitude, longitude: last.destination.longitude });
+    if (last && index < result.days.length - 1) {
+      const resolved = resolveEveningAnchorPoint({
+        lastStop: {
+          name: last.destination.name,
+          area: last.destination.area,
+          latitude: last.destination.latitude,
+          longitude: last.destination.longitude,
+        },
+        lodging: options?.overnightLodgings?.[day.day] ?? null,
+      });
+      nights.push({
+        slotId: `d${day.day}-overnight`,
+        kind: "EVENING",
+        latitude: resolved.latitude,
+        longitude: resolved.longitude,
+        anchorSource: resolved.anchorSource,
+        areaLabel: resolved.areaLabel,
+      });
+    }
   });
   // Reserve anchor budget for every night (Days 1..N-1) so multi-day trips never lose their "Tối nay" slots (PARITY AC-6).
   const reservedNights = nights.slice(0, ACTIVITY_MAX_ANCHORS);
@@ -97,7 +183,14 @@ export function activityAnchors(result: PlannerResult): { anchors: ActivityAncho
 }
 
 /** Looks up places near every anchor (a few at a time) and returns at most `ACTIVITY_PER_SLOT` per slot, nearest first, each place once. */
-export async function nearbyActivitySuggestions(input: { places: PlacesSearch; anchors: readonly ActivityAnchor[]; stopNames: readonly string[]; signal?: AbortSignal; now?: () => number }): Promise<TimelineSuggestion[]> {
+export async function nearbyActivitySuggestions(input: {
+  places: PlacesSearch;
+  anchors: readonly ActivityAnchor[];
+  stopNames: readonly string[];
+  signal?: AbortSignal;
+  now?: () => number;
+  onEveningDiagnostics?: (details: EveningAnchorDiagnostic[]) => void;
+}): Promise<TimelineSuggestion[]> {
   const now = input.now ?? Date.now;
   const excluded = input.stopNames.map(name => norm(cleanPlaceDisplayName(name) || name)).filter(Boolean);
   const isStop = (name: string) => {
@@ -124,14 +217,14 @@ export async function nearbyActivitySuggestions(input: { places: PlacesSearch; a
       )
       .sort((a, b) => a.distanceKm - b.distanceKm);
 
-  const found: { anchor: ActivityAnchor; places: ExternalPlaceSuggestion[] }[] = new Array(input.anchors.length);
-  // Prioritize EVENING anchors first in execution order so "Tối nay" never starves behind daytime stops under deadline.
+  const found: ({ anchor: ActivityAnchor; places: ExternalPlaceSuggestion[]; outcomeStatus?: "RESULTS" | "NO_RESULTS" | "UNAVAILABLE" | "BUDGET_EXHAUSTED" } | undefined)[] = new Array(input.anchors.length);
+  // Prioritize EVENING anchors first in execution order so "Tối nay" (and its fallback query) never starves behind daytime stops.
   const executionOrder = [
     ...input.anchors.map((anchor, index) => ({ anchor, index })).filter(e => e.anchor.kind === "EVENING"),
     ...input.anchors.map((anchor, index) => ({ anchor, index })).filter(e => e.anchor.kind !== "EVENING"),
   ];
   let cursor = 0;
-  let callsUsed = input.anchors.length;
+  let callsMade = 0;
   const worker = async () => {
     for (;;) {
       const next = executionOrder[cursor++];
@@ -139,34 +232,48 @@ export async function nearbyActivitySuggestions(input: { places: PlacesSearch; a
       const { anchor, index } = next;
       const key = `${anchor.kind}|${anchor.latitude.toFixed(3)}|${anchor.longitude.toFixed(3)}`;
       const hit = cache.get(key);
-      if (hit && now() - hit.at < CACHE_TTL_MS) { found[index] = { anchor, places: hit.places }; continue; }
+      if (hit && now() >= hit.at && now() - hit.at < CACHE_TTL_MS) { found[index] = { anchor, places: hit.places, outcomeStatus: "RESULTS" }; continue; }
+      if (callsMade >= ACTIVITY_MAX_ANCHORS) {
+        found[index] = { anchor, places: [], outcomeStatus: "BUDGET_EXHAUSTED" };
+        continue;
+      }
       try {
+        callsMade += 1;
         const outcome = await input.places(QUERIES[anchor.kind], input.signal, { latitude: anchor.latitude, longitude: anchor.longitude, radiusKm: ACTIVITY_RADIUS_KM[anchor.kind] });
         let combinedPlaces: ExternalPlaceSuggestion[] = outcome.status === "RESULTS" ? outcome.places : [];
-        // If the primary EVENING query yields 0 surviving non-lodging places within 3 km and budget remains, try a simpler food query.
+        let finalStatus: "RESULTS" | "NO_RESULTS" | "UNAVAILABLE" = outcome.status;
+        // If the primary EVENING query yields 0 surviving non-lodging places within 3 km and call budget remains, try a simpler food query.
         if (
           anchor.kind === "EVENING"
           && rankValid(anchor, combinedPlaces).length === 0
-          && callsUsed < ACTIVITY_MAX_ANCHORS
+          && callsMade < ACTIVITY_MAX_ANCHORS
           && !input.signal?.aborted
         ) {
-          callsUsed += 1;
+          callsMade += 1;
           const fallback = await input.places(EVENING_FALLBACK_QUERY, input.signal, { latitude: anchor.latitude, longitude: anchor.longitude, radiusKm: ACTIVITY_RADIUS_KM.EVENING });
           if (fallback.status === "RESULTS") {
+            finalStatus = "RESULTS";
             const seenIds = new Set(combinedPlaces.map(p => p.placeId));
             combinedPlaces = [...combinedPlaces, ...fallback.places.filter(p => !seenIds.has(p.placeId))];
+          } else if (finalStatus === "UNAVAILABLE" && fallback.status === "NO_RESULTS") {
+            finalStatus = "NO_RESULTS";
           }
         }
-        if (combinedPlaces.length === 0) continue;
-        if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
-        cache.set(key, { at: now(), places: combinedPlaces });
-        found[index] = { anchor, places: combinedPlaces };
-      } catch { /* a failed lookup only means no suggestions for that slot */ }
+        if (combinedPlaces.length > 0) {
+          if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
+          cache.set(key, { at: now(), places: combinedPlaces });
+        }
+        found[index] = { anchor, places: combinedPlaces, outcomeStatus: finalStatus };
+      } catch {
+        found[index] = { anchor, places: [], outcomeStatus: "UNAVAILABLE" };
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, executionOrder.length) }, worker));
 
-  const usedBy = { ACTIVITY: new Set<string>(), EVENING: new Set<string>() }; const out: TimelineSuggestion[] = [];
+  const usedBy = { ACTIVITY: new Set<string>(), EVENING: new Set<string>() };
+  const out: TimelineSuggestion[] = [];
+  const eveningDiagnostics: EveningAnchorDiagnostic[] = [];
   for (const entry of found) {
     if (!entry) continue;
     const ranked = rankValid(entry.anchor, entry.places);
@@ -180,6 +287,27 @@ export async function nearbyActivitySuggestions(input: { places: PlacesSearch; a
       if (!parsed.success) continue;
       used.add(place.placeId); out.push(parsed.data); taken += 1;
     }
+    if (entry.anchor.kind === "EVENING") {
+      const reason: EveningAnchorDiagnostic["reason"] = taken > 0
+        ? "ok"
+        : entry.outcomeStatus === "BUDGET_EXHAUSTED"
+          ? "budget_exhausted"
+          : entry.outcomeStatus === "UNAVAILABLE"
+            ? "places_unavailable"
+            : entry.places.length > 0
+              ? "all_filtered_out"
+              : "no_places_within_3km";
+      eveningDiagnostics.push({
+        slotId: entry.anchor.slotId,
+        ...(entry.anchor.areaLabel ? { area: entry.anchor.areaLabel } : {}),
+        anchorSource: entry.anchor.anchorSource ?? "last_stop",
+        count: taken,
+        reason,
+      });
+    }
+  }
+  if (input.onEveningDiagnostics && eveningDiagnostics.length > 0) {
+    input.onEveningDiagnostics(eveningDiagnostics);
   }
   return out;
 }

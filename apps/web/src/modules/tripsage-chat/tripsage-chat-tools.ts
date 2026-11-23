@@ -12,7 +12,7 @@ import { QUESTION_BY_FIELD } from "../trip-requirement/trip-clarification-rules"
 import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
-import { activityAnchors, nearbyActivitySuggestions } from "./tripsage-activities";
+import { activityAnchors, nearbyActivitySuggestions, type EveningAnchorDiagnostic } from "./tripsage-activities";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
 import { computeBudgetSavingsChips, costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
 import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
@@ -465,17 +465,32 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   });
 
   /** Server-run lookup (not a model step) of places to visit or play near each stop and night; bounded in time, failures only mean no suggestions. */
-  const emitNearbyActivities = async (result: PlannerResult, signal?: AbortSignal): Promise<{ eveningAnchors: number; eveningSuggestions: number; activitySuggestions: number }> => {
+  const emitNearbyActivities = async (
+    result: PlannerResult,
+    signal?: AbortSignal,
+  ): Promise<{ eveningAnchors: number; eveningSuggestions: number; activitySuggestions: number; eveningDetails?: EveningAnchorDiagnostic[] }> => {
     if (!context.places || !context.emitSuggestions) return { eveningAnchors: 0, eveningSuggestions: 0, activitySuggestions: 0 };
     const { anchors, stopNames } = activityAnchors(result);
     const eveningAnchors = anchors.filter(a => a.kind === "EVENING").length;
     if (!anchors.length) return { eveningAnchors: 0, eveningSuggestions: 0, activitySuggestions: 0 };
     try {
       const deadline = AbortSignal.timeout(20_000);
-      const suggestions = await nearbyActivitySuggestions({ places: context.places, anchors, stopNames, signal: signal ? AbortSignal.any([signal, deadline]) : deadline });
+      const eveningDetails: EveningAnchorDiagnostic[] = [];
+      const suggestions = await nearbyActivitySuggestions({
+        places: context.places,
+        anchors,
+        stopNames,
+        signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+        onEveningDiagnostics: details => eveningDetails.push(...details),
+      });
       for (let index = 0; index < suggestions.length; index += 16) context.emitSuggestions(suggestions.slice(index, index + 16));
       const eveningSuggestions = suggestions.filter(s => s.kind === "EVENING").length;
-      return { eveningAnchors, eveningSuggestions, activitySuggestions: suggestions.length - eveningSuggestions };
+      return {
+        eveningAnchors,
+        eveningSuggestions,
+        activitySuggestions: suggestions.length - eveningSuggestions,
+        ...(eveningDetails.length > 0 ? { eveningDetails } : {}),
+      };
     } catch {
       return { eveningAnchors, eveningSuggestions: 0, activitySuggestions: 0 };
     }

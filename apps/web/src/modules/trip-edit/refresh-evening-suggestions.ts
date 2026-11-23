@@ -1,5 +1,5 @@
 import type { Database } from "@KLTN/db";
-import { nearbyActivitySuggestions, type ActivityAnchor } from "../tripsage-chat/tripsage-activities";
+import { nearbyActivitySuggestions, resolveEveningAnchorPoint, type ActivityAnchor } from "../tripsage-chat/tripsage-activities";
 import type { PlacesSearch } from "../tripsage-chat/tripsage-places";
 import { isExternalPlaceId } from "./edit-unchecked";
 
@@ -109,11 +109,16 @@ export async function refreshTripEveningSuggestions(input: {
     const info = coordsById.get(destId);
     if (!info) continue;
     if (info.name) stopNames.push(info.name);
+    const resolved = resolveEveningAnchorPoint({
+      lastStop: { name: info.name, latitude: info.latitude, longitude: info.longitude },
+    });
     anchors.push({
       slotId: `d${dayIndex}-overnight`,
       kind: "EVENING",
-      latitude: info.latitude,
-      longitude: info.longitude,
+      latitude: resolved.latitude,
+      longitude: resolved.longitude,
+      anchorSource: resolved.anchorSource,
+      areaLabel: resolved.areaLabel,
     });
   }
   if (anchors.length === 0) return { refreshedDays: changed, insertedCount: 0 };

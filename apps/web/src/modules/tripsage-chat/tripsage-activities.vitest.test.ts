@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlannerResult } from "../trip-planner/planner-contract";
-import { ACTIVITY_MAX_ANCHORS, ACTIVITY_PER_SLOT, activityAnchors, isLodgingPlace, nearbyActivitySuggestions } from "./tripsage-activities";
+import { ACTIVITY_MAX_ANCHORS, ACTIVITY_PER_SLOT, OVERNIGHT_TOWN_CENTERS, activityAnchors, isLodgingPlace, nearbyActivitySuggestions } from "./tripsage-activities";
 import type { PlacesSearch } from "./tripsage-places";
 
 const stop = (name: string, latitude: number, longitude: number, departureMinute = 840) => ({ departureMinute, destination: { id: name, name, latitude, longitude } });
@@ -15,7 +15,7 @@ describe("tripsage-activities (ADR-45)", () => {
     const { anchors, stopNames } = activityAnchors(plan);
     expect(anchors.map(a => a.slotId)).toEqual(["d1-visit-1", "d1-visit-2", "d2-visit-1", "d1-free", "d1-overnight"]);
     expect(anchors.find(a => a.slotId === "d1-free")).toMatchObject({ kind: "FREE", latitude: 23.1, longitude: 105.15 });
-    expect(anchors.at(-1)).toMatchObject({ kind: "EVENING", latitude: 23.1, longitude: 105.15 });
+    expect(anchors.at(-1)).toMatchObject({ kind: "EVENING", anchorSource: "town_center", ...OVERNIGHT_TOWN_CENTERS["Yên Minh"] });
     expect(stopNames).toEqual(["Quản Bạ", "Yên Minh", "Đồng Văn"]);
   });
 
