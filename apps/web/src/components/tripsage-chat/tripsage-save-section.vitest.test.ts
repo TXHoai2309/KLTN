@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -36,5 +38,80 @@ describe("Tripsage Save box", () => {
     const html = renderToStaticMarkup(createElement(TripsageSaveSection, { result: await run([["a"]], [{ ...planningCandidate("a"), openingDays: [] }]) }));
     expect(html).toContain("chưa thể lưu");
     expect(html).not.toContain("<button");
+  });
+
+  it("Bug 5: renders frameless md desktop and lg mobile save buttons without legacy 40px pill or idle box text, preserving all save states", async () => {
+    const okResult = await run([["a", "b"]]);
+
+    // Desktop idle (md 34px)
+    const desktopHtml = renderToStaticMarkup(
+      createElement(TripsageSaveSection, { result: okResult, primaryLabel: "Lưu chuyến", buttonSize: "md" }),
+    );
+    expect(desktopHtml).toContain("tv-btn tv-btn--primary tv-btn--md");
+    expect(desktopHtml).not.toContain("assistant-save-button");
+    expect(desktopHtml).not.toContain("Lịch trình chưa được lưu");
+
+    // Mobile idle (lg 44px)
+    const mobileHtml = renderToStaticMarkup(
+      createElement(TripsageSaveSection, { result: okResult, primaryLabel: "Lưu chuyến", buttonSize: "lg" }),
+    );
+    expect(mobileHtml).toContain("tv-btn tv-btn--primary tv-btn--lg");
+    expect(mobileHtml).not.toContain("assistant-save-button");
+    expect(mobileHtml).not.toContain("Lịch trình chưa được lưu");
+
+    // Pending
+    const pendingHtml = renderToStaticMarkup(
+      createElement(TripsageSaveSection, {
+        result: okResult,
+        primaryLabel: "Lưu chuyến",
+        initialView: { state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: [] },
+      }),
+    );
+    expect(pendingHtml).toContain("Đang lưu…");
+    expect(pendingHtml).toMatch(/<button[^>]*disabled/);
+
+    // Success -> "Đã lưu" + link "Mở chuyến đi"
+    const successHtml = renderToStaticMarkup(
+      createElement(TripsageSaveSection, {
+        result: okResult,
+        primaryLabel: "Lưu chuyến",
+        initialView: { state: "success", message: "Đã lưu.", tripId: "trip-123", unchecked: [] },
+      }),
+    );
+    expect(successHtml).toContain("Đã lưu");
+    expect(successHtml).toContain("Mở chuyến đi");
+    expect(successHtml).toContain('href="/trips/trip-123"');
+
+    // Failed
+    const failedHtml = renderToStaticMarkup(
+      createElement(TripsageSaveSection, {
+        result: okResult,
+        primaryLabel: "Lưu chuyến",
+        initialView: { state: "failed", message: "Không thể lưu lúc này.", tripId: null, unchecked: [] },
+      }),
+    );
+    expect(failedHtml).toContain('role="alert"');
+    expect(failedHtml).toContain("Không thể lưu lúc này.");
+
+    // Unknown -> idempotent check button
+    const unknownHtml = renderToStaticMarkup(
+      createElement(TripsageSaveSection, {
+        result: okResult,
+        primaryLabel: "Lưu chuyến",
+        initialView: { state: "unknown", message: "Chưa rõ kết quả lưu.", tripId: null, unchecked: [] },
+      }),
+    );
+    expect(unknownHtml).toContain('role="status"');
+    expect(unknownHtml).toContain("Kiểm tra lại kết quả lưu");
+
+    // CSS rules: frameless .tripsage-save, no legacy 40px .assistant-save-button override, slim mobile footer
+    const css = readFileSync(resolve(process.cwd(), "src/components/assistant/assistant.css"), "utf8");
+    const saveRule = css.match(/\.tripsage-save\s*\{([^}]*)\}/);
+    expect(saveRule).not.toBeNull();
+    expect(saveRule![1]).toMatch(/border\s*:\s*0/);
+    expect(saveRule![1]).toMatch(/background\s*:\s*transparent/);
+    expect(saveRule![1]).toMatch(/padding\s*:\s*0/);
+    expect(css).not.toMatch(/\.assistant-save-button\s*\{[^}]*min-height\s*:\s*40px/);
+    expect(css).toMatch(/\.tripsage-sheet-footer\s*\{[^}]*border-top\s*:\s*1px\s+solid\s+var\(--tv-sunken\)/);
   });
 });

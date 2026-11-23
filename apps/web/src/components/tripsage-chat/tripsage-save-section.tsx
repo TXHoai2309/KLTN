@@ -27,6 +27,7 @@ export function TripsageSaveSection({
   pinnedItems,
   primaryLabel = "Lưu hành trình",
   buttonSize = "md",
+  initialView,
   onSaved,
   onStateChange,
 }: {
@@ -39,12 +40,16 @@ export function TripsageSaveSection({
   pinnedItems?: readonly PinnedItem[];
   primaryLabel?: string;
   buttonSize?: "md" | "lg";
+  /** Test seam for rendering saved / pending / failed / unknown states cleanly. */
+  initialView?: ChatSaveView;
   onSaved?: (tripId: string) => void;
   onStateChange?: (state: SaveState) => void;
 }) {
   const controllerRef = useRef<ReturnType<typeof createChatSaveController> | null>(null);
   controllerRef.current ??= createChatSaveController();
-  const [view, setView] = useState<ChatSaveView>({ state: "idle", message: "", tripId: null, unchecked: [] });
+  const [view, setView] = useState<ChatSaveView>(
+    () => initialView ?? { state: "idle", message: "", tripId: null, unchecked: [] },
+  );
   const [confirmed, setConfirmed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -56,12 +61,12 @@ export function TripsageSaveSection({
       <div className="tripsage-save" aria-live="polite">
         <button
           type="button"
-          className={travelerButtonClassName({ variant: "primary", size: buttonSize, className: "assistant-save-button" })}
+          className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
           disabled
         >
           {primaryLabel}
         </button>
-        <p role="note" className="assistant-muted">{formatAssumedConfirmationMessage(blockingAssumed)}</p>
+        <p role="note" className="tripsage-save-note">{formatAssumedConfirmationMessage(blockingAssumed)}</p>
       </div>
     );
   }
@@ -106,17 +111,19 @@ export function TripsageSaveSection({
 
   if (view.state === "success" && view.tripId) {
     return (
-      <div className="tripsage-save" aria-live="polite">
-        <p role="status">
-          Đã lưu.{" "}
-          <Link
-            className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
-            href={`/trips/${encodeURIComponent(view.tripId)}`}
-          >
-            Mở chuyến đi
-          </Link>
-        </p>
-        {view.unchecked.length > 0 && <p role="note" className="assistant-muted">Hành trình được lưu kèm {view.unchecked.length} mục chưa kiểm; các mục này không được tính là đã đạt.</p>}
+      <div className="tripsage-save tripsage-save--saved" aria-live="polite">
+        <span role="status" className="tripsage-save-status">Đã lưu</span>
+        <Link
+          className={travelerButtonClassName({ variant: buttonSize === "lg" ? "primary" : "link", size: buttonSize })}
+          href={`/trips/${encodeURIComponent(view.tripId)}`}
+        >
+          Mở chuyến đi
+        </Link>
+        {view.unchecked.length > 0 && (
+          <p role="note" className="tripsage-save-note">
+            Hành trình được lưu kèm {view.unchecked.length} mục chưa kiểm; các mục này không được tính là đã đạt.
+          </p>
+        )}
       </div>
     );
   }
@@ -137,15 +144,14 @@ export function TripsageSaveSection({
       )}
       <button
         type="button"
-        className={travelerButtonClassName({ variant: "primary", size: buttonSize, className: "assistant-save-button" })}
+        className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
         disabled={view.state === "pending" || (unresolved && !confirmed)}
         onClick={() => void save()}
       >
         {view.state === "pending" ? "Đang lưu…" : view.state === "unknown" ? "Kiểm tra lại kết quả lưu" : unresolved ? "Xác nhận và lưu hành trình" : primaryLabel}
       </button>
-      {view.state === "idle" && <p role="note" className="assistant-muted">Lịch trình chưa được lưu.</p>}
-      {view.state === "failed" && <p role="alert" style={{ color: "var(--tv-danger)" }}>{view.message}</p>}
-      {view.state === "unknown" && <p role="status">{view.message}</p>}
+      {view.state === "failed" && <p role="alert" className="tripsage-save-error">{view.message}</p>}
+      {view.state === "unknown" && <p role="status" className="tripsage-save-note">{view.message}</p>}
     </div>
   );
 }
