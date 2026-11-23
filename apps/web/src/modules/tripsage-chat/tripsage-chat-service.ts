@@ -34,7 +34,7 @@ const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khá
 
 /** Persona and conversation flow (ADR-42 §5 / ADR-43 §2–4, §7): one tour-guide assistant for both Hà Giang Q&A and itinerary planning. */
 const PERSONA_INSTRUCTIONS = [
-  "Bạn là người dẫn tour Hà Giang giàu kinh nghiệm, nói chuyện tự nhiên, ấm áp, có hồn như một người bạn am hiểu vùng núi, ở cả phần hỏi đáp du lịch lẫn lập hành trình; không máy móc, không lặp khuôn. Luôn trả lời bằng tiếng Việt.",
+  "Bạn là người dẫn tour Hà Giang giàu kinh nghiệm, nói chuyện tự nhiên, ấm áp, có hồn như một người bạn am hiểu vùng núi, ở cả phần hỏi đáp du lịch lẫn lập hành trình; không máy móc, không lặp khuôn. Trả lời theo ngôn ngữ của tin nhắn mới nhất của người dùng (ít nhất tiếng Việt và tiếng Anh, mặc định tiếng Việt nếu không rõ). Luôn giữ tên địa danh Việt Nam/Hà Giang bằng tiếng Việt có dấu (ví dụ Hà Giang, Đồng Văn, Đèo Mã Pì Lèng, Sông Nho Quế), và viết cả các nút suggestReplies theo cùng ngôn ngữ trả lời.",
   "Quy tắc giọng văn: (1) Mỗi vấn đề hoặc lời xin lỗi chỉ nói MỘT lần trong cả cuộc trò chuyện; không xin lỗi lặp lại, không nhắc lại lỗi đã xử lý ở lượt trước. (2) Mỗi tin trả lời chứa TỐI ĐA MỘT câu hỏi; mọi câu hỏi kết thúc lượt mà người dùng cần chọn phương án ĐỀU PHẢI đi kèm suggestReplies gồm 2–4 nút bấm cụ thể (mỗi nút <= 40 ký tự), và mọi câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ, sở thích) chuyển thành nút suggestReplies thay vì hỏi thêm trong lời văn. (3) Không lặp lại thông tin người dùng vừa nêu; đi thẳng vào kết quả hoặc bước tiếp theo. (4) Cảnh báo kiểm tra lịch trình nói TỐI ĐA MỘT câu ngắn vì thẻ lịch đã hiển thị chi tiết đạt/cần xem lại.",
   "Trình bày bằng markdown dễ đọc: đoạn ngắn, không in đậm cả câu (chỉ **in đậm** một cụm số liệu hoặc tên riêng khi thật cần), danh sách gạch đầu dòng hoặc đánh số, tiêu đề nhỏ (###) khi câu trả lời dài, bảng khi so sánh. Không dùng HTML, không chèn ảnh, không chèn đường link.",
   "Phân biệt 3 trường hợp ý định của người dùng (ADR-43 §2, ADR-44): (A) Mở đầu nói thẳng muốn đi hoặc muốn lập lịch (ví dụ 'tôi muốn lập hành trình Hà Giang', 'đi Hà Giang 4 ngày', 'lên lịch 3 ngày bằng xe máy') → KHÔNG hỏi lại 'bạn có muốn lập lịch không' và KHÔNG dừng lại để hỏi đủ thông tin trước; ghi ngay những gì người dùng đã nói (nếu có) bằng recordTripInfo, rồi lập ngay một bản nháp giả định trong cùng lượt (listDestinations rồi proposeItinerary — nếu chưa có số ngày thì chọn lịch 4 ngày, hệ thống tự điền giả định: điểm tập kết Hà Nội, 4 ngày 3 đêm, xe máy, thứ Bảy gần nhất). Sau bản nháp, viết đúng một dòng nêu rõ giả định ('Mình đang giả định: ...'), nhắc chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (đi từ đâu hoặc ngày nào), và đưa các giả định còn lại thành suggestReplies. (B) Đang hỏi đáp về một địa điểm rồi chuyển sang muốn lập lịch (ví dụ vừa hỏi về Cột cờ Lũng Cú rồi nhắn 'lên lịch đi') → xác nhận ý định lập lịch bằng một câu tự nhiên nêu rõ những gì bạn đã hiểu (đi Hà Giang và đưa địa điểm vừa hỏi làm điểm bắt buộc), đồng thời gọi listDestinations để lấy đúng id và ghi mustIncludeDestinationIds bằng recordTripInfo (tối đa 4 điểm), rồi hỏi gộp thông tin còn thiếu. (C) Câu hỏi chung hoặc mơ hồ (ví dụ 'Hà Giang có gì chơi?', 'mùa nào đẹp?', 'đèo Mã Pí Lèng thế nào?') → trả lời hỏi đáp trước bằng lookupLocalKnowledge, rồi cuối câu mới mời nhẹ xem có muốn lên lịch không (kèm suggestReplies); chưa gọi proposeItinerary.",
@@ -275,12 +275,42 @@ export function formatVietnamTodayLine(now: Date): string {
   return `Hôm nay: ${weekday}, ${day}/${month}/${year} (giờ Việt Nam)`;
 }
 
+export type ReplyLanguage = "vi" | "en";
+
+const HA_GIANG_PROPER_NOUN_RE =
+  /(?<![\p{L}\p{N}])(?:hà\s+giang|đồng\s+văn|mèo\s+vạc|quản\s+bạ|yên\s+minh|lũng\s+cú|sông\s+nho\s+quế|nho\s+quế|mã\s+pì\s+lèng|đèo\s+mã\s+pì\s+lèng|hà\s+nội|hải\s+phòng|sủng\s+là|du\s+già|hoàng\s+su\s+phì|pả\s+vi|cổng\s+trời|phố\s+cổ|lô\s+lô\s+chải|thôn\s+tha)(?![\p{L}\p{N}])/giu;
+const VIETNAMESE_DIACRITIC_RE = /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/iu;
+const VIETNAMESE_UNACCENTED_WORDS_RE =
+  /\b(?:minh|ban|khong|duoc|ngay|dem|nhieu|giup|cho|voi|cua|nhe|nha|nhi|di|ve|tu|vao|nao|bao|nhieu|lich|xe\s+may|o\s+to|mk|ko|dc)\b/giu;
+const ENGLISH_SIGNAL_WORDS_RE =
+  /\b(?:is|are|was|were|be|been|the|a|an|for|to|in|on|at|of|with|without|from|by|about|how|what|where|when|why|which|who|can|could|would|should|will|do|does|did|have|has|had|it|this|that|there|we|you|they|my|our|your|safe|foreigner|motorbike|motorcycle|license|vietnamese|trip|plan|itinerary|weather|cold|december|days|nights|budget|visit|stay|food|eat|please|thank|thanks|recommend|need|want|allow|allowed|legal|drive|ride|get|reach|hub)\b/giu;
+
+/**
+ * Point 8: detects whether the traveler's latest message is in English or Vietnamese (default "vi").
+ * Strips known Vietnamese/Hà Giang proper nouns before checking diacritics so sentences like
+ * "Can we visit Đồng Văn and Sông Nho Quế in 2 days?" still resolve to "en".
+ */
+export function detectReplyLanguage(text: string | null | undefined): ReplyLanguage {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed) return "vi";
+  const withoutProperNouns = trimmed.replace(HA_GIANG_PROPER_NOUN_RE, " ");
+  const words = withoutProperNouns.split(/\s+/u).filter(Boolean);
+  const viDiacriticWords = words.filter(word => VIETNAMESE_DIACRITIC_RE.test(word)).length;
+  const viUnaccentedHits = (withoutProperNouns.match(VIETNAMESE_UNACCENTED_WORDS_RE) ?? []).length;
+  const viHits = viDiacriticWords * 2 + viUnaccentedHits;
+  const enHits = (withoutProperNouns.match(ENGLISH_SIGNAL_WORDS_RE) ?? []).length;
+  if (enHits >= 2 && viHits === 0) return "en";
+  if (enHits >= 3 && enHits > viHits * 2) return "en";
+  return "vi";
+}
+
 /**
  * Request context appended to the system instructions. Everything user-supplied is JSON-quoted (control characters
  * and newlines escaped) inside a labelled block and flagged as data, so a place name can never read as an instruction.
  */
 export function buildTripsageContext(input: {
   now?: Date;
+  latestUserText?: string | null;
   tripInfo?: TripsageTripInfo | null;
   itinerary?: TripsageItinerarySummary | null;
   suggestions?: readonly TimelineSuggestion[];
@@ -289,6 +319,11 @@ export function buildTripsageContext(input: {
   originCandidates?: VerifiedOriginCandidates;
 }): string {
   const blocks: string[] = [formatVietnamTodayLine(input.now ?? new Date())];
+  if (detectReplyLanguage(input.latestUserText) === "en") {
+    blocks.push(
+      "Ngôn ngữ tin nhắn mới nhất: tiếng Anh (en) — hãy trả lời hoàn toàn bằng tiếng Anh tự nhiên (kể cả khi các lượt trước dùng tiếng Việt), luôn giữ tên địa danh Việt Nam/Hà Giang bằng tiếng Việt có dấu (như Hà Giang, Đồng Văn, Đèo Mã Pì Lèng, Sông Nho Quế), và viết các nút suggestReplies bằng tiếng Anh.",
+    );
+  }
   const effectiveJourney = resolveEffectiveJourney(input.journey, input.tripInfo);
   const origin = effectiveJourney?.origin;
   const { info, defaulted } = withTripInfoDefaults(input.tripInfo ?? {});
@@ -436,6 +471,7 @@ export type TripsageChatTurnLimits = { maxSteps: number; totalMs: number; maxPro
 /** Streams progress (`data-status`), Vietnamese prose and the structured `data-itinerary` part. The itinerary is never model text. */
 export type FallbackQuickRepliesInput = {
   text: string;
+  latestUserText?: string | null;
   hasEmittedQuickReplies: boolean;
   hasOriginCandidates: boolean;
   itinerary: PlannerResult | null;
@@ -444,14 +480,19 @@ export type FallbackQuickRepliesInput = {
   tripInfo: TripsageTripInfo | null;
 };
 
-function hubTransportChipsFor(tripInfo: TripsageTripInfo | null): string[] {
+function hubTransportChipsFor(tripInfo: TripsageTripInfo | null, lang: ReplyLanguage = "vi"): string[] {
+  if (lang === "en") {
+    return tripInfo?.flightDeclined
+      ? ["Bus to TP Hà Giang", "Train to Hà Nội", "Add days to self-drive"]
+      : ["Bus to TP Hà Giang", "Train to Hà Nội", "Flight to Hà Nội"];
+  }
   return tripInfo?.flightDeclined
     ? ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Thêm ngày để tự chạy xe"]
     : ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Đi máy bay ra Hà Nội"];
 }
 
 const HUB_TRANSPORT_QUESTION_RE =
-  /(?:ra|đ[eế]n|t[oớ]i)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|tp\.?\s*h[aà]\s+giang).*(?:b[aằ]ng\s+c[aá]ch\s+n[aà]o|b[aằ]ng\s+g[iì]|ph[uươ]ng\s+ti[eệ]n|m[aá]y\s+bay|t[aà]u\s+h[oỏ]a|xe\s+kh[aá]ch)|ph[uươ]ng\s+ti[eệ]n\s+(?:ra|đ[eế]n)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|h[aà]\s+giang)/iu;
+  /(?:ra|đ[eế]n|t[oớ]i)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|tp\.?\s*h[aà]\s+giang).*(?:b[aằ]ng\s+c[aá]ch\s+n[aà]o|b[aằ]ng\s+g[iì]|ph[uươ]ng\s+ti[eệ]n|m[aá]y\s+bay|t[aà]u\s+h[oỏ]a|xe\s+kh[aá]ch)|ph[uươ]ng\s+ti[eệ]n\s+(?:ra|đ[eế]n)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|h[aà]\s+giang)|\b(?:reach|get\s+to|travel\s+to)\s+(?:the\s+)?(?:hub|h[aà]\s+n[oộ]i|h[aà]\s+giang)\b/iu;
 
 /**
  * Point 7: detects an explicit traveler request to save the current itinerary (Vietnamese or English),
@@ -494,6 +535,7 @@ export function resolveSaveActionPart(input: {
 
 export type ReconcileQuickRepliesInput = {
   text: string;
+  latestUserText?: string | null;
   emittedReplies: readonly string[] | null;
   hasOriginCandidates: boolean;
   itinerary: PlannerResult | null;
@@ -513,6 +555,7 @@ export function reconcileQuickRepliesWithQuestion(input: ReconcileQuickRepliesIn
 
   const lines = trimmed.split(/\r?\n/u).map(l => l.trim()).filter(Boolean);
   const questionLine = lines.at(-1) ?? trimmed;
+  const lang = detectReplyLanguage(input.latestUserText ?? trimmed);
 
   const pick = (candidates: readonly string[]): string[] | null => {
     const parsed = quickRepliesPartSchema.safeParse({ replies: [...candidates] });
@@ -521,19 +564,23 @@ export function reconcileQuickRepliesWithQuestion(input: ReconcileQuickRepliesIn
 
   if (HUB_TRANSPORT_QUESTION_RE.test(questionLine)) {
     const hasTransportChip = input.emittedReplies.some(r =>
-      /xe\s+kh[aá]ch|t[aà]u\s+h[oỏ]a|m[aá]y\s+bay|t[uự]\s+ch[aạ]y|t[uự]\s+l[aá]i|thu[eê]\s+xe|so\s+s[aá]nh/iu.test(r),
+      /xe\s+kh[aá]ch|t[aà]u\s+h[oỏ]a|m[aá]y\s+bay|t[uự]\s+ch[aạ]y|t[uự]\s+l[aá]i|thu[eê]\s+xe|so\s+s[aá]nh|\b(?:bus|train|flight|fly|drive|car|motorbike)\b/iu.test(r),
     );
     if (!hasTransportChip) {
-      return pick(hubTransportChipsFor(input.tripInfo));
+      return pick(hubTransportChipsFor(input.tripInfo, lang));
     }
   }
 
   // Strip absurd "Bớt 1 ngày (còn 1 ngày)" chips if a 2-day trip ever emitted one.
   const days = input.cost?.days ?? input.tripInfo?.durationDays ?? input.itinerary?.days.length ?? null;
-  if (days !== null && days <= 2 && input.emittedReplies.some(r => /b[oớ]t\s*1\s*ng[aà]y|c[oò]n\s*1\s*ng[aà]y/iu.test(r))) {
-    const cleaned = input.emittedReplies.filter(r => !/b[oớ]t\s*1\s*ng[aà]y|c[oò]n\s*1\s*ng[aà]y/iu.test(r));
+  if (days !== null && days <= 2 && input.emittedReplies.some(r => /b[oớ]t\s*1\s*ng[aà]y|c[oò]n\s*1\s*ng[aà]y|\b1\s+day\s+less\b/iu.test(r))) {
+    const cleaned = input.emittedReplies.filter(r => !/b[oớ]t\s*1\s*ng[aà]y|c[oò]n\s*1\s*ng[aà]y|\b1\s+day\s+less\b/iu.test(r));
     if (cleaned.length > 0) return pick(cleaned);
-    return pick(["Homestay tiết kiệm hơn", "Đổi sang xe máy tự lái", "Giữ nguyên lịch này"]);
+    return pick(
+      lang === "en"
+        ? ["Cheaper homestay", "Switch to motorbike", "Keep this itinerary"]
+        : ["Homestay tiết kiệm hơn", "Đổi sang xe máy tự lái", "Giữ nguyên lịch này"],
+    );
   }
 
   return null;
@@ -551,6 +598,7 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
 
   const lines = trimmed.split(/\r?\n/u).map(l => l.trim()).filter(Boolean);
   const questionLine = lines.at(-1) ?? trimmed;
+  const lang = detectReplyLanguage(input.latestUserText ?? trimmed);
 
   const pick = (candidates: readonly string[]): string[] | null => {
     const parsed = quickRepliesPartSchema.safeParse({ replies: [...candidates] });
@@ -559,15 +607,24 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
 
   // Point 3: honor explicit closing-question intent first (e.g. "Bạn muốn ra điểm tập kết bằng cách nào?").
   if (HUB_TRANSPORT_QUESTION_RE.test(questionLine)) {
-    return pick(hubTransportChipsFor(input.tripInfo));
+    return pick(hubTransportChipsFor(input.tripInfo, lang));
   }
 
   if (input.cost?.isIncomplete || (input.accessLeg?.missingPriceSegments?.length ?? 0) > 0) {
-    return pick(["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"]);
+    return pick(
+      lang === "en"
+        ? ["Retry flight lookup", "Switch to bus", "Skip and save first"]
+        : ["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"],
+    );
   }
 
   if (input.cost?.withinCap === false && (input.cost.overBy ?? 0) > 0) {
     const days = input.cost.days ?? input.tripInfo?.durationDays ?? input.itinerary?.days.length ?? 0;
+    if (lang === "en") {
+      return days >= 3
+        ? pick(["Cut 1 day", "Cheaper homestay", "Keep this itinerary"])
+        : pick(["Cheaper homestay", "Switch to motorbike", "Keep this itinerary"]);
+    }
     return days >= 3
       ? pick(["Bớt 1 ngày", "Homestay tiết kiệm hơn", "Giữ nguyên lịch này"])
       : pick(["Homestay tiết kiệm hơn", "Đổi sang xe máy tự lái", "Giữ nguyên lịch này"]);
@@ -576,9 +633,13 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
   const hasLongDriveIssue =
     Boolean(input.itinerary && shouldSuggestHub(input.itinerary))
     || Boolean(input.itinerary?.warnings.some(w => w.code === "LONG_DRIVING_DAY"))
-    || /ch[aặ]ng\s*(?:đ[uư][oờ]ng\s*)?d[aà]i|qu[aá]\s*d[aà]i|ch[aạ]y\s*xe\s*d[aà]i/iu.test(questionLine);
+    || /ch[aặ]ng\s*(?:đ[uư][oờ]ng\s*)?d[aà]i|qu[aá]\s*d[aà]i|ch[aạ]y\s*xe\s*d[aà]i|\blong\s+driv/iu.test(questionLine);
   if (hasLongDriveIssue) {
-    return pick(["Thêm 1 ngày", "Xuất phát sớm hơn (05:30)", "Nghỉ đêm giữa đường ở TP Hà Giang", "Giữ nguyên"]);
+    return pick(
+      lang === "en"
+        ? ["Add 1 day", "Depart earlier (05:30)", "Overnight in TP Hà Giang", "Keep as is"]
+        : ["Thêm 1 ngày", "Xuất phát sớm hơn (05:30)", "Nghỉ đêm giữa đường ở TP Hà Giang", "Giữ nguyên"],
+    );
   }
 
   const hasEmptyDay = Boolean(
@@ -587,20 +648,36 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
     ),
   );
   if (hasEmptyDay) {
-    return pick(["Thêm điểm vào ngày trống", "Giảm số ngày", "Giữ nguyên"]);
+    return pick(
+      lang === "en"
+        ? ["Add stops to free day", "Shorten trip", "Keep as is"]
+        : ["Thêm điểm vào ngày trống", "Giảm số ngày", "Giữ nguyên"],
+    );
   }
 
   if (input.itinerary?.checks.some(check => check.status === "VIOLATION")) {
-    return pick(["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Thêm 1 ngày", "Giữ nguyên"]);
+    return pick(
+      lang === "en"
+        ? ["Limit to 3 stops/day", "Moderate pace", "Add 1 day", "Keep as is"]
+        : ["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Thêm 1 ngày", "Giữ nguyên"],
+    );
   }
 
   const assumedBlocking = blockingAssumedFields(input.tripInfo?.assumedFields ?? input.itinerary?.assumedFields);
   if (assumedBlocking.length > 0) {
-    return pick(["Đổi nơi xuất phát", "Đổi ngày đi", "Đổi số ngày", "Dùng thông tin này"]);
+    return pick(
+      lang === "en"
+        ? ["Change origin", "Change start date", "Change days", "Use these details"]
+        : ["Đổi nơi xuất phát", "Đổi ngày đi", "Đổi số ngày", "Dùng thông tin này"],
+    );
   }
 
   if (input.itinerary) {
-    return pick(["Xem bảng chi phí", "Đổi điểm dừng", "Thêm 1 ngày"]);
+    return pick(
+      lang === "en"
+        ? ["View cost estimate", "Change stops", "Add 1 day"]
+        : ["Xem bảng chi phí", "Đổi điểm dừng", "Thêm 1 ngày"],
+    );
   }
 
   return null;
@@ -779,7 +856,7 @@ export function streamTripsageChat(input: {
       });
       const instructions = input.features?.size ? tripsageChatInstructions(input.features) : TRIPSAGE_CHAT_INSTRUCTIONS;
       const turnNow = input.planning.now?.() ?? new Date();
-      const result = streamText({ model: input.model, instructions: [instructions, buildTripsageContext({ now: turnNow, tripInfo: input.tripInfo, itinerary: input.currentItinerary, suggestions: input.suggestions, journey: input.journey, accessLeg: input.accessLeg, originCandidates: input.originCandidates })].filter(Boolean).join("\n\n"), messages: input.messages, abortSignal: signal,
+      const result = streamText({ model: input.model, instructions: [instructions, buildTripsageContext({ now: turnNow, latestUserText: input.latestUserText, tripInfo: input.tripInfo, itinerary: input.currentItinerary, suggestions: input.suggestions, journey: input.journey, accessLeg: input.accessLeg, originCandidates: input.originCandidates })].filter(Boolean).join("\n\n"), messages: input.messages, abortSignal: signal,
         // One bounded upstream attempt per step: the SDK's silent backoff retries would multiply cost and eat the 60 s budget.
         maxRetries: 0,
         // Nothing is stored upstream; reasoning-family models return encrypted items so the tool loop works.
@@ -871,6 +948,7 @@ export function streamTripsageChat(input: {
             }
             const reconciled = reconcileQuickRepliesWithQuestion({
               text: fullText,
+              latestUserText: input.latestUserText,
               emittedReplies: latestEmittedQuickReplies,
               hasOriginCandidates: emittedOriginCandidates,
               itinerary: latestEmittedItinerary,
@@ -880,6 +958,7 @@ export function streamTripsageChat(input: {
             });
             const fallback = reconciled ?? resolveFallbackQuickReplies({
               text: fullText,
+              latestUserText: input.latestUserText,
               hasEmittedQuickReplies: emittedQuickReplies,
               hasOriginCandidates: emittedOriginCandidates,
               itinerary: latestEmittedItinerary,

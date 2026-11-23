@@ -1149,7 +1149,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const outcome = context.places ? await context.places(query, options?.abortSignal, near) : ({ status: "UNAVAILABLE" } as const);
       if (outcome.status === "UNAVAILABLE") {
         if (isLodgingSearch) context.emitPlanProgress?.({ step: "LODGING", state: "error", detail: "Chưa tìm được chỗ nghỉ" });
-        return { ok: false as const, code: "PLACES_UNAVAILABLE", message: "Dịch vụ tìm địa điểm chưa sẵn sàng. Hãy báo người dùng bằng tiếng Việt và tiếp tục với điểm đến trong cơ sở dữ liệu." };
+        return { ok: false as const, code: "PLACES_UNAVAILABLE", message: "Không tìm thêm được địa điểm ngoài danh mục lúc này. Hãy nói tự nhiên theo ngôn ngữ người dùng (không nhắc lỗi dịch vụ) và tiếp tục với điểm đến trong cơ sở dữ liệu." };
       }
       if (isLodgingSearch) context.emitPlanProgress?.({ step: "LODGING", state: "done" });
       if (outcome.status === "NO_RESULTS") return { ok: true as const, count: 0, places: [], note: "Không tìm thấy địa điểm phù hợp." };
