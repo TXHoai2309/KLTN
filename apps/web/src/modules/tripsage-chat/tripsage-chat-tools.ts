@@ -65,7 +65,7 @@ import {
 import { filterRelevantKnowledgeExcerpts, type KnowledgeCandidate } from "./tripsage-knowledge-sources";
 
 /** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
-export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "findOrigin", "confirmOrigin", "suggestReplies", "listDestinations", "proposeItinerary", "searchPlaces", "addSuggestions", "lookupLocalKnowledge", "estimateCosts", "planAccessLeg", "webSearch", "fetchPage"] as const;
+export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "findOrigin", "confirmOrigin", "suggestReplies", "listDestinations", "getDestinationInfo", "proposeItinerary", "searchPlaces", "addSuggestions", "lookupLocalKnowledge", "estimateCosts", "planAccessLeg", "webSearch", "fetchPage"] as const;
 export type TripsageChatToolName = (typeof TRIPSAGE_CHAT_TOOL_NAMES)[number];
 
 /** Per-turn caps (ADR-42 §6): 12 steps inside 280 s, under the route's `maxDuration` 300. */
@@ -668,6 +668,97 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         };
       } catch (error) {
         context.emitPlanProgress?.({ step: "SELECT", state: "error", detail: "Chưa tải được danh sách điểm đến" });
+        return failure(error);
+      }
+    },
+  });
+
+  const WEEKDAY_NAMES = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+  const WEEKDAY_LABELS_VI: Record<(typeof WEEKDAY_NAMES)[number], string> = {
+    MONDAY: "Thứ Hai",
+    TUESDAY: "Thứ Ba",
+    WEDNESDAY: "Thứ Tư",
+    THURSDAY: "Thứ Năm",
+    FRIDAY: "Thứ Sáu",
+    SATURDAY: "Thứ Bảy",
+    SUNDAY: "Chủ Nhật",
+  };
+  const formatMinuteClock = (minutes: number) => `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  const mergeIntervals = (intervals: readonly { opensAtMinute: number; closesAtMinute: number }[]) => {
+    const sorted = [...intervals].sort((a, b) => a.opensAtMinute - b.opensAtMinute || a.closesAtMinute - b.closesAtMinute);
+    const merged: { opensAtMinute: number; closesAtMinute: number }[] = [];
+    for (const iv of sorted) {
+      const prev = merged.at(-1);
+      if (prev && iv.opensAtMinute <= prev.closesAtMinute) {
+        prev.closesAtMinute = Math.max(prev.closesAtMinute, iv.closesAtMinute);
+      } else {
+        merged.push({ ...iv });
+      }
+    }
+    return merged.map(iv => `${formatMinuteClock(iv.opensAtMinute)}–${formatMinuteClock(iv.closesAtMinute)}`);
+  };
+  const foldSimple = (s: string) => s.normalize("NFKD").toLowerCase().replace(/[\p{M}\p{Cf}]/gu, "").replace(/đ/gu, "d").replace(/\s+/gu, " ").trim();
+
+  const getDestinationInfo = tool({
+    description: "Đọc thông tin có sẵn của MỘT điểm đến trong danh mục KLTN: giờ mở cửa theo thứ trong tuần hoặc ngày cụ thể, thời lượng gợi ý, và giá vé (nếu có trong dữ liệu). Gọi công cụ này TRƯỚC khi trả lời câu hỏi về giờ mở cửa hoặc giá vé. Nguồn là dữ liệu điểm đến; nếu thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa.",
+    inputSchema: z.object({
+      destinationId: z.string().trim().min(1).max(160).describe("Mã ngắn code (D1, D2…), id điểm đến từ lịch/listDestinations, hoặc tên điểm đến trong danh mục."),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Ngày cụ thể YYYY-MM-DD (tùy chọn)."),
+      dayOfWeek: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]).optional().describe("Thứ trong tuần cần kiểm tra giờ mở cửa (ví dụ SUNDAY cho Chủ Nhật)."),
+    }).strict(),
+    execute: async ({ destinationId, date, dayOfWeek }) => {
+      try {
+        const all = await candidates();
+        const usable = all.filter(isUsablePlanningCandidate);
+        if (shortCodeToId.size === 0) usable.forEach((c, idx) => shortCodeToId.set(`D${idx + 1}`, c.id));
+        const resolvedId = resolveCatalogRef(destinationId);
+        const foldedQuery = foldSimple(destinationId);
+        const found =
+          all.find(c => c.id === resolvedId)
+          ?? all.find(c => foldSimple(cleanPlaceDisplayName(c.name) || c.name) === foldedQuery)
+          ?? all.find(c => foldedQuery.length >= 3 && foldSimple(cleanPlaceDisplayName(c.name) || c.name).includes(foldedQuery));
+        if (!found) {
+          return { ok: false as const, code: "DESTINATION_NOT_FOUND", message: "Không tìm thấy điểm đến này trong danh mục KLTN. Hãy gọi listDestinations để lấy đúng mã/tên điểm đến." };
+        }
+        const targetWeekday = dayOfWeek ?? (date ? WEEKDAY_NAMES[new Date(`${date}T00:00:00Z`).getUTCDay()] : undefined);
+        const formatDay = (dow: (typeof WEEKDAY_NAMES)[number]) => {
+          const entry = found.openingDays.find(d => d.dayOfWeek === dow);
+          const labelVi = WEEKDAY_LABELS_VI[dow];
+          if (!entry || entry.status === "UNKNOWN") {
+            return { dayOfWeek: dow, labelVi, status: "UNKNOWN" as const, intervals: [] as string[], summary: `${labelVi}: Chưa có dữ liệu giờ mở cửa` };
+          }
+          if (entry.status === "CLOSED") {
+            return { dayOfWeek: dow, labelVi, status: "CLOSED" as const, intervals: [] as string[], summary: `${labelVi}: Đóng cửa` };
+          }
+          const intervals = mergeIntervals(entry.intervals);
+          return {
+            dayOfWeek: dow,
+            labelVi,
+            status: "OPEN" as const,
+            intervals,
+            summary: intervals.length ? `${labelVi}: Mở cửa ${intervals.join(", ")}` : `${labelVi}: Mở cửa (chưa rõ khung giờ cụ thể)`,
+          };
+        };
+        const orderedWeek: (typeof WEEKDAY_NAMES)[number][] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+        const weeklyHours = orderedWeek.map(formatDay);
+        const requestedDay = targetWeekday ? formatDay(targetWeekday) : undefined;
+        const ticketPrice = found.ticketPrice?.trim() || null;
+        return {
+          ok: true as const,
+          id: found.id,
+          name: cleanPlaceDisplayName(found.name) || found.name,
+          category: found.category,
+          address: found.address,
+          suggestedDurationMinutes: found.suggestedDurationMinutes,
+          minimumDurationMinutes: found.minimumDurationMinutes,
+          source: "dữ liệu điểm đến trong danh mục KLTN",
+          ...(requestedDay ? { requestedDay } : {}),
+          weeklyHours: weeklyHours.map(d => d.summary),
+          ticketPrice,
+          ticketPriceNote: ticketPrice ? "Theo dữ liệu điểm đến trong danh mục KLTN." : "chưa có giá vé trong dữ liệu",
+          note: "Trả lời bằng đúng giờ mở cửa từ dữ liệu này và ghi rõ nguồn là dữ liệu điểm đến. Nếu ticketPrice là null thì nói rõ 'chưa có giá vé trong dữ liệu', TUYỆT ĐỐI KHÔNG bịa giá vé. Nếu câu hỏi người dùng mơ hồ về điểm (ví dụ 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào trong lịch hoặc hỏi lại kèm suggestReplies tên các điểm.",
+        };
+      } catch (error) {
         return failure(error);
       }
     },
@@ -1420,5 +1511,5 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     priorHotelLookups: context.priorHotelLookups,
   });
   const memory = context.features?.has("memory") ? createMemoryTools(context.memory) : {};
-  return { recordTripInfo, findOrigin, confirmOrigin, suggestReplies, listDestinations, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, planAccessLeg, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
+  return { recordTripInfo, findOrigin, confirmOrigin, suggestReplies, listDestinations, getDestinationInfo, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, planAccessLeg, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
 }

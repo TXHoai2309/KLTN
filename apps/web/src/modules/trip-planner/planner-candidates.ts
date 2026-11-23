@@ -14,6 +14,8 @@ export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
   /** Explicit traveler-chosen duration override (ADR-48/ADR-51): set only when the traveler stated how long to stay. */
   userChosenDuration?: true;
   isOutdoor?: boolean;
+  /** Optional ticket price string from catalog Destination (Point 5); never passed to Validator. */
+  ticketPrice?: string | null;
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };
 export const MAX_CANDIDATES = 64;
@@ -34,7 +36,7 @@ export type PlannerCandidateInventory = { candidates: PlannerCandidate[]; public
 const select = {
   id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true, googleMapsUrl: true,
   latitude: true, longitude: true, visibility: true, updatedAt: true, contentRevision: true,
-  suggestedDurationMinutes: true, minimumDurationMinutes: true, isOutdoor: true,
+  suggestedDurationMinutes: true, minimumDurationMinutes: true, isOutdoor: true, ticketPrice: true,
   media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, author: true, sourceUrl: true, websiteRights: true, storageReference: true } },
   openingDays: { orderBy: { dayOfWeek: "asc" as const }, select: { dayOfWeek: true, status: true, intervals: { orderBy: { opensAtMinute: "asc" as const }, select: { opensAtMinute: true, closesAtMinute: true } } } },
 } satisfies Prisma.DestinationSelect;
@@ -52,7 +54,7 @@ export async function retrievePlannerCandidateInventory(database: Pick<Database,
       address: row.address, latitude: row.latitude, longitude: row.longitude, ...(verifiedUrl ? { googleMapsUrl: verifiedUrl } : {}),
       image: image ? { url: image.url, alt: image.alt, author: image.author, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
       visibility: row.visibility, revision: `${row.contentRevision}:${row.updatedAt.toISOString()}`, suggestedDurationMinutes: row.suggestedDurationMinutes,
-      minimumDurationMinutes: row.minimumDurationMinutes, isOutdoor: row.isOutdoor, openingDays: row.openingDays };
+      minimumDurationMinutes: row.minimumDurationMinutes, isOutdoor: row.isOutdoor, ...(row.ticketPrice != null ? { ticketPrice: row.ticketPrice } : {}), openingDays: row.openingDays };
   });
   return { candidates, publicRowCount: publicRows.length, invalidCoordinateCount: publicRows.filter(row => !excludedIds.includes(row.id) && !coordinateValid(row)).length,
     excludedCount: publicRows.filter(row => excludedIds.includes(row.id)).length };
