@@ -123,6 +123,15 @@ function isUnaskedSingleLandmarkDoc(questionFolded: string, title: string): bool
  * Filters retrieved local knowledge excerpts by similarity score (when present) and topic relevance.
  * Drops off-topic chunks before they reach the model or `data-sources`.
  */
+const MEDICAL_EMERGENCY_QUERY_RE =
+  /(?:cap cuu|tai nan|nga xe|chay mau|chan thuong|benh vien|tram y te|phong kham|\b115\b|so cuu|\baccident\b|\bbleeding\b|\binjur|\bhospital\b|\bemergency\b)/u;
+
+/** Returns true when the traveler asks about an injury, bleeding, accident, or urgent medical care (C3 / C6). */
+export function isMedicalEmergencyQuery(question: string | null | undefined): boolean {
+  const folded = foldText(question ?? "");
+  return Boolean(folded && MEDICAL_EMERGENCY_QUERY_RE.test(folded));
+}
+
 export function filterRelevantKnowledgeExcerpts(
   question: string,
   candidates: readonly KnowledgeCandidate[],
@@ -132,8 +141,8 @@ export function filterRelevantKnowledgeExcerpts(
   const qFolded = foldText(question);
   const qTokens = contentTokens(question, true);
 
-  const isLicenseQuestion = /(?:giay phep lai|bang lai|gplx|\blicense\b|\bpermit\b|\bidp\b|\bforeigner\b|nuoc ngoai)/u.test(qFolded);
-  const isMedicalEmergencyQuestion = /(?:cap cuu|tai nan|nga xe|chay mau|chan thuong|benh vien|tram y te|phong kham|\b115\b|so cuu|\baccident\b|\bbleeding\b|\binjur|\bhospital\b|\bemergency\b)/u.test(qFolded);
+  const isLicenseQuestion = /(?:giay phep lai|bang lai|gplx|\blicense\b|\bpermit\b|\bidp\b|\bforeigner\b|nuoc ngoai|bien gioi)/u.test(qFolded);
+  const isMedicalEmergencyQuestion = MEDICAL_EMERGENCY_QUERY_RE.test(qFolded);
   const isWeatherPackingQuestion = /(?:thoi tiet|co lanh|nhiet do|mang gi|chuan bi (?:do|trang phuc)|\bweather\b|\bcold\b|\bpack\b|ao am|ao khoac)/u.test(qFolded);
   const monthMatch = /thang\s*(\d{1,2})\b/u.exec(qFolded);
   const askedMonth = monthMatch ? Number(monthMatch[1]) : /\bdecember\b/u.test(qFolded) ? 12 : null;
@@ -156,7 +165,7 @@ export function filterRelevantKnowledgeExcerpts(
 
     // 1. Strict legal / license questions: local attraction docs without any license terms are off-topic.
     if (isLicenseQuestion) {
-      return /(?:giay phep lai|bang lai|gplx|\blicense\b|\bidp\b|cong uoc vienna|xu phat|khach nuoc ngoai|\bforeigner\b)/u.test(docFolded);
+      return /(?:giay phep lai|giay phep|bang lai|gplx|\blicense\b|\bidp\b|cong uoc vienna|xu phat|khach nuoc ngoai|nguoi nuoc ngoai|bien gioi|bien phong|\bborder\b|\bpermit\b|\bforeigner\b)/u.test(docFolded);
     }
 
     // 2. General weather & packing questions (e.g. L1 "Hà Giang tháng 12 có lạnh không, mang gì?"):

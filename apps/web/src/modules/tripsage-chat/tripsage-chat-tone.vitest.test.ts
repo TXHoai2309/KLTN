@@ -8,7 +8,7 @@ import { fixtureRoutes, planningCandidate, planningNow } from "../../test/planni
 import { sourcesPartSchema } from "./tripsage-chat-context";
 import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
-import { reconcileQuickRepliesWithQuestion, resolveFallbackQuickReplies, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
+import { buildTripsageContext, reconcileQuickRepliesWithQuestion, resolveFallbackQuickReplies, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 import { resolveMissingPriceChips } from "./tripsage-access-leg";
 import { createTripsageChatTools, type TripsagePlanningDeps } from "./tripsage-chat-tools";
 
@@ -364,5 +364,127 @@ describe("Ticket 03: tone rules & document source scoping", () => {
       name: "Cổng Trời Quản Bạ",
       source: "dữ liệu điểm đến trong danh mục KLTN",
     });
+  });
+
+  it("C6 + Điểm nhỏ: searches up to 3 medical clinics after 115 guidance, computes catalog A->B routes via planning.routes, and enforces doc-grounded ethnic/border facts", async () => {
+    const emergencyQuestion = "bạn mình bị ngã xe ở dốc Thẩm Mã, chảy máu nhiều, giờ phải làm sao, bệnh viện gần nhất ở đâu?";
+    const emergencyCtx = buildTripsageContext({ latestUserText: emergencyQuestion });
+    expect(emergencyCtx).toContain("115");
+    expect(emergencyCtx).toContain("searchPlaces");
+    expect(emergencyCtx).toContain("tối đa 3 cơ sở y tế");
+
+    const routeCalls: { fromId: string; toId: string; transport: string }[] = [];
+    const dongVan = { ...planningCandidate("dest-dv"), id: "dest-dv", name: "Phố cổ Đồng Văn", latitude: 23.2783, longitude: 105.3614, address: "Đồng Văn" };
+    const lungCu = { ...planningCandidate("dest-lc"), id: "dest-lc", name: "Cột cờ Lũng Cú", latitude: 23.3636, longitude: 105.317, address: "Lũng Cú" };
+    const yenMinh = { ...planningCandidate("dest-ym"), id: "dest-ym", name: "Yên Minh", latitude: 23.118, longitude: 105.146, address: "Yên Minh" };
+
+    const tools = createTripsageChatTools({
+      planning: {
+        candidates: async () => [dongVan, lungCu, yenMinh],
+        routes: {
+          route: async ({ from, to, transport }) => {
+            routeCalls.push({ fromId: from.id, toId: to.id, transport });
+            return {
+              fromDestinationId: from.id,
+              toDestinationId: to.id,
+              status: "VERIFIED",
+              reason: null,
+              distanceMeters: 25_600,
+              durationSeconds: 3_300,
+              provider: "STADIA_MAPS",
+            };
+          },
+        },
+        now: () => planningNow,
+      },
+      latestUserText: emergencyQuestion,
+      emitItinerary: () => {},
+      places: async () => ({
+        status: "RESULTS",
+        places: [
+          { placeId: "med-1", name: "Bệnh viện Đa khoa khu vực Yên Minh", latitude: 23.12, longitude: 105.15 },
+          { placeId: "med-2", name: "Trung tâm Y tế huyện Đồng Văn", latitude: 23.27, longitude: 105.36 },
+          { placeId: "med-3", name: "Trạm Y tế xã Phố Cáo", latitude: 23.21, longitude: 105.24 },
+          { placeId: "med-4", name: "Cơ sở thứ 4 cần lược", latitude: 23.28, longitude: 105.37 },
+        ],
+      }),
+      knowledge: async () => [
+        {
+          title: "Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch",
+          text: "Nhiều cộng đồng dân tộc cùng sinh sống như Mông, Tày, Dao, Nùng, Lô Lô, La Chí và Giáy; số liệu từng nguồn có khác biệt nên không chốt một tỷ lệ tuyệt đối.",
+          score: 0.72,
+        },
+      ],
+    });
+
+    // 1. Emergency medical searchPlaces keeps at most 3 facilities, resolves near Yên Minh or falls back for Dốc Thẩm Mã, and attaches 115 dispatch note
+    const medRes = await tools.searchPlaces.execute!(
+      { query: "bệnh viện trạm y tế gần Dốc Thẩm Mã", nearDestinationId: "Dốc Thẩm Mã" },
+      { toolCallId: "m1", messages: [], context: {} } as never,
+    );
+    expect(medRes).toMatchObject({ ok: true, count: 3 });
+    expect((medRes as { note: string }).note).toContain("115");
+    expect((medRes as { note: string }).note).toContain("từ Google Maps, nên gọi 115 để được điều phối");
+
+    const medAnchored = await tools.searchPlaces.execute!(
+      { query: "bệnh viện", nearDestinationId: "Yên Minh" },
+      { toolCallId: "m2", messages: [], context: {} } as never,
+    );
+    expect((medAnchored as { places: { distanceKm?: number }[] }).places).toHaveLength(3);
+    expect(typeof (medAnchored as { places: { distanceKm?: number }[] }).places[0]!.distanceKm).toBe("number");
+
+    // 2. Catalog A -> B distance & time uses planning.routes cleanly and marks estimate
+    const routeRes = await tools.estimateRoute.execute!(
+      { fromDestinationId: "Phố cổ Đồng Văn", toDestinationId: "Cột cờ Lũng Cú", transport: "MOTORCYCLE" },
+      { toolCallId: "r1", messages: [], context: {} } as never,
+    );
+    expect(routeCalls).toEqual([{ fromId: "dest-dv", toId: "dest-lc", transport: "MOTORCYCLE" }]);
+    expect(routeRes).toMatchObject({
+      ok: true,
+      status: "VERIFIED",
+      from: "Phố cổ Đồng Văn",
+      to: "Cột cờ Lũng Cú",
+      transport: "MOTORCYCLE",
+      distanceKm: 25.6,
+      durationMinutes: 55,
+      isEstimate: true,
+      source: "hệ thống định tuyến đường bộ của ứng dụng",
+    });
+
+    // 3. Điểm nhỏ: persona + lookupLocalKnowledge enforce doc-grounded ethnic total count and foreigner border permit rules
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Hà Giang có những dân tộc nào");
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("giấy phép vào khu vực biên giới");
+    const ethTools = createTripsageChatTools({
+      planning: { candidates: async () => [], routes: { route: async () => { throw new Error("unused"); } }, now: () => planningNow },
+      latestUserText: "Hà Giang có những dân tộc nào?",
+      emitItinerary: () => {},
+      knowledge: async () => [
+        {
+          title: "Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch",
+          text: "Nhiều cộng đồng dân tộc cùng sinh sống như Mông, Tày, Dao, Nùng, Lô Lô, La Chí và Giáy; số liệu từng nguồn có khác biệt nên không chốt một tỷ lệ tuyệt đối.",
+          score: 0.72,
+        },
+      ],
+    });
+    const ethRes = await ethTools.lookupLocalKnowledge.execute!(
+      { question: "Hà Giang có những dân tộc nào?" },
+      { toolCallId: "k1", messages: [], context: {} } as never,
+    );
+    expect(ethRes).toMatchObject({ ok: true });
+    expect((ethRes as { excerpts: unknown[] }).excerpts).toHaveLength(1);
+    expect((ethRes as { note: string }).note).toContain("số lượng dân tộc");
+    expect((ethRes as { note: string }).note).toContain("giấy phép biên giới");
+
+    const borderMissingTools = createTripsageChatTools({
+      planning: { candidates: async () => [], routes: { route: async () => { throw new Error("unused"); } }, now: () => planningNow },
+      latestUserText: "Người nước ngoài đi Hà Giang cần giấy tờ gì?",
+      emitItinerary: () => {},
+      knowledge: async () => [],
+    });
+    const borderRes = await borderMissingTools.lookupLocalKnowledge.execute!(
+      { question: "giấy phép biên giới cho người nước ngoài Hà Giang" },
+      { toolCallId: "k2", messages: [], context: {} } as never,
+    );
+    expect((borderRes as { note: string }).note).toContain("cơ quan địa phương");
   });
 });
