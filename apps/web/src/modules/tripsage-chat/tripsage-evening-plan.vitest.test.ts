@@ -197,6 +197,82 @@ describe("Ticket 08: Khối Tối nay (PARITY AC-6, AC-8, AC-9, AC-10)", () => {
     expect(context).toContain("Homestay Phố Cổ");
   });
 
+  it("resolves overnight area to town/district instead of generic 'Hà Giang', keeps venue names matching stop towns, and retries EVENING with simple food query within cap (Bug D)", async () => {
+    // When DB area is generic "khu vực hà giang" and last stop is "[Tam] Rừng thông Yên Minh" -> "Yên Minh"
+    const ymNight = buildDayEveningPlan({
+      dayIndex: 1,
+      totalDays: 4,
+      lastStopArea: "khu vực hà giang",
+      lastStopName: "[Tam] Rừng thông Yên Minh",
+      eveningPlaces: [],
+    });
+    expect(ymNight?.overnightArea).toBe("Yên Minh");
+
+    // Venues like "Chợ đêm Phố cổ Đồng Văn" and "Cà phê Phố Cổ Đồng Văn" must NOT be excluded by stop name "Phố cổ Đồng Văn",
+    // and when the first EVENING query only yields lodging, the fallback "quán ăn" query runs within ACTIVITY_MAX_ANCHORS.
+    const plan = {
+      days: [
+        { day: 1, stops: [stop("[Tam] Rừng thông Yên Minh", 23.1208, 105.1445)] },
+        { day: 2, stops: [stop("Phố cổ Đồng Văn", 23.2783, 105.3614)] },
+        { day: 3, stops: [stop("[Tam] Thị trấn Mèo Vạc", 23.1638, 105.4091)] },
+        { day: 4, stops: [stop("[Tam] Du Già", 22.9303, 105.2232)] },
+      ],
+    } as unknown as PlannerResult;
+
+    const { anchors, stopNames } = activityAnchors(plan);
+    const seenQueries: string[] = [];
+    const places: PlacesSearch = vi.fn(async (query, _s, near) => {
+      seenQueries.push(query);
+      if (near && Math.abs(near.latitude - 23.1208) < 0.01) {
+        if (query === "quán ăn") {
+          return {
+            status: "RESULTS" as const,
+            places: [
+              { placeId: "ym-food-1", name: "Quán lẩu gà Yên Minh", latitude: near.latitude + 0.004, longitude: near.longitude, types: ["restaurant"] },
+            ],
+          };
+        }
+        // Primary query returned only a homestay -> should trigger fallback "quán ăn"
+        return {
+          status: "RESULTS" as const,
+          places: [
+            { placeId: "ym-home-1", name: "Homestay Rừng Thông", latitude: near.latitude + 0.002, longitude: near.longitude, types: ["lodging"] },
+          ],
+        };
+      }
+      if (near && Math.abs(near.latitude - 23.2783) < 0.01) {
+        return {
+          status: "RESULTS" as const,
+          places: [
+            { placeId: "dv-night-1", name: "Chợ đêm Phố cổ Đồng Văn", latitude: near.latitude + 0.002, longitude: near.longitude, types: ["market"] },
+            { placeId: "dv-cafe-1", name: "Cà phê Phố Cổ Đồng Văn", latitude: near.latitude + 0.003, longitude: near.longitude, types: ["cafe"] },
+          ],
+        };
+      }
+      if (near && Math.abs(near.latitude - 23.1638) < 0.01) {
+        return {
+          status: "RESULTS" as const,
+          places: [
+            { placeId: "mv-food-1", name: "Quán ăn Thị trấn Mèo Vạc", latitude: near.latitude + 0.002, longitude: near.longitude, types: ["restaurant"] },
+          ],
+        };
+      }
+      return { status: "NO_RESULTS" as const };
+    });
+
+    const out = await nearbyActivitySuggestions({ places, anchors, stopNames, now: () => 5e10 });
+    expect(places).toHaveBeenCalled();
+    expect((places as ReturnType<typeof vi.fn>).mock.calls.length).toBeLessThanOrEqual(ACTIVITY_MAX_ANCHORS);
+    expect(seenQueries.some(q => q.includes("quán ăn"))).toBe(true);
+
+    const d1Evening = out.filter(s => s.slotId === "d1-overnight" && s.kind === "EVENING");
+    const d2Evening = out.filter(s => s.slotId === "d2-overnight" && s.kind === "EVENING");
+    const d3Evening = out.filter(s => s.slotId === "d3-overnight" && s.kind === "EVENING");
+    expect(d1Evening.map(s => s.title)).toEqual(["Quán lẩu gà Yên Minh"]);
+    expect(d2Evening.map(s => s.title)).toEqual(["Chợ đêm Phố cổ Đồng Văn", "Cà phê Phố Cổ Đồng Văn"]);
+    expect(d3Evening.map(s => s.title)).toEqual(["Quán ăn Thị trấn Mèo Vạc"]);
+  });
+
   it("keeps cost totals completely unchanged regardless of Tối nay suggestions (PARITY AC-10)", () => {
     const baseInput = {
       travelers: 4,

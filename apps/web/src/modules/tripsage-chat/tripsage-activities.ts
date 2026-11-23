@@ -60,8 +60,10 @@ export function isLodgingPlace(place: { name: string; types?: readonly string[] 
 const QUERIES = {
   ACTIVITY: "điểm tham quan vui chơi giải trí",
   FREE: "quán cà phê view đẹp điểm check-in chụp ảnh",
-  EVENING: "quán cà phê chợ đêm phố đi bộ buổi tối",
+  EVENING: "quán ăn nhà hàng quán cà phê chợ đêm",
 } as const;
+const EVENING_FALLBACK_QUERY = "quán ăn";
+const VENUE_PREFIX_PATTERN = /^(?:qu[aá]n|nh[aà]\s+h[aà]ng|c[aà]\s+ph[eê]|cafe|coffee|ch[oợ]\s+đ[eê]m|l[aẩ]u|b[uú]n|ph[oở]|tr[aà]|bar|pub|bia)(?=$|[^\p{L}\p{N}])/iu;
 const CONCURRENCY = 4;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const CACHE_MAX = 200;
@@ -97,41 +99,77 @@ export function activityAnchors(result: PlannerResult): { anchors: ActivityAncho
 /** Looks up places near every anchor (a few at a time) and returns at most `ACTIVITY_PER_SLOT` per slot, nearest first, each place once. */
 export async function nearbyActivitySuggestions(input: { places: PlacesSearch; anchors: readonly ActivityAnchor[]; stopNames: readonly string[]; signal?: AbortSignal; now?: () => number }): Promise<TimelineSuggestion[]> {
   const now = input.now ?? Date.now;
-  const excluded = input.stopNames.map(norm).filter(Boolean);
-  const isStop = (name: string) => { const n = norm(name); return excluded.some(stop => n === stop || n.includes(stop) || stop.includes(n)); };
-  const found: { anchor: ActivityAnchor; places: ExternalPlaceSuggestion[] }[] = new Array(input.anchors.length);
-  let cursor = 0;
-  const worker = async () => {
-    for (;;) {
-      const index = cursor++;
-      const anchor = input.anchors[index];
-      if (!anchor || input.signal?.aborted) return;
-      const key = `${anchor.kind}|${anchor.latitude.toFixed(3)}|${anchor.longitude.toFixed(3)}`;
-      const hit = cache.get(key);
-      if (hit && now() - hit.at < CACHE_TTL_MS) { found[index] = { anchor, places: hit.places }; continue; }
-      try {
-        const outcome = await input.places(QUERIES[anchor.kind], input.signal, { latitude: anchor.latitude, longitude: anchor.longitude, radiusKm: ACTIVITY_RADIUS_KM[anchor.kind] });
-        if (outcome.status !== "RESULTS") continue;
-        if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
-        cache.set(key, { at: now(), places: outcome.places });
-        found[index] = { anchor, places: outcome.places };
-      } catch { /* a failed lookup only means no suggestions for that slot */ }
-    }
+  const excluded = input.stopNames.map(name => norm(cleanPlaceDisplayName(name) || name)).filter(Boolean);
+  const isStop = (name: string) => {
+    const n = norm(cleanPlaceDisplayName(name) || name);
+    if (!n) return true;
+    const isFoodOrEveningVenue = VENUE_PREFIX_PATTERN.test(n);
+    return excluded.some(stop => {
+      if (n === stop) return true;
+      if (stop.includes(n) && n.length >= 4) return true;
+      // Do not drop cafes/restaurants/night markets whose name contains a town/stop name (e.g. "Chợ đêm Phố cổ Đồng Văn").
+      if (!isFoodOrEveningVenue && n.includes(stop)) return true;
+      return false;
+    });
   };
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, input.anchors.length) }, worker));
 
-  const usedBy = { ACTIVITY: new Set<string>(), EVENING: new Set<string>() }; const out: TimelineSuggestion[] = [];
-  for (const entry of found) {
-    if (!entry) continue;
-    const ranked = entry.places
-      .map(place => ({ place: { ...place, name: cleanPlaceDisplayName(place.name) }, distanceKm: haversine(entry.anchor, place) }))
+  const rankValid = (anchor: ActivityAnchor, places: readonly ExternalPlaceSuggestion[]) =>
+    places
+      .map(place => ({ place: { ...place, name: cleanPlaceDisplayName(place.name) }, distanceKm: haversine(anchor, place) }))
       .filter(({ place, distanceKm }) =>
-        distanceKm <= ACTIVITY_RADIUS_KM[entry.anchor.kind]
+        distanceKm <= ACTIVITY_RADIUS_KM[anchor.kind]
         && !isStop(place.name)
         && !isLodgingPlace(place)
         && !isGenericActivityPlaceName(place.name),
       )
       .sort((a, b) => a.distanceKm - b.distanceKm);
+
+  const found: { anchor: ActivityAnchor; places: ExternalPlaceSuggestion[] }[] = new Array(input.anchors.length);
+  // Prioritize EVENING anchors first in execution order so "Tối nay" never starves behind daytime stops under deadline.
+  const executionOrder = [
+    ...input.anchors.map((anchor, index) => ({ anchor, index })).filter(e => e.anchor.kind === "EVENING"),
+    ...input.anchors.map((anchor, index) => ({ anchor, index })).filter(e => e.anchor.kind !== "EVENING"),
+  ];
+  let cursor = 0;
+  let callsUsed = input.anchors.length;
+  const worker = async () => {
+    for (;;) {
+      const next = executionOrder[cursor++];
+      if (!next || input.signal?.aborted) return;
+      const { anchor, index } = next;
+      const key = `${anchor.kind}|${anchor.latitude.toFixed(3)}|${anchor.longitude.toFixed(3)}`;
+      const hit = cache.get(key);
+      if (hit && now() - hit.at < CACHE_TTL_MS) { found[index] = { anchor, places: hit.places }; continue; }
+      try {
+        const outcome = await input.places(QUERIES[anchor.kind], input.signal, { latitude: anchor.latitude, longitude: anchor.longitude, radiusKm: ACTIVITY_RADIUS_KM[anchor.kind] });
+        let combinedPlaces: ExternalPlaceSuggestion[] = outcome.status === "RESULTS" ? outcome.places : [];
+        // If the primary EVENING query yields 0 surviving non-lodging places within 3 km and budget remains, try a simpler food query.
+        if (
+          anchor.kind === "EVENING"
+          && rankValid(anchor, combinedPlaces).length === 0
+          && callsUsed < ACTIVITY_MAX_ANCHORS
+          && !input.signal?.aborted
+        ) {
+          callsUsed += 1;
+          const fallback = await input.places(EVENING_FALLBACK_QUERY, input.signal, { latitude: anchor.latitude, longitude: anchor.longitude, radiusKm: ACTIVITY_RADIUS_KM.EVENING });
+          if (fallback.status === "RESULTS") {
+            const seenIds = new Set(combinedPlaces.map(p => p.placeId));
+            combinedPlaces = [...combinedPlaces, ...fallback.places.filter(p => !seenIds.has(p.placeId))];
+          }
+        }
+        if (combinedPlaces.length === 0) continue;
+        if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
+        cache.set(key, { at: now(), places: combinedPlaces });
+        found[index] = { anchor, places: combinedPlaces };
+      } catch { /* a failed lookup only means no suggestions for that slot */ }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, executionOrder.length) }, worker));
+
+  const usedBy = { ACTIVITY: new Set<string>(), EVENING: new Set<string>() }; const out: TimelineSuggestion[] = [];
+  for (const entry of found) {
+    if (!entry) continue;
+    const ranked = rankValid(entry.anchor, entry.places);
     const outKind = entry.anchor.kind === "EVENING" ? "EVENING" : "ACTIVITY"; const used = usedBy[outKind];
     const slotLimit = outKind === "EVENING" ? EVENING_PER_SLOT : ACTIVITY_PER_SLOT;
     let taken = 0;

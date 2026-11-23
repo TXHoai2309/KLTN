@@ -465,15 +465,20 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   });
 
   /** Server-run lookup (not a model step) of places to visit or play near each stop and night; bounded in time, failures only mean no suggestions. */
-  const emitNearbyActivities = async (result: PlannerResult, signal?: AbortSignal) => {
-    if (!context.places || !context.emitSuggestions) return;
+  const emitNearbyActivities = async (result: PlannerResult, signal?: AbortSignal): Promise<{ eveningAnchors: number; eveningSuggestions: number; activitySuggestions: number }> => {
+    if (!context.places || !context.emitSuggestions) return { eveningAnchors: 0, eveningSuggestions: 0, activitySuggestions: 0 };
     const { anchors, stopNames } = activityAnchors(result);
-    if (!anchors.length) return;
+    const eveningAnchors = anchors.filter(a => a.kind === "EVENING").length;
+    if (!anchors.length) return { eveningAnchors: 0, eveningSuggestions: 0, activitySuggestions: 0 };
     try {
       const deadline = AbortSignal.timeout(20_000);
       const suggestions = await nearbyActivitySuggestions({ places: context.places, anchors, stopNames, signal: signal ? AbortSignal.any([signal, deadline]) : deadline });
       for (let index = 0; index < suggestions.length; index += 16) context.emitSuggestions(suggestions.slice(index, index + 16));
-    } catch { /* suggestions are optional */ }
+      const eveningSuggestions = suggestions.filter(s => s.kind === "EVENING").length;
+      return { eveningAnchors, eveningSuggestions, activitySuggestions: suggestions.length - eveningSuggestions };
+    } catch {
+      return { eveningAnchors, eveningSuggestions: 0, activitySuggestions: 0 };
+    }
   };
 
   const proposeItinerary = tool({
@@ -656,10 +661,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             }
           } catch { /* best-effort grounded suggestions; never alters schedule or Validator */ }
         };
-        await Promise.allSettled([
+        const [nearbyOutcome] = await Promise.allSettled([
           emitNearbyActivities(result, options?.abortSignal),
           emitGroundedPreferenceLabels(),
         ]);
+        const nearbySummary = nearbyOutcome.status === "fulfilled" ? nearbyOutcome.value : null;
         if (shouldSuggestHub(result)) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
@@ -671,6 +677,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
+          ...(nearbySummary && nearbySummary.eveningAnchors > 0 ? { nearbySummary } : {}),
           ...(droppedStops.length ? { droppedStops: `Hệ thống đã bớt ${droppedStops.length} điểm không kịp thời gian (${droppedStops.map(id => all.find(c => c.id === id)?.name ?? id).join(", ")}). Nói ngắn với người dùng và hỏi có muốn thêm ngày để giữ các điểm đó không; KHÔNG gọi proposeItinerary lại trong lượt này.` } : {}),
           ...(flexApplied ? { flexApplied: "Hệ thống đã tự nới lịch (nghỉ 10 phút/lần, tham quan ở mức tối thiểu). Nói ngắn gọn điều này với người dùng." } : {}),
           // Without the reasons the model re-proposes blindly; tell it which day broke which rule so one repair is enough.

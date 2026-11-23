@@ -1,4 +1,4 @@
-import { cleanOvernightAreaLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
+import { cleanPlaceDisplayName, resolveOvernightAreaLabel } from "@/lib/traveler-display-clean";
 import type { PlacePreviewTarget } from "@/lib/place-preview-url";
 import type { DayTimelineEveningPlan, DayTimelineNearbyItem } from "./day-timeline";
 
@@ -22,8 +22,7 @@ export interface BuildDayEveningPlanInput {
  */
 export function buildDayEveningPlan(input: BuildDayEveningPlanInput): DayTimelineEveningPlan | null {
   if (input.dayIndex >= input.totalDays) return null;
-  const rawArea = input.lastStopArea || input.lastStopName || "";
-  const overnightArea = cleanOvernightAreaLabel(rawArea);
+  const overnightArea = resolveOvernightAreaLabel(input.lastStopArea, input.lastStopName);
   return {
     nightIndex: input.dayIndex,
     overnightArea,

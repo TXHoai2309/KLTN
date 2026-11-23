@@ -5,6 +5,7 @@ import {
   cleanPlaceDisplayName,
   cleanTravelerDisplay,
   isGenericActivityPlaceName,
+  resolveOvernightAreaLabel,
 } from "./traveler-display-clean";
 
 describe("Ticket 04: traveler display cleanup helpers", () => {
@@ -48,6 +49,15 @@ describe("Ticket 04: traveler display cleanup helpers", () => {
     expect(cleanOvernightAreaLabel("đồng văn")).toBe("Đồng Văn");
     expect(cleanOvernightAreaLabel("[Tạm] quản bạ")).toBe("Quản Bạ");
     expect(cleanOvernightAreaLabel("")).toBe("");
+  });
+
+  it("resolves specific overnight area from lastStopName when area is generic 'khu vực hà giang' (Bug D)", () => {
+    expect(resolveOvernightAreaLabel("khu vực hà giang", "[Tam] Rừng thông Yên Minh")).toBe("Yên Minh");
+    expect(resolveOvernightAreaLabel("Hà Giang", "Phố cổ Đồng Văn")).toBe("Đồng Văn");
+    expect(resolveOvernightAreaLabel("khu vực hà giang", "[Tam] Thị trấn Mèo Vạc")).toBe("Mèo Vạc");
+    expect(resolveOvernightAreaLabel("khu vực hà giang", "Đèo Mã Pì Lèng")).toBe("Mã Pí Lèng");
+    expect(resolveOvernightAreaLabel("khu vực hà giang", "Làng văn hóa Nặm Đăm")).toBe("Nặm Đăm");
+    expect(resolveOvernightAreaLabel("đồng văn", "Cột cờ Lũng Cú")).toBe("Đồng Văn");
   });
 
   it("detects meaningless generic activity names like 'Khu Vui Chơi'", () => {

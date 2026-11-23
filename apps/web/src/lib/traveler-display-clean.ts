@@ -27,7 +27,7 @@ const KNOWN_PLACE_NAMES: readonly [RegExp, string][] = [
   [/(?<=^|[^\p{L}\p{N}])b[aắ]c\s+m[eê](?=$|[^\p{L}\p{N}])/giu, "Bắc Mê"],
   [/(?<=^|[^\p{L}\p{N}])quang\s+b[iì]nh(?=$|[^\p{L}\p{N}])/giu, "Quang Bình"],
   [/(?<=^|[^\p{L}\p{N}])l[uũ]ng\s+c[uú](?=$|[^\p{L}\p{N}])/giu, "Lũng Cú"],
-  [/(?<=^|[^\p{L}\p{N}])m[aã]\s+p[ií]\s+l[eè]ng(?=$|[^\p{L}\p{N}])/giu, "Mã Pí Lèng"],
+  [/(?<=^|[^\p{L}\p{N}])m[aã]\s+p[iíì]\s+l[eè]ng(?=$|[^\p{L}\p{N}])/giu, "Mã Pí Lèng"],
   [/(?<=^|[^\p{L}\p{N}])du\s+gi[aà](?=$|[^\p{L}\p{N}])/giu, "Du Già"],
   [/(?<=^|[^\p{L}\p{N}])l[oô]\s+l[oô]\s+ch[aả]i(?=$|[^\p{L}\p{N}])/giu, "Lô Lô Chải"],
   [/(?<=^|[^\p{L}\p{N}])nho\s+qu[eế](?=$|[^\p{L}\p{N}])/giu, "Nho Quế"],
@@ -103,6 +103,51 @@ export function cleanOvernightAreaLabel(raw: string | null | undefined): string 
   const stripped = cleanPlaceDisplayName(raw).replace(/^(?:khu\s+v[uự]c\s+)+/iu, "").trim();
   if (!stripped) return "";
   return capitalizeKnownPlaces(stripped);
+}
+
+const SPECIFIC_HA_GIANG_AREAS: readonly [RegExp, string][] = [
+  [/(?<=^|[^\p{L}\p{N}])tp\.?\s*h[aà]\s+giang(?=$|[^\p{L}\p{N}])/iu, "TP Hà Giang"],
+  [/(?<=^|[^\p{L}\p{N}])đ[oồ]ng\s+v[aă]n(?=$|[^\p{L}\p{N}])/iu, "Đồng Văn"],
+  [/(?<=^|[^\p{L}\p{N}])m[eè]o\s+v[aạ]c(?=$|[^\p{L}\p{N}])/iu, "Mèo Vạc"],
+  [/(?<=^|[^\p{L}\p{N}])qu[aả]n\s+b[aạ](?=$|[^\p{L}\p{N}])/iu, "Quản Bạ"],
+  [/(?<=^|[^\p{L}\p{N}])y[eê]n\s+minh(?=$|[^\p{L}\p{N}])/iu, "Yên Minh"],
+  [/(?<=^|[^\p{L}\p{N}])ho[aà]ng\s+su\s+ph[iì](?=$|[^\p{L}\p{N}])/iu, "Hoàng Su Phì"],
+  [/(?<=^|[^\p{L}\p{N}])x[ií]n\s+m[aầ]n(?=$|[^\p{L}\p{N}])/iu, "Xín Mần"],
+  [/(?<=^|[^\p{L}\p{N}])v[iị]\s+xuy[eê]n(?=$|[^\p{L}\p{N}])/iu, "Vị Xuyên"],
+  [/(?<=^|[^\p{L}\p{N}])b[aắ]c\s+quang(?=$|[^\p{L}\p{N}])/iu, "Bắc Quang"],
+  [/(?<=^|[^\p{L}\p{N}])b[aắ]c\s+m[eê](?=$|[^\p{L}\p{N}])/iu, "Bắc Mê"],
+  [/(?<=^|[^\p{L}\p{N}])quang\s+b[iì]nh(?=$|[^\p{L}\p{N}])/iu, "Quang Bình"],
+  [/(?<=^|[^\p{L}\p{N}])l[uũ]ng\s+c[uú](?=$|[^\p{L}\p{N}])/iu, "Lũng Cú"],
+  [/(?<=^|[^\p{L}\p{N}])m[aã]\s+p[iíì]\s+l[eè]ng(?=$|[^\p{L}\p{N}])/iu, "Mã Pí Lèng"],
+  [/(?<=^|[^\p{L}\p{N}])du\s+gi[aà](?=$|[^\p{L}\p{N}])/iu, "Du Già"],
+  [/(?<=^|[^\p{L}\p{N}])l[oô]\s+l[oô]\s+ch[aả]i(?=$|[^\p{L}\p{N}])/iu, "Lô Lô Chải"],
+  [/(?<=^|[^\p{L}\p{N}])s[uủ]ng\s+l[aà](?=$|[^\p{L}\p{N}])/iu, "Sủng Là"],
+  [/(?<=^|[^\p{L}\p{N}])ph[oó]\s+b[aả]ng(?=$|[^\p{L}\p{N}])/iu, "Phó Bảng"],
+  [/(?<=^|[^\p{L}\p{N}])n[aặ]m\s+đ[aă]m(?=$|[^\p{L}\p{N}])/iu, "Nặm Đăm"],
+  [/(?<=^|[^\p{L}\p{N}])p[aả]\s+vi(?=$|[^\p{L}\p{N}])/iu, "Pả Vi"],
+];
+
+/**
+ * Resolves a specific overnight area label for "Tối nay · nghỉ ở {khu vực}" from the day's last stop.
+ * Ignores generic province placeholders such as "khu vực hà giang" / "Hà Giang" and extracts the
+ * town/district from `lastStopName` (e.g. "[Tam] Rừng thông Yên Minh" → "Yên Minh") or uses the cleaned stop name.
+ */
+export function resolveOvernightAreaLabel(
+  area: string | null | undefined,
+  lastStopName?: string | null | undefined,
+): string {
+  const specificArea = cleanAreaDisplayLabel(area);
+  if (specificArea) {
+    return cleanOvernightAreaLabel(specificArea);
+  }
+  const cleanStop = cleanPlaceDisplayName(lastStopName ?? "");
+  if (cleanStop) {
+    for (const [pattern, label] of SPECIFIC_HA_GIANG_AREAS) {
+      if (pattern.test(cleanStop)) return label;
+    }
+    return capitalizeKnownPlaces(cleanStop);
+  }
+  return cleanOvernightAreaLabel(area);
 }
 
 /** True when a Google Places result has a meaningless generic name like "Khu Vui Chơi". */
