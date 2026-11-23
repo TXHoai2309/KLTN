@@ -27,7 +27,16 @@ import type { MutationOutcome } from "../../lib/mutation-contract";
 import type { RememberSource } from "../tripsage-memory/memory-service";
 import { MEMORY_TOOL_NAMES } from "../tripsage-memory/memory-tools";
 import { createToolTraceCollector, type ToolTrace } from "./tripsage-tool-trace";
-import { createInlineSourceStreamFilter, selectUsedDocumentSources, stripRedundantInlineSourceLines, type KnowledgeCandidate } from "./tripsage-knowledge-sources";
+import {
+  createInlineSourceStreamFilter,
+  detectReplyLanguage,
+  expandedKnowledgeLabel,
+  selectUsedDocumentSources,
+  stripRedundantInlineSourceLines,
+  type KnowledgeCandidate,
+  type ReplyLanguage,
+} from "./tripsage-knowledge-sources";
+export { detectReplyLanguage, expandedKnowledgeLabel, type ReplyLanguage };
 
 const BASE_TOOL_DESCRIPTIONS = "recordTripInfo (ghi thông tin chuyến đi người dùng đã nói/đồng ý, gồm cả giờ đi/về), findOrigin (tìm điểm xuất phát trong lãnh thổ Việt Nam từ tên người dùng gõ, tối đa 3 ứng viên để xác nhận ở lượt sau), confirmOrigin (xác nhận điểm xuất phát khi người dùng đã đồng ý hoặc chọn đúng nhãn ứng viên/điểm tập kết cố định), suggestReplies (nút trả lời nhanh), listDestinations (đọc điểm đến trong cơ sở dữ liệu), getDestinationInfo (đọc giờ mở cửa theo ngày/thứ trong tuần và giá vé nếu có của một điểm đến trong danh mục), proposeItinerary (lập và kiểm tra lịch trình), searchPlaces (tìm địa điểm ngoài danh mục bằng Google Places, có thể tìm quanh một điểm, tối đa 4 lần mỗi lượt), addSuggestions (gắn gợi ý ăn uống, buổi tối, chỗ nghỉ, mẹo vào timeline), lookupLocalKnowledge (tra tài liệu địa phương đã duyệt), estimateCosts (bảng chi phí ước tính, hệ thống tự tính xăng và tổng), planAccessLeg (chặng tiếp cận bằng máy bay/xe khách tới điểm tập kết), webSearch (tìm web, tối đa 1 lần mỗi lượt, chỉ khi cần giá/tin hiện tại) và fetchPage (đọc một trang có URL lấy từ kết quả webSearch, tối đa 1 lần mỗi lượt).";
 const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khác.";
@@ -39,7 +48,7 @@ const PERSONA_INSTRUCTIONS = [
   "Trình bày bằng markdown dễ đọc: đoạn ngắn, không in đậm cả câu (chỉ **in đậm** một cụm số liệu hoặc tên riêng khi thật cần), danh sách gạch đầu dòng hoặc đánh số, tiêu đề nhỏ (###) khi câu trả lời dài, bảng khi so sánh. Không dùng HTML, không chèn ảnh, không chèn đường link.",
   "Phân biệt 3 trường hợp ý định của người dùng (ADR-43 §2, ADR-44): (A) Mở đầu nói thẳng muốn đi hoặc muốn lập lịch (ví dụ 'tôi muốn lập hành trình Hà Giang', 'đi Hà Giang 4 ngày', 'lên lịch 3 ngày bằng xe máy') → KHÔNG hỏi lại 'bạn có muốn lập lịch không' và KHÔNG dừng lại để hỏi đủ thông tin trước; ghi ngay những gì người dùng đã nói (nếu có) bằng recordTripInfo, rồi lập ngay một bản nháp giả định trong cùng lượt (listDestinations rồi proposeItinerary — nếu chưa có số ngày thì chọn lịch 4 ngày, hệ thống tự điền giả định: điểm tập kết Hà Nội, 4 ngày 3 đêm, xe máy, thứ Bảy gần nhất). Sau bản nháp, viết đúng một dòng nêu rõ giả định ('Mình đang giả định: ...'), nhắc chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (đi từ đâu hoặc ngày nào), và đưa các giả định còn lại thành suggestReplies. (B) Đang hỏi đáp về một địa điểm rồi chuyển sang muốn lập lịch (ví dụ vừa hỏi về Cột cờ Lũng Cú rồi nhắn 'lên lịch đi') → xác nhận ý định lập lịch bằng một câu tự nhiên nêu rõ những gì bạn đã hiểu (đi Hà Giang và đưa địa điểm vừa hỏi làm điểm bắt buộc), đồng thời gọi listDestinations để lấy đúng id và ghi mustIncludeDestinationIds bằng recordTripInfo (tối đa 4 điểm), rồi hỏi gộp thông tin còn thiếu. (C) Câu hỏi chung hoặc mơ hồ (ví dụ 'Hà Giang có gì chơi?', 'mùa nào đẹp?', 'đèo Mã Pí Lèng thế nào?') → trả lời hỏi đáp trước bằng lookupLocalKnowledge, rồi cuối câu mới mời nhẹ xem có muốn lên lịch không (kèm suggestReplies); chưa gọi proposeItinerary.",
   "Với lời chào ngắn ('hi', 'hello', 'chào bạn'...): chào lại tự nhiên, nếu đang có chuyến đi hoặc lịch trình trong ngữ cảnh thì nhắc ngắn gọn chuyến đang lập và hỏi 1 câu để tiếp tục. Với yêu cầu thay đổi mơ hồ ('tôi muốn thay đổi', 'sửa giúp mình'...): hỏi đúng 1 câu 'Bạn muốn đổi phần nào?' kèm suggestReplies ('Đổi ngày đi', 'Đổi số ngày', 'Đổi điểm đến', 'Đổi nơi xuất phát').",
-  "Khi trả lời hỏi đáp: ưu tiên gọi lookupLocalKnowledge trước. Với câu hỏi về giờ mở cửa theo ngày/thứ trong tuần hoặc giá vé của điểm đến trong danh mục, gọi getDestinationInfo trước để lấy giờ mở cửa và giá vé sẵn có trong cơ sở dữ liệu; trả lời bằng đúng dữ liệu đó và ghi rõ thông tin lấy từ dữ liệu điểm đến (thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa). Khi người dùng hỏi mơ hồ về điểm trong lịch (như 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào (ví dụ 'Điểm dừng 2 của ngày 1 là …'), hoặc hỏi lại kèm suggestReplies tên các điểm đó. Chỉ những tài liệu thực sự liên quan và được bạn dùng trong phần trả lời chính mới hiện thành khối nguồn bên dưới; TUYỆT ĐỐI KHÔNG tự viết dòng 'Nguồn tài liệu:', 'Nguồn:' hay 'Source:' trong lời văn vì giao diện đã hiển thị tự động bên dưới. Lượt chỉ lập lịch hoặc chỉnh lịch không gọi lookupLocalKnowledge một cách máy móc. Nếu tài liệu không có nội dung khớp chủ đề hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ nhãn 'Kiến thức mở rộng' — phần 'Kiến thức mở rộng' không cần nguồn tài liệu địa phương và không được gắn nguồn không liên quan.",
+  "Khi trả lời hỏi đáp: ưu tiên gọi lookupLocalKnowledge trước. Với câu hỏi về giờ mở cửa theo ngày/thứ trong tuần hoặc giá vé của điểm đến trong danh mục, gọi getDestinationInfo trước để lấy giờ mở cửa và giá vé sẵn có trong cơ sở dữ liệu; trả lời bằng đúng dữ liệu đó và ghi rõ thông tin lấy từ dữ liệu điểm đến (thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa). Khi người dùng hỏi mơ hồ về điểm trong lịch (như 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào (ví dụ 'Điểm dừng 2 của ngày 1 là …'), hoặc hỏi lại kèm suggestReplies tên các điểm đó. Chỉ những tài liệu thực sự liên quan và được bạn dùng trong phần trả lời chính mới hiện thành khối nguồn bên dưới; TUYỆT ĐỐI KHÔNG tự viết dòng 'Nguồn tài liệu:', 'Nguồn:' hay 'Source:' trong lời văn vì giao diện đã hiển thị tự động bên dưới. Lượt chỉ lập lịch hoặc chỉnh lịch không gọi lookupLocalKnowledge một cách máy móc. Nếu tài liệu không có nội dung khớp chủ đề hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ nhãn 'Kiến thức mở rộng' khi trả lời tiếng Việt hoặc 'General knowledge' khi trả lời tiếng Anh — phần hiểu biết chung này không cần nguồn tài liệu địa phương và không được gắn nguồn không liên quan.",
   "Khi người dùng xác nhận hoặc đổi một trường giả định: đổi hoặc xác nhận ngày đi/số ngày/phương tiện thì gọi recordTripInfo; đồng ý điểm xuất phát giả định Hà Nội thì gọi confirmOrigin(hub:HA_NOI); đổi sang nơi xuất phát khác thì vẫn dùng findOrigin và xác nhận ở lượt sau (ADR-43), rồi lập lại lịch nếu có thay đổi ảnh hưởng lịch.",
   "Nếu người dùng đã nói sẵn một số thông tin trong tin đầu, ghi ngay bằng recordTripInfo và chỉ hỏi phần còn thiếu. Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý (một câu 'ok' là đồng ý toàn bộ gợi ý bạn vừa đưa). Không bao giờ tự đặt điểm xuất phát, ngày ở quá khứ hay số ngày ngoài 1-14. Chỉ gọi confirmOrigin ở lượt người dùng trả lời đồng ý hoặc bấm chọn nhãn ứng viên.",
   "Ngày khởi hành luôn tính theo dòng 'Hôm nay' (giờ Việt Nam) trong ngữ cảnh; không bao giờ nói 'chưa biết hôm nay là ngày nào' hay chọn ngày ở quá khứ. Nếu người dùng nêu ngày cụ thể hoặc gần đúng có ngày/tháng (như 'ngày mai', 'thứ Bảy tuần này', 'ngày 1 tháng sau', '12/12', 'khoảng 12/12'): tự quy đổi ra ngày cụ thể YYYY-MM-DD, ghi luôn bằng recordTripInfo và lập lịch ngay trong lượt đó (không tốn thêm lượt chỉ để hỏi 'Chốt ngày…?'), kèm chip 'Đổi ngày' nếu là ngày tạm hiểu. Chỉ khi người dùng nêu khoảng mơ hồ không có ngày cụ thể (như 'đầu tháng 12', 'giữa tháng sau', 'cuối tuần sau') mới chọn một ngày gợi ý, CHƯA ghi bằng recordTripInfo, gọi suggestReplies với 'Đúng, đi <dd/mm/yyyy>' và 'Chọn ngày khác'. Khi người dùng đổi sang ngày mới hoặc đã có ngày hợp lệ, không nhắc lại ngày cũ đã bỏ hay lỗi ngày ở lượt trước.",
@@ -275,35 +284,6 @@ export function formatVietnamTodayLine(now: Date): string {
   return `Hôm nay: ${weekday}, ${day}/${month}/${year} (giờ Việt Nam)`;
 }
 
-export type ReplyLanguage = "vi" | "en";
-
-const HA_GIANG_PROPER_NOUN_RE =
-  /(?<![\p{L}\p{N}])(?:hà\s+giang|đồng\s+văn|mèo\s+vạc|quản\s+bạ|yên\s+minh|lũng\s+cú|sông\s+nho\s+quế|nho\s+quế|mã\s+pì\s+lèng|đèo\s+mã\s+pì\s+lèng|hà\s+nội|hải\s+phòng|sủng\s+là|du\s+già|hoàng\s+su\s+phì|pả\s+vi|cổng\s+trời|phố\s+cổ|lô\s+lô\s+chải|thôn\s+tha)(?![\p{L}\p{N}])/giu;
-const VIETNAMESE_DIACRITIC_RE = /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/iu;
-const VIETNAMESE_UNACCENTED_WORDS_RE =
-  /\b(?:minh|ban|khong|duoc|ngay|dem|nhieu|giup|cho|voi|cua|nhe|nha|nhi|di|ve|tu|vao|nao|bao|nhieu|lich|xe\s+may|o\s+to|mk|ko|dc)\b/giu;
-const ENGLISH_SIGNAL_WORDS_RE =
-  /\b(?:is|are|was|were|be|been|the|a|an|for|to|in|on|at|of|with|without|from|by|about|how|what|where|when|why|which|who|can|could|would|should|will|do|does|did|have|has|had|it|this|that|there|we|you|they|my|our|your|safe|foreigner|motorbike|motorcycle|license|vietnamese|trip|plan|itinerary|weather|cold|december|days|nights|budget|visit|stay|food|eat|please|thank|thanks|recommend|need|want|allow|allowed|legal|drive|ride|get|reach|hub)\b/giu;
-
-/**
- * Point 8: detects whether the traveler's latest message is in English or Vietnamese (default "vi").
- * Strips known Vietnamese/Hà Giang proper nouns before checking diacritics so sentences like
- * "Can we visit Đồng Văn and Sông Nho Quế in 2 days?" still resolve to "en".
- */
-export function detectReplyLanguage(text: string | null | undefined): ReplyLanguage {
-  const trimmed = text?.trim() ?? "";
-  if (!trimmed) return "vi";
-  const withoutProperNouns = trimmed.replace(HA_GIANG_PROPER_NOUN_RE, " ");
-  const words = withoutProperNouns.split(/\s+/u).filter(Boolean);
-  const viDiacriticWords = words.filter(word => VIETNAMESE_DIACRITIC_RE.test(word)).length;
-  const viUnaccentedHits = (withoutProperNouns.match(VIETNAMESE_UNACCENTED_WORDS_RE) ?? []).length;
-  const viHits = viDiacriticWords * 2 + viUnaccentedHits;
-  const enHits = (withoutProperNouns.match(ENGLISH_SIGNAL_WORDS_RE) ?? []).length;
-  if (enHits >= 2 && viHits === 0) return "en";
-  if (enHits >= 3 && enHits > viHits * 2) return "en";
-  return "vi";
-}
-
 /**
  * Request context appended to the system instructions. Everything user-supplied is JSON-quoted (control characters
  * and newlines escaped) inside a labelled block and flagged as data, so a place name can never read as an instruction.
@@ -321,7 +301,7 @@ export function buildTripsageContext(input: {
   const blocks: string[] = [formatVietnamTodayLine(input.now ?? new Date())];
   if (detectReplyLanguage(input.latestUserText) === "en") {
     blocks.push(
-      "Ngôn ngữ tin nhắn mới nhất: tiếng Anh (en) — hãy trả lời hoàn toàn bằng tiếng Anh tự nhiên (kể cả khi các lượt trước dùng tiếng Việt), luôn giữ tên địa danh Việt Nam/Hà Giang bằng tiếng Việt có dấu (như Hà Giang, Đồng Văn, Đèo Mã Pì Lèng, Sông Nho Quế), và viết các nút suggestReplies bằng tiếng Anh.",
+      "Ngôn ngữ tin nhắn mới nhất: tiếng Anh (en) — hãy trả lời hoàn toàn bằng tiếng Anh tự nhiên (kể cả khi các lượt trước dùng tiếng Việt), luôn giữ tên địa danh Việt Nam/Hà Giang bằng tiếng Việt có dấu (như Hà Giang, Đồng Văn, Đèo Mã Pì Lèng, Sông Nho Quế), sử dụng nhãn 'General knowledge' (KHÔNG viết 'Kiến thức mở rộng') nếu bổ sung kiến thức chung, và viết các nút suggestReplies bằng tiếng Anh.",
     );
   }
   const effectiveJourney = resolveEffectiveJourney(input.journey, input.tripInfo);
@@ -464,7 +444,10 @@ export function safeFailureDiagnostic(error: unknown): string {
 /** Maps a provider failure to one of two fixed Vietnamese texts; provider message, body and headers are never forwarded. */
 const failureText = (error: unknown) => ((error as { statusCode?: unknown } | null)?.statusCode === 429 ? TRIPSAGE_PROVIDER_LIMIT_TEXT : FAILURE_TEXT);
 /** Deterministic cap notice: what exists, that it is not saved, and what to do next. */
-const capNotice = (reason: string, hasItinerary: boolean) => `${reason} ${hasItinerary ? "Lịch trình đã tạo được vẫn hiển thị phía trên và chưa được lưu." : "Chưa tạo được lịch trình nào trong lượt này."} Hãy nhắn tiếp để mình tiếp tục, ví dụ chốt các điểm đến hoặc yêu cầu lập lại lịch.`;
+const capNotice = (reason: string, hasItinerary: boolean, lang: ReplyLanguage = "vi") =>
+  lang === "en"
+    ? `${reason} ${hasItinerary ? "The itinerary already shown above has not been saved yet." : "No itinerary could be generated in this turn."} Please send a follow-up message to continue.`
+    : `${reason} ${hasItinerary ? "Lịch trình đã tạo được vẫn hiển thị phía trên và chưa được lưu." : "Chưa tạo được lịch trình nào trong lượt này."} Hãy nhắn tiếp để mình tiếp tục, ví dụ chốt các điểm đến hoặc yêu cầu lập lại lịch.`;
 
 export type TripsageChatTurnLimits = { maxSteps: number; totalMs: number; maxProposals: number; maxPlacesCalls: number; maxWebSearchCalls: number; maxFetchPageCalls: number };
 
@@ -520,14 +503,22 @@ export function resolveSaveActionPart(input: {
   if (!isSaveItineraryRequest(input.latestUserText)) return null;
   if (!input.itinerary && !input.currentItinerary) return null;
 
+  const isEn = detectReplyLanguage(input.latestUserText) === "en";
   const assumedBlocking = blockingAssumedFields(input.tripInfo?.assumedFields ?? input.itinerary?.assumedFields);
   if (assumedBlocking.length > 0) {
-    return { eligible: false, reason: formatAssumedConfirmationMessage(assumedBlocking) };
+    return {
+      eligible: false,
+      reason: isEn
+        ? "Please confirm the starting point and start date before saving this itinerary."
+        : formatAssumedConfirmationMessage(assumedBlocking),
+    };
   }
   if (input.itinerary && !input.itinerary.eligibleForFinalConfirmation) {
     return {
       eligible: false,
-      reason: "Lịch này còn mục chưa đạt hoặc thiếu dữ liệu kiểm tra nên chưa thể lưu.",
+      reason: isEn
+        ? "This itinerary still has items needing review or incomplete checks before saving."
+        : "Lịch này còn mục chưa đạt hoặc thiếu dữ liệu kiểm tra nên chưa thể lưu.",
     };
   }
   return { eligible: true };
@@ -734,11 +725,16 @@ export function streamTripsageChat(input: {
   input.signal?.addEventListener("abort", settle, { once: true });
   const stream = createUIMessageStream({
     execute: ({ writer }) => {
+      const replyLang = detectReplyLanguage(input.latestUserText);
       if (input.conversation) {
         const meta = conversationMetaPartSchema.safeParse(input.conversation);
         if (meta.success) writer.write({ type: "data-conversation", id: "conversation", data: meta.data });
       }
-      writer.write({ type: "data-status", data: { kind: "start", label: "Đang đọc yêu cầu của bạn…" } satisfies TripsageChatStatus, transient: true });
+      writer.write({
+        type: "data-status",
+        data: { kind: "start", label: replyLang === "en" ? "Reading your request…" : "Đang đọc yêu cầu của bạn…" } satisfies TripsageChatStatus,
+        transient: true,
+      });
       const budget = AbortSignal.timeout(limits.totalMs);
       const signal = input.signal ? AbortSignal.any([input.signal, budget]) : budget;
       let placesPart = 0; let hasItinerary = false; let stepsDone = 0;
@@ -862,7 +858,11 @@ export function streamTripsageChat(input: {
         emitItinerary: (result: PlannerResult) => {
           hasItinerary = true;
           latestEmittedItinerary = result;
-          writer.write({ type: "data-status", data: { kind: "checking", label: "Đang kiểm tra lịch trình…" } satisfies TripsageChatStatus, transient: true });
+          writer.write({
+            type: "data-status",
+            data: { kind: "checking", label: replyLang === "en" ? "Checking itinerary…" : "Đang kiểm tra lịch trình…" } satisfies TripsageChatStatus,
+            transient: true,
+          });
           const itineraryPart = { type: "data-itinerary" as const, id: "itinerary", data: result };
           writer.write(itineraryPart);
           recordDataPart(itineraryPart);
@@ -897,21 +897,34 @@ export function streamTripsageChat(input: {
         textChunks.push(text);
         for (const chunk of [{ type: "text-start", id }, { type: "text-delta", id, delta: text }, { type: "text-end", id }]) controller.enqueue(chunk as UIMessageChunk);
       };
-      const timeoutNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => writeNotice(controller, "timeout", capNotice("Đã hết thời gian xử lý cho lượt này.", hasItinerary));
+      const timeoutNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }) =>
+        writeNotice(
+          controller,
+          "timeout",
+          capNotice(
+            replyLang === "en" ? "Processing time limit reached for this turn." : "Đã hết thời gian xử lý cho lượt này.",
+            hasItinerary,
+            replyLang,
+          ),
+        );
       const privateInputs = new Set<string>();
       const sourceStreamFilters = new Map<string, ReturnType<typeof createInlineSourceStreamFilter>>();
       const shaped = result.toUIMessageStream({ onError: failureText }).pipeThrough(new TransformStream<UIMessageChunk, UIMessageChunk>({
         transform(chunk, controller) {
           if (!announced && chunk.type === "text-start") {
             announced = true;
-            controller.enqueue({ type: "data-status", data: { kind: "writing", label: "Đang soạn câu trả lời…" } satisfies TripsageChatStatus, transient: true } as UIMessageChunk);
+            controller.enqueue({
+              type: "data-status",
+              data: { kind: "writing", label: replyLang === "en" ? "Writing reply…" : "Đang soạn câu trả lời…" } satisfies TripsageChatStatus,
+              transient: true,
+            } as UIMessageChunk);
           }
           if (chunk.type === "text-start" && "id" in chunk && typeof chunk.id === "string") {
-            sourceStreamFilters.set(chunk.id, createInlineSourceStreamFilter());
+            sourceStreamFilters.set(chunk.id, createInlineSourceStreamFilter({ lang: replyLang }));
           }
           if (chunk.type === "text-delta" && typeof chunk.delta === "string") {
             const filterId = "id" in chunk && typeof chunk.id === "string" ? chunk.id : "__default__";
-            const filter = sourceStreamFilters.get(filterId) ?? createInlineSourceStreamFilter();
+            const filter = sourceStreamFilters.get(filterId) ?? createInlineSourceStreamFilter({ lang: replyLang });
             sourceStreamFilters.set(filterId, filter);
             const filteredDelta = filter.push(chunk.delta);
             if (!filteredDelta) return;
@@ -948,7 +961,19 @@ export function streamTripsageChat(input: {
           if (chunk.type === "tool-output-error") return controller.enqueue({ ...chunk, errorText: FAILURE_TEXT } as UIMessageChunk);
           if (chunk.type === "finish-step") stepsDone += 1;
           // Reaching the step cap ends the turn; say so before the stream finishes.
-          if (chunk.type === "finish" && stepsDone >= limits.maxSteps) writeNotice(controller, "step-limit", capNotice(`Đã đạt giới hạn ${limits.maxSteps} bước xử lý cho lượt này nên mình dừng lại.`, hasItinerary));
+          if (chunk.type === "finish" && stepsDone >= limits.maxSteps) {
+            writeNotice(
+              controller,
+              "step-limit",
+              capNotice(
+                replyLang === "en"
+                  ? `Reached the ${limits.maxSteps}-step processing limit for this turn.`
+                  : `Đã đạt giới hạn ${limits.maxSteps} bước xử lý cho lượt này nên mình dừng lại.`,
+                hasItinerary,
+                replyLang,
+              ),
+            );
+          }
           // A budget abort surfaces as a stream error; replace it with a readable notice.
           if (chunk.type === "error" && timedOut()) return timeoutNotice(controller);
           if (chunk.type === "error") streamErrored = true;
@@ -960,7 +985,7 @@ export function streamTripsageChat(input: {
             return;
           }
           if (!streamErrored) {
-            const fullText = stripRedundantInlineSourceLines(textChunks.join("")).trim();
+            const fullText = stripRedundantInlineSourceLines(textChunks.join(""), { lang: replyLang }).trim();
             if (knowledgeCandidates.length > 0) {
               const usedTitles = selectUsedDocumentSources(fullText, knowledgeCandidates);
               if (usedTitles.length > 0) {
@@ -1035,7 +1060,7 @@ export function streamTripsageChat(input: {
       const persistAssistant = async (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {
         if (persisted || !input.onPersistAssistant || streamErrored) return;
         persisted = true;
-        const fullText = stripRedundantInlineSourceLines(textChunks.join("")).trim();
+        const fullText = stripRedundantInlineSourceLines(textChunks.join(""), { lang: replyLang }).trim();
         const candidateParts: unknown[] = [...(fullText ? [{ type: "text", text: fullText }] : []), ...recordedDataParts];
         const sanitized = sanitizeStoredParts(candidateParts);
         if (!sanitized.length) return;

@@ -247,6 +247,47 @@ export function selectUsedDocumentSources(
   return used;
 }
 
+export type ReplyLanguage = "vi" | "en";
+
+const HA_GIANG_PROPER_NOUN_RE =
+  /(?<![\p{L}\p{N}])(?:hà\s+giang|đồng\s+văn|mèo\s+vạc|quản\s+bạ|yên\s+minh|lũng\s+cú|sông\s+nho\s+quế|nho\s+quế|mã\s+pì\s+lèng|đèo\s+mã\s+pì\s+lèng|hà\s+nội|hải\s+phòng|sủng\s+là|du\s+già|hoàng\s+su\s+phì|pả\s+vi|cổng\s+trời|phố\s+cổ|lô\s+lô\s+chải|thôn\s+tha)(?![\p{L}\p{N}])/giu;
+const VIETNAMESE_DIACRITIC_RE = /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/iu;
+const VIETNAMESE_UNACCENTED_WORDS_RE =
+  /\b(?:minh|ban|khong|duoc|ngay|dem|nhieu|giup|cho|voi|cua|nhe|nha|nhi|di|ve|tu|vao|nao|bao|nhieu|lich|xe\s+may|o\s+to|mk|ko|dc)\b/giu;
+const ENGLISH_SIGNAL_WORDS_RE =
+  /\b(?:is|are|was|were|be|been|the|a|an|for|to|in|on|at|of|with|without|from|by|about|how|what|where|when|why|which|who|can|could|would|should|will|do|does|did|have|has|had|it|this|that|there|we|you|they|my|our|your|safe|foreigner|motorbike|motorcycle|license|vietnamese|trip|plan|itinerary|weather|cold|december|days|nights|budget|visit|stay|food|eat|please|thank|thanks|recommend|need|want|allow|allowed|legal|drive|ride|get|reach|hub)\b/giu;
+
+/**
+ * Detects whether a traveler message is English or Vietnamese (default `"vi"`).
+ * Strips known accented Hà Giang proper nouns before inspecting diacritics so sentences like
+ * `"Can we visit Đồng Văn and Sông Nho Quế in 2 days?"` resolve to `"en"`.
+ */
+export function detectReplyLanguage(text: string | null | undefined): ReplyLanguage {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed) return "vi";
+  const withoutProperNouns = trimmed.replace(HA_GIANG_PROPER_NOUN_RE, " ");
+  const words = withoutProperNouns.split(/\s+/u).filter(Boolean);
+  const viDiacriticWords = words.filter(word => VIETNAMESE_DIACRITIC_RE.test(word)).length;
+  const viUnaccentedHits = (withoutProperNouns.match(VIETNAMESE_UNACCENTED_WORDS_RE) ?? []).length;
+  const viHits = viDiacriticWords * 2 + viUnaccentedHits;
+  const enHits = (withoutProperNouns.match(ENGLISH_SIGNAL_WORDS_RE) ?? []).length;
+  if (enHits >= 2 && viHits === 0) return "en";
+  if (enHits >= 3 && enHits > viHits * 2) return "en";
+  return "vi";
+}
+
+export function expandedKnowledgeLabel(lang: ReplyLanguage): string {
+  return lang === "en" ? "General knowledge" : "Kiến thức mở rộng";
+}
+
+export function normalizeExpandedKnowledgeLanguage(line: string, lang: ReplyLanguage): string {
+  if (lang !== "en") return line;
+  return line.replace(
+    /((?:^|\n)\s*(?:[-*•]\s*)?(?:[*_]{1,2})?)\s*ki[eế]n\s+th[uứ]c\s+m[oở]\s+r[oộ]ng(?=\s*[:–—;\-*_])/giu,
+    "$1General knowledge",
+  );
+}
+
 const STANDALONE_SOURCE_LINE_RE =
   /^\s*(?:[-*•]\s*)?(?:\(\s*)?(?:[*_]{1,2}\s*)?(?:ngu[oôồ]n\s+t[aà]i\s+li[eệ]u(?:\s+tham\s+kh[aả]o)?|ngu[oôồ]n\s+tham\s+kh[aả]o|ngu[oôồ]n|t[aà]i\s+li[eệ]u\s+tham\s+kh[aả]o|sources?|references?)(?:\s*:\s*[*_]{1,2}|\s*[*_]{1,2}\s*:|\s*:)\s*.*$/iu;
 
@@ -258,12 +299,14 @@ const INLINE_SOURCE_TAIL_RE =
  * when the UI renders structured `data-sources` cards separately (B2 / C4).
  * Preserves normal mid-sentence uses of "nguồn" (e.g. "nguồn thu nhập", "nguồn nước").
  */
-export function stripRedundantInlineSourceLines(raw: string): string {
+export function stripRedundantInlineSourceLines(raw: string, options?: { lang?: ReplyLanguage }): string {
+  const lang = options?.lang ?? "vi";
   const lines = raw.split(/\r?\n/u);
   const kept: string[] = [];
   for (const line of lines) {
     if (STANDALONE_SOURCE_LINE_RE.test(line)) continue;
-    kept.push(line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd());
+    const stripped = line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd();
+    kept.push(normalizeExpandedKnowledgeLanguage(stripped, lang));
   }
   return kept
     .join("\n")
@@ -282,7 +325,7 @@ const SOURCE_TRIGGERS_FOLDED = [
   "references:",
 ];
 
-function couldStartSourceLabel(rawCandidate: string): boolean {
+function couldStartSourceLabel(rawCandidate: string, lang: ReplyLanguage = "vi"): boolean {
   const stripped = rawCandidate.replace(/^[\s\-*•(\[_]+/u, "");
   if (!stripped) return true;
   if (STANDALONE_SOURCE_LINE_RE.test(rawCandidate)) return true;
@@ -291,6 +334,12 @@ function couldStartSourceLabel(rawCandidate: string): boolean {
     .toLowerCase()
     .replace(/[\p{M}\p{Cf}]/gu, "")
     .replace(/đ/gu, "d");
+  if (
+    lang === "en" &&
+    ("kien thuc mo rong".startsWith(folded) || /^kien thuc mo rong(?:\s*[*_]{1,2})?\s*$/u.test(folded))
+  ) {
+    return true;
+  }
   return SOURCE_TRIGGERS_FOLDED.some(
     (trigger) => trigger.startsWith(folded) || folded.startsWith(trigger.replace(/:$/u, "")),
   );
@@ -298,15 +347,19 @@ function couldStartSourceLabel(rawCandidate: string): boolean {
 
 /**
  * Stateful streaming filter that removes redundant inline source lines without stalling
- * normal text chunks.
+ * normal text chunks, and normalizes expanded-knowledge headers on English turns (B3).
  */
-export function createInlineSourceStreamFilter() {
+export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage }) {
+  const lang = options?.lang ?? "vi";
   let pendingLine = "";
   let consecutiveBlankLines = 0;
 
   const formatCompletedLine = (lineWithNewline: boolean, line: string): string => {
     if (STANDALONE_SOURCE_LINE_RE.test(line)) return "";
-    const cleaned = line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd();
+    const cleaned = normalizeExpandedKnowledgeLanguage(
+      line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd(),
+      lang,
+    );
     if (!cleaned && !line.trim()) {
       consecutiveBlankLines += 1;
       return lineWithNewline && consecutiveBlankLines <= 1 ? "\n" : "";
@@ -328,13 +381,15 @@ export function createInlineSourceStreamFilter() {
         out += formatCompletedLine(true, rawLine);
       }
 
-      if (pendingLine && !couldStartSourceLabel(pendingLine)) {
+      if (pendingLine && !couldStartSourceLabel(pendingLine, lang)) {
+        const normalized = normalizeExpandedKnowledgeLanguage(pendingLine, lang);
+        pendingLine = normalized;
         let holdStart = pendingLine.length;
         const tailBoundaryRe = /[.!?…]\s+/gu;
         let match: RegExpExecArray | null;
         while ((match = tailBoundaryRe.exec(pendingLine)) !== null) {
           const candidateTail = pendingLine.slice(match.index + match[0].length);
-          if (!candidateTail || couldStartSourceLabel(candidateTail)) {
+          if (!candidateTail || couldStartSourceLabel(candidateTail, lang)) {
             holdStart = match.index + match[0].length;
             break;
           }
