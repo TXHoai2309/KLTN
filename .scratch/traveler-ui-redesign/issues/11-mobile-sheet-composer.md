@@ -19,3 +19,9 @@
 - `Set-Location apps/web; npx vitest run src/components/tripsage-chat src/components/traveler-ui` — PASS (15 files, 72/72 tests, gồm `tripsage-mobile-sheet-composer.vitest.test.ts` 4/4 và `traveler-tokens-audit.vitest.test.ts` 10/10).
 - `npm run check-types` — PASS (4/4 Turbo tasks).
 - `git diff --check` — PASS.
+
+## Cập nhật hậu triển khai đợt 2 (2026-11-23 — Lỗi 5 & Lỗi 6, commits `7397ede`, `9d20fcb`)
+
+- `7397ede` (Lỗi 5): thanh chân dính `.tripsage-sheet-footer` đổi sang `padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px))`, `border-top: 1px solid var(--tv-sunken)`, `background: var(--tv-surface)`, nút `.tv-btn--primary .tv-btn--lg` (44px, rộng 100%, không khung viền, không dòng `"chưa được lưu"`), tổng cao 68px + safe-area.
+- `9d20fcb` (Lỗi 6): bỏ rule cũ `@media (max-width: 480px) { .assistant-composer-input { flex-direction: column } }` và tách `.assistant-composer-send-circle` khỏi rule cũ kéo nút gửi lên 44px; giữ ô nhập 1 hàng 44px với nút gửi tròn 32×32 nằm trong ô bên phải, rút placeholder 1 dòng `"Hỏi về chuyến đi Hà Giang…"`, reset `height` sạch khi ô trống; đổi `.tripsage-panel-subtabs` sang một dòng `white-space: nowrap`, `overflow-x: auto`, `13.5px / 500`, cao `36px`, rút `"Kiểm tra (5/5)"` thành `"Kiểm tra 5/5"`.
+- Kiểm thử: `tripsage-mobile-sheet-composer.vitest.test.ts` (5/5 PASS), `tripsage-save-section.vitest.test.ts` (4/4 PASS), `traveler-tokens-audit.vitest.test.ts` (14/14 PASS). Chờ đo trực tiếp trên trình duyệt `375×812` sau khi có quota subagent trình duyệt.

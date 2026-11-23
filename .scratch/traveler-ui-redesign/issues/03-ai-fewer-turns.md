@@ -17,3 +17,8 @@
 - `npx vitest run src/modules/tripsage-chat` (43 files, 396/396 tests PASS, gồm 5 test mới trong `tripsage-fewer-turns.vitest.test.ts` + 20 origin + 5 date + 3 flex-origin).
 - `npm run check-types`: PASS (4/4 packages).
 - `git diff --check`: PASS.
+
+**Cập nhật hậu triển khai đợt 2 (2026-11-23 — Lỗi 1, commit `bcb603f`, từ trace `6fe7696a`):**
+- Trace prod `6fe7696a` cho thấy model đã gọi `confirmOrigin({ candidateId: "hub:HA_GIANG_CITY" })` ngay ở lượt 1 nhưng bị server chặn `ORIGIN_CONFIRMATION_REQUIRED` vì câu dài > 160 ký tự và nhắc cả Hà Nội lẫn TP Hà Giang (`"bay ra Hà Nội rồi đi xe khách lên TP Hà Giang, thuê xe máy ở đó"`).
+- Bổ sung `statedFixedHubId` trong `tripsage-chat-origin.ts` và nối vào `permitsOriginConfirmation`: tự động cho phép `confirmOrigin` cùng lượt khi tin nhắn nêu rõ hub cố định kèm động từ di chuyển/thuê xe (`hub:HA_GIANG_CITY` ưu tiên khi có chuỗi trung chuyển tới TP Hà Giang), vẫn chặn khi câu mơ hồ (`"chắc đi Hà Giang"`). Cập nhật persona trong `tripsage-chat-service.ts`.
+- Unit + HTTP test trong `tripsage-fewer-turns.vitest.test.ts` (7/7 PASS) + toàn bộ nhóm origin (5 files, 37/37 PASS).

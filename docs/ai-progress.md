@@ -6200,3 +6200,23 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
   - Focused Vitest sweep (11 files, 57/57 tests PASS) + earlier broad touched-modules sweep (85/86 + fixed legacy test `c47ba1a` 3/3 PASS).
   - `npm run check-types` and `npm run build --workspace web -- --webpack` verified after final code commit `d6eccdd`.
   - `git diff --check`: PASS.
+
+## 2026-11-23 — Traveler UI post-deploy follow-up fixes (Bugs 1–6 from prod trace `6fe7696a`)
+
+- **Branch:** local `master` (not pushed, not deployed, no DB migrations run; prod DB read-only).
+- **Root-cause trace verified via read-only SELECT on `6fe7696a-e4c8-458a-8ea2-f25c4d400e01`:**
+  - Turn 1 called `confirmOrigin({ candidateId: "hub:HA_GIANG_CITY" })` but was rejected with `ORIGIN_CONFIRMATION_REQUIRED` because the prompt exceeded 160 chars and mentioned both Hà Nội and TP Hà Giang.
+  - Night 1 (`d1-overnight`) had 0 EVENING suggestions because `activityAnchors` anchored to out-of-town `[Tam] Rừng thông Yên Minh`, `callsUsed = input.anchors.length` (16) prevented the `"quán ăn"` fallback from executing, and `"Dn xê dịch camping"` bypassed `LODGING_NAME_PATTERN`.
+- **Atomic commits (1 per bug):**
+  - **Bug 1 (`bcb603f`):** Added `statedFixedHubId` in `tripsage-chat-origin.ts` + wired into `permitsOriginConfirmation` (auto-confirms named fixed hub `hub:HA_GIANG_CITY` / `hub:HA_NOI` when paired with travel/transfer/rental verbs while still requiring confirmation for vague phrases like `"chắc đi Hà Giang"`) + aligned persona in `tripsage-chat-service.ts`.
+  - **Bug 2 (`d854c35`):** Added `OVERNIGHT_TOWN_CENTERS` & `resolveEveningAnchorPoint` (chosen lodging → nearest lodging suggestion → overnight town center → last stop) in `tripsage-activities.ts` and `refresh-evening-suggestions.ts`, tracked real Places calls from `0` within `ACTIVITY_MAX_ANCHORS = 16` (running `EVENING` first so `"quán ăn"` fallback executes), excluded `camping` in `LODGING_NAME_PATTERN`, and added per-night `eveningDetails` to `nearbySummary`.
+  - **Bug 3 (`1f945e8`):** Fixed CSS specificity on `.tripsage-cost-table tbody td.tripsage-cost-amount { text-align: right; }`, moved base `.tripsage-cost-basis-mobile { display: none; }` before `@container (max-width: 639px)` (eliminating the later override), and switched narrow rows (`< 640px`) to `grid-template-columns: minmax(0, 1fr) auto` with 12px `--tv-ink-3` basis sub-line.
+  - **Bug 4 (`37b576e`):** Normalized `activeId` matching in `TravelerDayTabs` (handles `0` and `-1` safely), added crisp `--tv-tab-underline: var(--tv-ink)` for travel tabs (keeping gray `--tv-ink-3` dot), raised `.tv-day-tabs .tv-day-tab` specificity above `.assistant-page button { font: inherit }`, and unified `effectiveDayKey` in `TripsagePlanPanel`.
+  - **Bug 5 (`7397ede`):** Removed bordered `.tripsage-save` box, legacy 40px `.assistant-save-button` pill override, and idle `"Lịch trình chưa được lưu."` copy; uses pure `.tv-btn--primary .tv-btn--md` (34px) on desktop and full-width `.tv-btn--lg` (44px) inside a slim 68px (+safe-area) mobile `.tripsage-sheet-footer` while preserving `SUCCESS`/`FAILED`/`UNKNOWN` and idempotency.
+  - **Bug 6 (`9d20fcb`):** Removed legacy `<= 480px` `flex-direction: column` composer override and excluded `.assistant-composer-send-circle` from legacy 44px submit height rules (keeping 44px single-row composer + 32px circular send button + 1-line placeholder `"Hỏi về chuyến đi Hà Giang…"` + empty-height reset); made `.tripsage-panel-subtabs` single-line (`white-space: nowrap`, `overflow-x: auto`, `13.5px/500`, `36px`) with compact `"Kiểm tra 5/5"`.
+- **Validation commands:**
+  - `npx vitest run src/modules/tripsage-chat src/components/tripsage-chat src/components/traveler-ui src/components/trip-timeline`: PASS (**67/67 files, 519/519 tests**).
+  - `npm run check-types`: PASS (**4/4 Turbo tasks**).
+  - `npm run build --workspace web -- --webpack`: verified after `9d20fcb`.
+  - `git diff --check`: PASS.
+- **Pending live verification:** Live OpenAI & Google Places calls remain unavailable locally (`RUNTIME_CONFIG_ENCRYPTION_KEY` & `GOOGLE_MAPS_API_KEY` absent in `apps/web/.env`), and browser `getComputedStyle` screenshots at 1440/768/375px remain pending browser subagent quota reset (`flash` hit `429 RESOURCE_EXHAUSTED` earlier in session).
