@@ -191,15 +191,22 @@ function labelSegments(label: string): string[] {
   return label.split(/[,()\-–]+/u).map(foldVietnamese).filter(seg => seg.length >= 4);
 }
 
-const ORIGIN_CUE = String.raw`(?:xuat\s+phat(?:\s+(?:tu|o|tai))?|bat\s+dau(?:\s+(?:tu|o|tai))?|khoi\s+hanh(?:\s+(?:tu|o|tai))?|di\s+tu|dang\s+o|song\s+o|nha\s+o|o|tai|tu)`;
+const ORIGIN_CUE = String.raw`(?:xuat\s+phat(?:\s+(?:tu|o|tai))?|bat\s+dau(?:\s+(?:tu|o|tai))?|khoi\s+hanh(?:\s+(?:tu|o|tai))?|tu\s+(?:lai|chay)(?:\s+(?:o\s+to|xe(?:\s+may)?))?\s+tu|di\s+tu|dang\s+o|song\s+o|nha(?:\s+minh)?\s+o|o|tai|tu)`;
 /** Administrative words a search label adds before the name the traveler typed ("Thành phố Đà Nẵng", "Quận Cầu Giấy"). */
 const ADMIN_PREFIX = /^(?:thanh\s+pho|tp|quan|huyen|tinh|thi\s+xa|thi\s+tran|phuong|xa)\s+/u;
-const CONTRAST_CUE = /\b(?:nhung|thay\s+vi|con|hoac|hay|or)\b/u;
+const CONTRAST_CUE = /\b(?:nhung|thay\s+vi|hoac|hay|or)\b/u;
+const ACCENTED_CONTRAST = /(?:^|[^\p{L}\p{N}])còn(?:$|[^\p{L}\p{N}])/u;
+const UNCERTAIN_ORIGIN_CUE = /\b(?:chac(?:\s+la)?|co\s+the|chua\s+chac)\b/u;
+
+function hasContrastOrUncertainty(rawText: string, folded: string): boolean {
+  const lowerVi = rawText.normalize("NFC").toLocaleLowerCase("vi");
+  return CONTRAST_CUE.test(folded) || ACCENTED_CONTRAST.test(lowerVi) || UNCERTAIN_ORIGIN_CUE.test(folded);
+}
 
 /**
  * ADR-46: true when the traveler's latest message names the one searched place as their starting point
  * ("tôi xuất phát từ Đà Nẵng", or just "Đà Nẵng"), so the server can confirm it without a second round-trip.
- * Anything contrasted, negated or longer than one short sentence stays on the two-turn path.
+ * Anything contrasted, negated or ambiguous stays on the two-turn path.
  */
 const LOOSE_AGREEMENT = /(?:^|\s)(?:ok+|oke+|okay|dong\s+y|xac\s+nhan|chot|duoc|vang|uh|uk|yes)(?:\s|$)/u;
 /**
@@ -209,26 +216,36 @@ const LOOSE_AGREEMENT = /(?:^|\s)(?:ok+|oke+|okay|dong\s+y|xac\s+nhan|chot|duoc|
 export function namesOrAgreesOrigin(latestUserText: string, query: string): boolean {
   const folded = foldVietnamese(latestUserText);
   const place = foldVietnamese(query);
-  if (!folded || folded.length > 160 || hasHardNegation(latestUserText, folded) || CONTRAST_CUE.test(folded)) return false;
-  return (place.length >= 3 && folded.includes(place)) || LOOSE_AGREEMENT.test(folded);
+  if (!folded || folded.length > 500 || hasHardNegation(latestUserText, folded) || hasContrastOrUncertainty(latestUserText, folded)) return false;
+  if (place.length >= 3 && folded.includes(place)) return true;
+  // Also match when the query is "Quận, Thành phố" and the message states "ở Thành phố (Quận)" (Bug 3).
+  const queryParts = query.split(/[,()\-–]+/u).map(part => foldVietnamese(part).replace(ADMIN_PREFIX, "").trim()).filter(part => part.length >= 3);
+  if (queryParts.length >= 2 && queryParts.every(part => folded.includes(part))) return true;
+  return folded.length <= 160 && LOOSE_AGREEMENT.test(folded);
 }
 
 /** Same place as an origin already confirmed earlier in the conversation. */
 export function sameOriginPlace(confirmedLabel: string, query: string): boolean {
   const label = foldVietnamese(confirmedLabel);
+  const primary = foldVietnamese(confirmedLabel.split(/[,()\-–]+/u)[0] ?? "");
   const place = foldVietnamese(query);
-  return place.length >= 3 && (label.includes(place) || place.includes(label.split(/[,()\-–]+/u)[0]!.trim()));
+  const queryPrimary = foldVietnamese(query.split(/[,()\-–]+/u)[0] ?? "");
+  if (place.length < 3) return false;
+  return label.includes(place) || (primary.length >= 3 && place.includes(primary)) || (queryPrimary.length >= 3 && label.includes(queryPrimary));
 }
 
 export function statesSoleOrigin(latestUserText: string, candidate: { label: string }): boolean {
   const folded = foldVietnamese(latestUserText);
-  if (!folded || folded.length > 120 || hasHardNegation(latestUserText, folded) || CONTRAST_CUE.test(folded)) return false;
+  if (!folded || folded.length > 500 || hasHardNegation(latestUserText, folded) || hasContrastOrUncertainty(latestUserText, folded)) return false;
   const full = foldVietnamese(candidate.label.split(/[,()\-–]+/u)[0] ?? "");
   const names = [...new Set([full, full.replace(ADMIN_PREFIX, "")])].filter(name => name.length >= 4);
   return names.some(name => {
     if (folded === name) return true;
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-    return new RegExp(String.raw`(?:^|\s)${ORIGIN_CUE}\s+${escaped}(?:\s+(?:nhe|nha|a|di|thoi))?$`, "u").test(folded);
+    // Exact short statement or multi-sentence trip brief: "Mình ở Hà Nội (Cầu Giấy), ...", "xuất phát từ Cầu Giấy", "từ Cầu Giấy đi"
+    const directCue = new RegExp(String.raw`(?:^|\s)${ORIGIN_CUE}\s+(?:[a-z0-9]+\s+){0,4}${escaped}(?:\s|$)`, "u");
+    const fromGoCue = new RegExp(String.raw`(?:^|\s)tu\s+${escaped}\s+di(?:\s|$)`, "u");
+    return directCue.test(folded) || fromGoCue.test(folded);
   });
 }
 

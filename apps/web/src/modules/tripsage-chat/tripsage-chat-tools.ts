@@ -320,7 +320,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     }).strict(),
     execute: async ({ query }, options) => {
       const already = currentJourney?.origin;
-      if (already?.confirmed && sameOriginPlace(already.label, query)) {
+      if (already?.confirmed && !tripInfo.assumedFields?.includes("origin") && sameOriginPlace(already.label, query)) {
         return { ok: true as const, alreadyConfirmed: true, label: already.label, note: "Điểm xuất phát này ĐÃ được xác nhận trước đó. Không hỏi lại, không gọi confirmOrigin; tiếp tục việc người dùng yêu cầu (lập lịch, tra vé...) ngay trong lượt này." };
       }
       if (originSearches >= 3) return { ok: false as const, code: "ORIGIN_SEARCH_LIMIT", message: "Đã đạt số lần tìm điểm xuất phát tối đa trong lượt này." };

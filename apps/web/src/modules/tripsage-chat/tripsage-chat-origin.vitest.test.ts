@@ -370,4 +370,62 @@ describe("one-turn origin confirmation (ADR-46)", () => {
     const journey = journeyPartSchema.parse(turnParts.find(p => p.type === "data-journey")!.data);
     expect(journey.journey.origin).toMatchObject({ label: CAU_GIAY.label, confirmed: true });
   });
+
+  it("Bug 3: confirms normal stated origin in a full trip brief ('Mình ở Hà Nội (Cầu Giấy), ...') in 1 turn and still asks on ambiguous/multi-candidate queries", async () => {
+    const cauGiayShort = { label: "Cầu Giấy" };
+    expect(
+      statesSoleOrigin(
+        "Mình ở Hà Nội (Cầu Giấy), gia đình 5 người có ông bà và 2 bé nhỏ, tự lái ô tô, đi 3 ngày từ 26/12. Ông bà đi bộ kém nên tránh leo dốc nhiều.",
+        cauGiayShort,
+      ),
+    ).toBe(true);
+    expect(statesSoleOrigin("xuất phát từ Cầu Giấy đi Hà Giang 3 ngày", cauGiayShort)).toBe(true);
+    expect(statesSoleOrigin("từ Cầu Giấy đi", cauGiayShort)).toBe(true);
+    // Ambiguous / uncertain / contrast phrases must still ask
+    expect(statesSoleOrigin("chắc xuất phát từ Cầu Giấy", cauGiayShort)).toBe(false);
+    expect(statesSoleOrigin("Cầu Giấy hay Mỹ Đình nhỉ", cauGiayShort)).toBe(false);
+    expect(statesSoleOrigin("Mình ở Cầu Giấy nhưng đi từ Hải Phòng", cauGiayShort)).toBe(false);
+
+    const singleLookup: OriginLookup = vi.fn(async () => ({
+      status: "RESULTS" as const,
+      cached: false,
+      results: [{ label: "Cầu Giấy", latitude: CAU_GIAY.latitude, longitude: CAU_GIAY.longitude, source: "GOOGLE_PLACES" as const, confirmed: false as const }],
+    }));
+    const turn = await chat(
+      "Mình ở Hà Nội (Cầu Giấy), gia đình 5 người có ông bà và 2 bé nhỏ, tự lái ô tô, đi 3 ngày từ 26/12. Ông bà đi bộ kém nên tránh leo dốc nhiều.",
+      [
+        { tool: "findOrigin", input: { query: "Cầu Giấy, Hà Nội" } },
+        { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
+        { text: "Đã lập lịch từ Cầu Giấy." },
+      ],
+      { tripInfo: { ...TRIP_INFO_FIXTURE, assumedFields: ["origin"] } },
+      { originSearch: () => singleLookup },
+    );
+    const turnParts = parts(turn.sse);
+    expect(turnParts.some(p => p.type === "data-origin-candidates")).toBe(false);
+    const journey = journeyPartSchema.parse(turnParts.find(p => p.type === "data-journey")!.data);
+    expect(journey.journey.origin).toMatchObject({ label: "Cầu Giấy", confirmed: true });
+    expect(turnParts.some(p => p.type === "data-itinerary")).toBe(true);
+
+    // Multiple candidates must still pause and ask the user to choose
+    const multiLookup: OriginLookup = vi.fn(async () => ({
+      status: "RESULTS" as const,
+      cached: false,
+      results: [
+        { label: "Phố Cổ, Hoàn Kiếm, Hà Nội", latitude: 21.03, longitude: 105.85, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+        { label: "Phố Cổ, Đồng Văn, Hà Giang", latitude: 23.27, longitude: 105.36, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+      ],
+    }));
+    const multiTurn = await chat(
+      "Mình ở Phố Cổ",
+      [
+        { tool: "findOrigin", input: { query: "Phố Cổ" } },
+        { text: "Bạn ở Phố Cổ nào?" },
+      ],
+      {},
+      { originSearch: () => multiLookup },
+    );
+    expect(parts(multiTurn.sse).some(p => p.type === "data-origin-candidates")).toBe(true);
+    expect(parts(multiTurn.sse).some(p => p.type === "data-journey")).toBe(false);
+  });
 });
