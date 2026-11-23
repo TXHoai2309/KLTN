@@ -506,7 +506,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
             className={`tripsage-panel-subtab${subTab === "checks" ? " is-active" : ""}`}
             onClick={() => setSubTab("checks")}
           >
-            Kiểm tra ({passedChecks}/{proposal.checks.length})
+            Kiểm tra {passedChecks}/{proposal.checks.length}
           </button>
         </nav>
 

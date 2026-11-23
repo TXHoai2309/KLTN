@@ -321,7 +321,13 @@ export function TripsageChatClient({
 
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
   // Grow the single-line composer up to 4 lines (~96px), then scroll (design §3.6).
-  useEffect(() => { const el = composer.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 96)}px`; }, [draft]);
+  useEffect(() => {
+    const el = composer.current;
+    if (!el) return;
+    if (!draft) { el.style.height = ""; return; }
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+  }, [draft]);
   // Pins and the saved trip belong to one conversation.
   useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); setPlanProgress(null); }, [activeConversationId]);
   // PARITY BR-3 & BR-4: before saving, keep any pinned ACCESS synced to the current access leg; after saving, keep the saved snapshot unchanged.
@@ -869,7 +875,7 @@ export function TripsageChatClient({
                   className="resize-none"
                   rows={1}
                   maxLength={MAX_LENGTH}
-                  placeholder="Nhập câu hỏi hoặc nhu cầu chuyến đi Hà Giang…"
+                  placeholder="Hỏi về chuyến đi Hà Giang…"
                   value={draft}
                   disabled={locked}
                   onChange={event => setDraft(event.target.value)}

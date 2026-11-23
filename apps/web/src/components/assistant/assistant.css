@@ -1764,7 +1764,7 @@
 @media (max-width: 768px) { .assistant-page .assistant-composer-bar .assistant-stop-button { height: 44px; min-height: 44px; } }
 @media (prefers-reduced-motion: reduce) { .assistant-page .assistant-composer-bar .assistant-stop-button { transition: none; } }
 
-.assistant-page .assistant-composer-bar button[type="submit"] {
+.assistant-page .assistant-composer-bar button[type="submit"]:not(.assistant-composer-send-circle) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2098,7 +2098,7 @@
   color: var(--tv-accent);
 }
 
-.dark .assistant-page .assistant-composer-bar button[type="submit"] {
+.dark .assistant-page .assistant-composer-bar button[type="submit"]:not(.assistant-composer-send-circle) {
   background: var(--tv-accent);
   color: var(--tv-on-accent);
   border: none;
@@ -2191,7 +2191,7 @@
     height: 44px;
     min-height: 44px;
   }
-  .assistant-page .assistant-composer-bar button[type="submit"] {
+  .assistant-page .assistant-composer-bar button[type="submit"]:not(.assistant-composer-send-circle) {
     min-height: 44px;
     height: 44px;
   }
@@ -2215,8 +2215,8 @@
     padding: 6px 10px 10px;
   }
   .assistant-composer-bar {
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 6px;
   }
   .assistant-composer-left-tools {
     max-width: calc(100% - 70px);
@@ -2501,9 +2501,9 @@
 .dark .assistant-planning-map .planner-map-scope button[aria-pressed="true"] { background: var(--tv-accent); }
 @media (prefers-reduced-motion: reduce) { .assistant-planning-loading svg { animation: none; } }
 @media (max-width: 480px) {
-  .assistant-composer-input { flex-direction: column; align-items: stretch; border-radius: 16px; padding: 10px 12px; }
-  .assistant-composer textarea { width: 100%; }
-  .assistant-composer-bar { width: 100%; justify-content: space-between; }
+  .assistant-composer-input { flex-direction: row; align-items: flex-end; border-radius: var(--tv-radius-card); padding: 5px 6px 5px 12px; }
+  .assistant-composer textarea { min-width: 0; }
+  .assistant-composer-bar { width: auto; justify-content: flex-end; }
 }
 @media (max-width: 400px) { .assistant-planning { padding: 12px; } .assistant-planning-fields { grid-template-columns: minmax(0, 1fr); } }
 
@@ -3012,10 +3012,10 @@
 @keyframes tripsage-thinking-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-0.25rem); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .tripsage-thinking-dots i { animation: none; opacity: 0.7; } }
 
-/* Planning chat: breathing room above the composer, and a composer that grows to six lines. */
+/* Planning chat: breathing room above the composer, and a single-line 44px composer growing up to 4 lines (~96px). */
 .assistant-chat[data-runtime="tripsage-unified"] .assistant-transcript { padding: 14px 0 40px; }
-.assistant-chat[data-runtime="tripsage-unified"] .assistant-composer-input { align-items: flex-end; border-radius: 22px; }
-.assistant-chat[data-runtime="tripsage-unified"] .assistant-composer textarea { max-height: 132px; align-self: center; }
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-composer-input { flex-direction: row; align-items: flex-end; min-height: 44px; padding: 5px 6px 5px 14px; border-radius: var(--tv-radius-card); }
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-composer textarea { min-height: 32px; max-height: 96px; padding: 5px 0; line-height: 1.4; align-self: center; }
 
 /* Frameless save control (design §3.1, §3.9, §4.1): desktop md 34px, mobile sheet footer lg 44px */
 .tripsage-save {
@@ -3306,6 +3306,14 @@
   padding: 0 var(--tv-space-4);
   border-bottom: 1px solid var(--tv-line);
   background: var(--tv-surface);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.tripsage-panel-subtabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tripsage-panel-subtab {
@@ -3319,8 +3327,10 @@
   background: transparent;
   color: var(--tv-ink-2);
   font-family: var(--tv-font-ui);
-  font-size: var(--tv-text-sm);
+  font-size: 13.5px;
   font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
 }
 
@@ -3453,8 +3463,8 @@
   align-items: flex-end;
   gap: var(--tv-space-2);
   min-height: 44px;
-  padding: 6px 8px 6px 14px;
-  border-radius: 14px;
+  padding: 5px 6px 5px 14px;
+  border-radius: var(--tv-radius-card);
   border: 1px solid var(--tv-line);
   background: var(--tv-surface);
   box-shadow: var(--tv-shadow-float);
@@ -3462,11 +3472,13 @@
 
 .assistant-composer-input textarea {
   flex: 1 1 auto;
-  min-height: 30px;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px;
   max-height: 96px;
-  padding: 4px 0;
+  padding: 5px 0;
   font-size: var(--tv-text-md);
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .assistant-composer-bar {
@@ -3476,12 +3488,14 @@
   padding: 0;
 }
 
-.assistant-composer-send-circle {
+.assistant-page .assistant-composer-bar .assistant-composer-send-circle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   padding: 0;
   border: 0;
   border-radius: var(--tv-radius-pill);
@@ -3492,17 +3506,17 @@
   transition: opacity var(--tv-motion-fast), background var(--tv-motion-fast);
 }
 
-.assistant-composer-send-circle:disabled {
+.assistant-page .assistant-composer-bar .assistant-composer-send-circle:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.assistant-composer-send-circle.is-stop {
+.assistant-page .assistant-composer-bar .assistant-composer-send-circle.is-stop {
   background: var(--tv-danger);
   color: var(--tv-on-accent);
 }
 
-.assistant-composer-send-circle:focus-visible {
+.assistant-page .assistant-composer-bar .assistant-composer-send-circle:focus-visible {
   outline: 2px solid var(--tv-focus);
   outline-offset: 2px;
 }
@@ -3608,6 +3622,21 @@
 
   .tripsage-panel-subtab--map {
     display: inline-flex;
+  }
+
+  .tripsage-panel-subtabs {
+    padding: 0 var(--tv-space-3);
+  }
+
+  .tripsage-panel-subtab {
+    padding: 0 10px;
+  }
+
+  .assistant-chat[data-runtime="tripsage-unified"] .assistant-composer textarea {
+    height: 32px;
+    min-height: 32px;
+    line-height: 1.35;
+    padding: 5px 0;
   }
 
   .tripsage-panel-split {
