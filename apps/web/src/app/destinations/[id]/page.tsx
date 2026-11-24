@@ -8,6 +8,7 @@ import { resolveExploreReturnTo } from "@/modules/destination/destination-detail
 import { cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { getPublicDestination } from "@/modules/destination/public-destination-service";
 import DestinationDetail, { DetailState } from "./destination-detail";
+import { readPublicDestinationPlannerDuration } from "@/modules/destination/public-destination-duration";
 import { readPublicEditorial } from "@/modules/destination-editorial/editorial-service";
 
 export const dynamic = "force-dynamic";
@@ -42,11 +43,19 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   try {
     // Each service enforces its own public visibility boundary. Await both
     // before rendering so canonical 404/410/errors still govern the whole page.
-    const [destination, editorial] = await Promise.all([
+    const [destination, editorial, plannerDuration] = await Promise.all([
       readPublicDestinationForPage(id),
       readPublicEditorial(id, db),
+      readPublicDestinationPlannerDuration(id, db),
     ]);
-    return <DestinationDetail destination={destination} returnTo={returnTo} editorial={editorial} />;
+    return (
+      <DestinationDetail
+        destination={destination}
+        returnTo={returnTo}
+        editorial={editorial}
+        {...(plannerDuration ? { plannerDuration } : {})}
+      />
+    );
   }
   catch (error) {
     if (error instanceof AppError) {

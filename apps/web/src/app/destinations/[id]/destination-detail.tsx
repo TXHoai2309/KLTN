@@ -22,8 +22,9 @@ import {
 import { DestinationAiFab } from "@/components/destination-ai-fab";
 import { DestinationSummaryCard } from "./destination-summary-card";
 import { cleanAreaDisplayLabel, cleanCategoryDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
-import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts, hasEditorialDuration } from "@/modules/destination-editorial/editorial-display-policy";
-import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
+import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts } from "@/modules/destination-editorial/editorial-display-policy";
+import { formatPlannerDurationSummary, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
+import type { PublicDestinationPlannerDuration } from "@/modules/destination/public-destination-duration";
 
 function Shell({
   children,
@@ -100,22 +101,32 @@ export default function DestinationDetail({
   destination: d,
   returnTo,
   editorial,
+  plannerDuration,
 }: {
   destination: PublicDestinationDetail;
   returnTo?: ExploreReturnHref;
   editorial?: ResolvedEditorial | null;
+  plannerDuration?: PublicDestinationPlannerDuration | null;
 }) {
   const visit = editorialVisitData(d);
   const displayName = cleanPlaceDisplayName(d.name) || d.name;
   const displayCategory = cleanCategoryDisplayLabel(editorialValue(d.category) || d.category);
   const cleanArea = cleanAreaDisplayLabel(d.area);
+  const effectiveSuggestedDuration = plannerDuration?.suggestedDurationMinutes ?? d.suggestedDurationMinutes;
+  const effectiveMinimumDuration = plannerDuration?.minimumDurationMinutes ?? null;
+  const formattedPlannerDuration = formatPlannerDurationSummary({
+    suggestedDurationMinutes: effectiveSuggestedDuration,
+    minimumDurationMinutes: effectiveMinimumDuration,
+  });
+
   const summaryCard = (
     <DestinationSummaryCard
       destinationId={d.id}
       destinationName={displayName}
       area={d.area}
       hours={visit.hours}
-      suggestedDurationMinutes={d.suggestedDurationMinutes}
+      suggestedDurationMinutes={effectiveSuggestedDuration}
+      minimumDurationMinutes={effectiveMinimumDuration}
       ticketPrice={d.profile?.ticketPrice ?? null}
       hasCoordinates={hasEditorialCoordinates(d)}
       mapSlot={
@@ -239,12 +250,12 @@ export default function DestinationDetail({
                 </dt>
                 <dd>{cleanCategoryDisplayLabel(editorialValue(d.category))}</dd>
               </div>}
-              {hasEditorialDuration(d.suggestedDurationMinutes) && <div className="public-detail-fact-row">
+              {formattedPlannerDuration && <div className="public-detail-fact-row">
                 <dt>
                   <Clock size={15} aria-hidden="true" />
                   Thời lượng tham quan gợi ý
                 </dt>
-                <dd>{formatSuggestedDuration(d.suggestedDurationMinutes)}</dd>
+                <dd>{formattedPlannerDuration}</dd>
               </div>}
             </dl>
           </section>}

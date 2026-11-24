@@ -6,7 +6,7 @@ import type { Route } from "next";
 import { CalendarDays, Clock, CloudSun, MapPin, MessageSquare, Sparkles, Ticket } from "lucide-react";
 import FavoriteButton from "@/components/favorite-button";
 import { cleanAreaDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
-import { formatSuggestedDuration } from "@/modules/destination/public-destination-contract";
+import { formatPlannerDurationSummary } from "@/modules/destination/public-destination-contract";
 import { formatMinute, todayInVietnam } from "@/modules/trip-weather/sun-times";
 import type { DestinationWeather } from "@/modules/trip-weather/destination-weather-service";
 
@@ -49,6 +49,7 @@ export function DestinationSummaryCard({
   area,
   hours,
   suggestedDurationMinutes,
+  minimumDurationMinutes = null,
   ticketPrice,
   hasCoordinates,
   mapSlot,
@@ -58,6 +59,7 @@ export function DestinationSummaryCard({
   area?: string | null;
   hours: readonly OpeningHourDaySummary[];
   suggestedDurationMinutes: number | null;
+  minimumDurationMinutes?: number | null;
   ticketPrice?: string | null;
   hasCoordinates: boolean;
   mapSlot: ReactNode;
@@ -100,9 +102,11 @@ export function DestinationSummaryCard({
   const activeDay = hours.find(h => h.dayOfWeek === selectedDay) ?? hours[0] ?? null;
   const planHref = `/assistant?destinationId=${encodeURIComponent(destinationId)}&mustInclude=${encodeURIComponent(destinationId)}&intent=plan` as Route;
   const askHref = `/assistant?destinationId=${encodeURIComponent(destinationId)}` as Route;
-  const durationCopy = suggestedDurationMinutes && suggestedDurationMinutes > 0
-    ? formatSuggestedDuration(suggestedDurationMinutes)
-    : "Chưa có thời lượng gợi ý";
+  const durationCopy =
+    formatPlannerDurationSummary({
+      suggestedDurationMinutes,
+      minimumDurationMinutes,
+    }) ?? "Chưa có";
   const ticketCopy = ticketPrice?.trim() || "Chưa có giá vé";
 
   return (
