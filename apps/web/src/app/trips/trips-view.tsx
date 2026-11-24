@@ -254,6 +254,29 @@ function VisitPhoto({ image, fallback }: { image?: { url: string; alt: string };
   );
 }
 
+function TripCardPhoto({
+  image,
+  fallbackSrc,
+  fallbackAlt,
+  loading = "lazy",
+}: {
+  image?: { url: string; alt: string } | null;
+  fallbackSrc: string;
+  fallbackAlt: string;
+  loading?: "eager" | "lazy";
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const usable = image && image.url !== failedUrl;
+  return (
+    <img
+      src={usable ? image.url : fallbackSrc}
+      alt={usable ? image.alt : fallbackAlt}
+      loading={loading}
+      onError={() => { if (usable) setFailedUrl(image.url); }}
+    />
+  );
+}
+
 function getTripHeroImage(durationDays: number, index = 0): string {
   const photos = [
     "/images/gallery/ha-giang-terraces-golden.webp",
@@ -610,9 +633,10 @@ export function MyTripsView({
                       {featuredTrip && (
                         <article className="my-trips-featured">
                           <div className="my-trips-featured-media" aria-hidden="true">
-                            <img
-                              src={featuredTrip.firstStopImage?.url ?? getTripHeroImage(featuredTrip.durationDays, 0)}
-                              alt={featuredTrip.firstStopImage?.alt ?? tripTitle(featuredTrip)}
+                            <TripCardPhoto
+                              image={featuredTrip.firstStopImage}
+                              fallbackSrc={getTripHeroImage(featuredTrip.durationDays, 0)}
+                              fallbackAlt={tripTitle(featuredTrip)}
                               loading="eager"
                             />
                           </div>
@@ -672,9 +696,10 @@ export function MyTripsView({
                             return (
                               <li key={trip.id} className="my-trips-row">
                                 <div className="my-trips-row-thumb" aria-hidden="true">
-                                  <img
-                                    src={trip.firstStopImage?.url ?? getTripHeroImage(trip.durationDays, tripIndex + 1)}
-                                    alt={trip.firstStopImage?.alt ?? tripTitle(trip)}
+                                  <TripCardPhoto
+                                    image={trip.firstStopImage}
+                                    fallbackSrc={getTripHeroImage(trip.durationDays, tripIndex + 1)}
+                                    fallbackAlt={tripTitle(trip)}
                                     loading="lazy"
                                   />
                                 </div>

@@ -320,11 +320,31 @@
 
 .public-detail-summary-fav .favorite-button {
   min-height: 34px !important;
+  height: 34px;
   padding: 5px 12px !important;
   font-size: 13.5px;
   font-weight: 500;
-  border-radius: var(--tv-radius-sm, 8px);
+  border-radius: var(--tv-radius-control, 8px);
+  border: 1px solid var(--tv-line);
+  background: var(--tv-ground);
+  color: var(--tv-ink);
   box-shadow: none;
+}
+
+.public-detail-summary-fav .favorite-button:hover {
+  background: var(--tv-sunken);
+  color: var(--tv-ink);
+}
+
+.public-detail-summary-fav .favorite-button[aria-pressed="true"] {
+  background: var(--tv-danger-bg, #fff1f2);
+  border-color: color-mix(in srgb, var(--tv-danger, #e11d48) 38%, var(--tv-line));
+  color: var(--tv-danger, #e11d48);
+}
+
+.public-detail-summary-fav .favorite-button[aria-pressed="true"] svg {
+  color: var(--tv-danger, #e11d48);
+  fill: var(--tv-danger, #e11d48);
 }
 
 .public-detail-summary-grid {
