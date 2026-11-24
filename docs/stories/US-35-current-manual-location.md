@@ -313,6 +313,14 @@ Lệnh từ `apps/web`, installed Node22.20.0: `vitest/vitest.mjs run --config v
 
 Source audit là guard đọc text trực tiếp, không taint analysis hay chứng minh mọi dependency không rò rỉ runtime; không scan transitively `modules/map`/shared imports, test fixtures hoặc CSS. Test-only caller tự ghép module, không phải production coordinator/UI đã implement. Source-audit phủ các namespace hiện có và tự thêm TS/TSX mới trong các root đó, nhưng chưa chứng minh browser user gesture/permission/privacy/lifecycle thật. Story vẫn DRAFT, full-flow ACs chưa tick.
 
+### 2026-11-24 — In-trip UI, TTL 15 phút & kiểm tra lưu trữ (Điểm 3–5)
+
+- **Giao diện chờ vị trí & sheet chọn tay (`01638f8`, `e9ceb4d`):** Thẻ `Cần vị trí hiện tại` (đã bỏ hậu tố `(ONGOING)`) tự cuộn vào vùng nhìn thấy, nút dùng GPS và chọn bản đồ cỡ `lg` (`44px`) rộng hết chiều ngang trên mobile `375×812`. Chọn thủ công mở bottom sheet (`role="dialog"`) với bản đồ, ô nhập tọa độ bên dưới và nút dính `Dùng vị trí này` ở chân sheet.
+- **Thời hạn vị trí & xóa cùng hội thoại (`a8fb47a`):** Định nghĩa hằng số `IN_TRIP_LOCATION_TTL_MS = 15 * 60 * 1000` (15 phút), cùng `isInTripLocationFresh` và `formatLocationSharedClockVi` trong `apps/web/src/modules/in-trip/in-trip-location.ts`.
+  - Bấm `"Xóa hội thoại tạm"` xóa sạch vị trí tạm phía client (`sessionLocation = null` ở `EditTripClient`, `startNew` ở `assistant-v2-chat.tsx` / `in-trip-session.ts`).
+  - Vị trí quá 15 phút kể từ `capturedAt` bị coi là hết hạn ở cả client lẫn server (`ai-edit-service.ts`, `saved-trip-location-guidance.ts`, `in-trip-session.ts`) và yêu cầu người dùng chia sẻ/chọn lại vị trí. Khi dùng lại vị trí trong hạn 15 phút, câu trả lời ghi `"theo vị trí bạn chia sẻ lúc HH:MM"` kèm nút nhỏ `"Cập nhật vị trí"`.
+- **Kiểm tra nguyên tắc US-35 & DB/Storage:** Không gọi `watchPosition`, chỉ lấy GPS một lần khi người dùng bấm yêu cầu; không ghi tọa độ vào `localStorage`, `sessionStorage`, `IndexedDB` hay `cookie`. Kiểm tra Prisma schema (`trip.prisma`, `destination.prisma`, `assistant-v2-session.prisma`) xác nhận không có cột hay bảng lưu vị trí GPS/thủ công của người dùng (`EditTripClient` chỉ giữ trong React state RAM; `in-trip-session.ts` chỉ giữ trong state phiên tạm có kiểm tra TTL 15 phút). `us35-location-source-audit.vitest.test.ts` đạt `12/12`.
+
 ## Open Questions
 
 - **OQ-C** ở [US-32](US-32-manual-itinerary-edit.md#open-questions): GPS ngoài Hà Giang cho phép, chặn hay yêu cầu chọn lại? Ai cung cấp ranh giới địa lý nếu cần? Phần manual-specificity trong US-35 đã được Bình chốt ở Task285: chưa có cặp tọa độ hợp lệ thì chưa đủ cụ thể; tên tỉnh/chữ không đủ. Không suy ra yêu cầu geocoding/địa chỉ mới.
