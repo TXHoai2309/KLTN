@@ -13,6 +13,7 @@ import {
   LoaderCircle,
   Map as MapIcon,
   MapPin,
+  MoreHorizontal,
   Navigation,
   RefreshCw,
   Send,
@@ -22,7 +23,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 
 import ManualLocationPicker from "@/components/in-trip/manual-location-picker";
 import { cleanTravelerDisplay, cleanTravelerProse } from "@/lib/traveler-display-clean";
@@ -422,6 +423,7 @@ export type AiEditBarProps = {
   onOpenCanvas?: () => void;
   onRequestGps?: () => void;
   onOpenManualLocation?: () => void;
+  onCloseManualLocation?: () => void;
   onSelectManualCoords?: (coords: MapCoordinate) => void;
   onCancelPendingLocation?: () => void;
   onRetry: () => void;
@@ -471,6 +473,7 @@ export default function AiEditBar({
   onOpenCanvas,
   onRequestGps,
   onOpenManualLocation,
+  onCloseManualLocation,
   onSelectManualCoords,
   onCancelPendingLocation,
   onRetry,
@@ -478,13 +481,70 @@ export default function AiEditBar({
   onDismissApplied,
   onJumpToTab,
 }: AiEditBarProps) {
+  const MAX_PROMPT_CHARS = 500;
+  const CHAR_COUNTER_THRESHOLD = 400;
   const isStreaming = state.kind === "STREAMING";
   const isLoading = state.kind === "LOADING";
   const isBusy = isLoading || isStreaming;
   const controlsDisabled = disabled || isBusy;
   const streamingTextLength = isStreaming ? state.text.length : 0;
+  const isManualSheetOpen =
+    state.kind === "NEEDS_LOCATION" && state.manualPickerOpen && Boolean(onSelectManualCoords);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
+  const locationBoxRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const manualApplyRef = useRef<(() => void) | null>(null);
+  const swipeStartYRef = useRef<number | null>(null);
+  const sheetTitleId = useId();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [manualDraftCoords, setManualDraftCoords] = useState<MapCoordinate | null>(() =>
+    state.kind === "NEEDS_LOCATION" ? state.manualCoords : null,
+  );
+  const charCount = inputValue.normalize("NFC").trim().length;
+  const showCharCounter = charCount > CHAR_COUNTER_THRESHOLD;
+
+  const stateManualCoords = state.kind === "NEEDS_LOCATION" ? state.manualCoords : null;
+  const stateManualLat = stateManualCoords?.latitude ?? null;
+  const stateManualLng = stateManualCoords?.longitude ?? null;
+  const stateManualOpen = state.kind === "NEEDS_LOCATION" && state.manualPickerOpen;
+
+  useEffect(() => {
+    if (stateManualLat !== null && stateManualLng !== null) {
+      setManualDraftCoords({ latitude: stateManualLat, longitude: stateManualLng });
+    } else if (!stateManualOpen) {
+      setManualDraftCoords(null);
+    }
+  }, [stateManualOpen, stateManualLat, stateManualLng]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!isManualSheetOpen) return;
+    const closeSheet = onCloseManualLocation ?? onCancelPendingLocation;
+    if (!closeSheet) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") closeSheet();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isManualSheetOpen, onCloseManualLocation, onCancelPendingLocation]);
 
   useEffect(() => {
     if (!autoFocus || !open) return;
@@ -498,17 +558,25 @@ export default function AiEditBar({
     const el = threadRef.current;
     if (!el) return;
     const frame = window.requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
+      if (state.kind === "NEEDS_LOCATION" && locationBoxRef.current?.scrollIntoView) {
+        locationBoxRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
     });
     return () => window.cancelAnimationFrame(frame);
   }, [messages.length, state.kind, streamingTextLength]);
 
-  // Auto-grow composer textarea smoothly up to ~120px like /assistant.
+  // Single-line 44px composer auto-growing up to 4 lines (§3.6).
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    if (!inputValue) {
+      el.style.height = "";
+      return;
+    }
     el.style.height = "auto";
-    el.style.height = `${Math.min(120, Math.max(26, el.scrollHeight))}px`;
+    el.style.height = `${Math.min(92, Math.max(22, el.scrollHeight))}px`;
   }, [inputValue]);
 
   const starters = useMemo(() => {
@@ -907,7 +975,12 @@ export default function AiEditBar({
               )}
 
               {state.kind === "NEEDS_LOCATION" && (
-                <div className={styles.aiLocationBox} role="status" aria-live="polite">
+                <div
+                  ref={locationBoxRef}
+                  className={styles.aiLocationBox}
+                  role="status"
+                  aria-live="polite"
+                >
                   <div className={styles.aiTurnHeader}>
                     <span className={styles.aiTurnRole}>
                       <Navigation size={14} aria-hidden="true" /> Cần vị trí hiện tại
@@ -915,10 +988,10 @@ export default function AiEditBar({
                     <span className={styles.aiTurnBadge}>Chỉ dùng 1 lần trong phiên</span>
                   </div>
                   <p className={styles.aiTurnText}>{cleanTravelerProse(state.prompt) || state.prompt}</p>
-                  <p className={styles.fixedNote}>
+                  <p className={styles.aiLocationPendingNote}>
                     Câu hỏi đang chờ: <strong>{state.pendingMessage}</strong>
                   </p>
-                  <p className={styles.fixedNote}>
+                  <p className={styles.aiLocationStatusNote}>
                     {state.coverageError ?? getLocationFlowMessage(state.locationFlow)}
                   </p>
                   <div className={styles.aiLocationActions}>
@@ -930,12 +1003,12 @@ export default function AiEditBar({
                     >
                       {state.locationFlow.status === "requesting" ? (
                         <>
-                          <LoaderCircle size={14} className={styles.spinIcon} aria-hidden="true" />
+                          <LoaderCircle size={15} className={styles.spinIcon} aria-hidden="true" />
                           Đang lấy GPS…
                         </>
                       ) : (
                         <>
-                          <Navigation size={14} aria-hidden="true" />
+                          <Navigation size={15} aria-hidden="true" />
                           Dùng vị trí GPS hiện tại
                         </>
                       )}
@@ -946,13 +1019,13 @@ export default function AiEditBar({
                       disabled={controlsDisabled}
                       onClick={onOpenManualLocation}
                     >
-                      <MapPin size={14} aria-hidden="true" />
+                      <MapPin size={15} aria-hidden="true" />
                       Chọn vị trí thủ công trên bản đồ
                     </button>
                     {onCancelPendingLocation && (
                       <button
                         type="button"
-                        className={styles.toolButton}
+                        className={styles.aiLocationCancelBtn}
                         disabled={controlsDisabled}
                         onClick={onCancelPendingLocation}
                       >
@@ -961,12 +1034,6 @@ export default function AiEditBar({
                       </button>
                     )}
                   </div>
-                  {state.manualPickerOpen && onSelectManualCoords && (
-                    <ManualLocationPicker
-                      coordinates={state.manualCoords}
-                      onChange={onSelectManualCoords}
-                    />
-                  )}
                 </div>
               )}
 
@@ -1051,102 +1118,212 @@ export default function AiEditBar({
 
           <div className={styles.aiBottomDock}>
             <div className={styles.aiBottomDockInner}>
-              {messages.length > 0 && !isBusy && quickChips.length > 0 && (
-                <div className={styles.aiChipDrawer} aria-label="Gợi ý câu hỏi nhanh">
-                  {quickChips.map((prompt) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      className={styles.aiQuickChip}
-                      disabled={controlsDisabled}
-                      onClick={() => onSubmitPrompt(prompt)}
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {messages.length === 0 &&
+                !isBusy &&
+                state.kind !== "NEEDS_LOCATION" &&
+                quickChips.length > 0 && (
+                  <div className={styles.aiChipDrawer} aria-label="Gợi ý câu hỏi nhanh">
+                    {quickChips.map((prompt) => (
+                      <button
+                        key={prompt}
+                        type="button"
+                        className={styles.aiQuickChip}
+                        disabled={controlsDisabled}
+                        onClick={() => onSubmitPrompt(prompt)}
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
               <form className={styles.aiInputForm} onSubmit={handleFormSubmit}>
                 <label htmlFor="ai-edit-prompt-input" className={styles.srOnly}>
                   Nhập yêu cầu chỉnh sửa hoặc hỏi tư vấn lịch trình bằng AI
                 </label>
-                <div
-                  className={styles.aiComposerPill}
-                  onPointerDown={(event) => {
-                    if (event.target === event.currentTarget) {
-                      event.preventDefault();
-                      textareaRef.current?.focus();
-                    }
-                  }}
-                >
-                  <textarea
-                    ref={textareaRef}
-                    id="ai-edit-prompt-input"
-                    rows={1}
-                    maxLength={500}
-                    disabled={controlsDisabled}
-                    value={inputValue}
-                    onChange={(event) => onInputChange(event.target.value)}
-                    onKeyDown={handleTextareaKeyDown}
-                    placeholder="Hỏi bằng lời thường, ví dụ: Ngày 2 có gấp quá không?"
-                    className={styles.aiPromptTextarea}
-                  />
-                  {isStreaming ? (
-                    <button
-                      type="button"
-                      className={styles.aiStopPillBtn}
-                      aria-label="Dừng trả lời"
-                      onClick={onStopStream}
-                    >
-                      <Square size={14} aria-hidden="true" />
-                      <span>Dừng</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      className={styles.aiSendPillBtn}
-                      disabled={controlsDisabled || inputValue.trim().length === 0}
-                    >
-                      {isLoading ? (
-                        <>
-                          <LoaderCircle size={15} className={styles.spinIcon} aria-hidden="true" />
-                          <span>Đang xử lý</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send size={15} aria-hidden="true" />
-                          <span>Gửi AI</span>
-                        </>
+                <div className={styles.aiComposerRow}>
+                  {messages.length > 0 && onClearHistory && (
+                    <div ref={menuRef} className={styles.aiOverflowWrap}>
+                      <button
+                        type="button"
+                        className={styles.aiOverflowBtn}
+                        aria-label="Tùy chọn hội thoại"
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        disabled={controlsDisabled}
+                        onClick={() => setMenuOpen((prev) => !prev)}
+                      >
+                        <MoreHorizontal size={18} aria-hidden="true" />
+                      </button>
+                      {menuOpen && (
+                        <div className={styles.aiOverflowMenu} role="menu" aria-label="Tùy chọn hội thoại">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className={styles.aiOverflowDangerItem}
+                            disabled={controlsDisabled}
+                            onClick={() => {
+                              setMenuOpen(false);
+                              onClearHistory();
+                            }}
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                            Xóa hội thoại tạm
+                          </button>
+                        </div>
                       )}
-                    </button>
+                    </div>
                   )}
+
+                  <div
+                    className={styles.aiComposerPill}
+                    onPointerDown={(event) => {
+                      if (event.target === event.currentTarget) {
+                        event.preventDefault();
+                        textareaRef.current?.focus();
+                      }
+                    }}
+                  >
+                    <textarea
+                      ref={textareaRef}
+                      id="ai-edit-prompt-input"
+                      rows={1}
+                      maxLength={MAX_PROMPT_CHARS}
+                      disabled={controlsDisabled}
+                      value={inputValue}
+                      onChange={(event) => onInputChange(event.target.value)}
+                      onKeyDown={handleTextareaKeyDown}
+                      placeholder="Hỏi bằng lời thường, ví dụ: Ngày 2 có gấp quá không?"
+                      className={styles.aiPromptTextarea}
+                    />
+                    {isStreaming ? (
+                      <button
+                        type="button"
+                        className={styles.aiStopPillBtn}
+                        aria-label="Dừng trả lời"
+                        onClick={onStopStream}
+                      >
+                        <Square size={13} aria-hidden="true" />
+                        <span className={styles.srOnly}>Dừng</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        className={styles.aiSendPillBtn}
+                        aria-label={isLoading ? "Đang xử lý" : "Gửi"}
+                        disabled={controlsDisabled || inputValue.trim().length === 0}
+                      >
+                        {isLoading ? (
+                          <LoaderCircle size={15} className={styles.spinIcon} aria-hidden="true" />
+                        ) : (
+                          <Send size={15} aria-hidden="true" />
+                        )}
+                        <span className={styles.srOnly}>
+                          {isLoading ? "Đang xử lý" : "Gửi"}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <div className={styles.aiComposerFooter}>
+                <div
+                  className={
+                    showCharCounter
+                      ? `${styles.aiComposerFooter} ${styles.aiComposerFooterWithCounter}`
+                      : styles.aiComposerFooter
+                  }
+                >
                   <span className={styles.aiComposerHint}>
                     Enter gửi · Shift+Enter xuống dòng
                   </span>
-                  <div className={styles.aiComposerFooterRight}>
-                    {messages.length > 0 && onClearHistory && (
-                      <button
-                        type="button"
-                        className={styles.aiChipToggleBtn}
-                        disabled={controlsDisabled}
-                        onClick={onClearHistory}
-                      >
-                        <Trash2 size={12} aria-hidden="true" />
-                        Xóa hội thoại tạm
-                      </button>
-                    )}
+                  {showCharCounter && (
                     <span className={styles.aiCharCounter}>
-                      {inputValue.normalize("NFC").trim().length}/500 ký tự
+                      {charCount}/{MAX_PROMPT_CHARS} ký tự
                     </span>
-                  </div>
+                  )}
                 </div>
               </form>
             </div>
           </div>
+
+          {isManualSheetOpen && onSelectManualCoords && (
+            <div
+              className={styles.aiLocationSheetBackdrop}
+              onClick={(event) => {
+                if (event.target === event.currentTarget) {
+                  (onCloseManualLocation ?? onCancelPendingLocation)?.();
+                }
+              }}
+            >
+              <div
+                className={styles.aiLocationSheet}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={sheetTitleId}
+              >
+                <div
+                  className={styles.aiSheetDragZone}
+                  onTouchStart={(event) => {
+                    swipeStartYRef.current = event.touches[0]?.clientY ?? null;
+                  }}
+                  onTouchEnd={(event) => {
+                    const startY = swipeStartYRef.current;
+                    swipeStartYRef.current = null;
+                    const endY = event.changedTouches[0]?.clientY;
+                    if (startY !== null && endY !== undefined && endY - startY > 60) {
+                      (onCloseManualLocation ?? onCancelPendingLocation)?.();
+                    }
+                  }}
+                >
+                  <span className={styles.aiSheetDragHandle} aria-hidden="true" />
+                  <div className={styles.aiSheetHeader}>
+                    <h2 id={sheetTitleId} className={styles.aiSheetTitle}>
+                      Chọn vị trí thủ công
+                    </h2>
+                    <button
+                      type="button"
+                      className={styles.aiSheetCloseBtn}
+                      aria-label="Đóng bản đồ chọn vị trí"
+                      onClick={() => (onCloseManualLocation ?? onCancelPendingLocation)?.()}
+                    >
+                      <X size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.aiSheetBody}>
+                  <ManualLocationPicker
+                    coordinates={manualDraftCoords}
+                    onChange={setManualDraftCoords}
+                    onConfirm={(coords) => {
+                      setManualDraftCoords(coords);
+                      onSelectManualCoords(coords);
+                    }}
+                    variant="sheet"
+                    hideApplyButton
+                    applyTriggerRef={manualApplyRef}
+                  />
+                </div>
+
+                <div className={styles.aiSheetFooter}>
+                  <button
+                    type="button"
+                    className={styles.aiSheetConfirmBtn}
+                    disabled={controlsDisabled}
+                    onClick={() => {
+                      if (manualApplyRef.current) {
+                        manualApplyRef.current();
+                      } else if (manualDraftCoords) {
+                        onSelectManualCoords(manualDraftCoords);
+                      }
+                    }}
+                  >
+                    Dùng vị trí này
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>

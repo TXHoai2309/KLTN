@@ -36,6 +36,27 @@
   .apply { justify-self: stretch; }
 }
 
+.pickerSheet { gap: 10px; }
+.pickerSheet .mapSheet {
+  height: clamp(280px, 58dvh, 520px);
+  border-color: var(--tv-line, var(--border));
+  border-radius: var(--tv-radius-card, 12px);
+}
+.pickerSheet .coordinates { gap: 8px; }
+.pickerSheet .legend { margin-bottom: 0; font-size: 13px; color: var(--tv-ink-2, var(--muted-foreground)); }
+.pickerSheet .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pickerSheet .field { gap: 4px; }
+.pickerSheet .field label { font-size: 12.5px; }
+.pickerSheet .helper { font-size: 12px; line-height: 1.4; }
+.pickerSheet .input { border-radius: var(--tv-radius-control, 8px); font-size: 16px; }
+
+@media (max-width: 767px) {
+  .pickerSheet .mapSheet {
+    height: min(62dvh, 520px);
+    min-height: 300px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .input, .apply, .retry { transition: none; }
   .apply:active, .retry:active { transform: none; }

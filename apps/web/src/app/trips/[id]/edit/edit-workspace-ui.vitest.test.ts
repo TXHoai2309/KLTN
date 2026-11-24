@@ -287,7 +287,8 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(advisedAiHtml).toContain('aria-live="polite"');
     expect(advisedAiHtml).toContain("Ngày 1 hiện có 2 điểm (08:00–11:30).");
     expect(advisedAiHtml).not.toContain("Lịch chưa bị thay đổi");
-    expect(advisedAiHtml).toContain("Xóa hội thoại tạm");
+    expect(advisedAiHtml).toContain('aria-label="Tùy chọn hội thoại"');
+    expect(advisedAiHtml).not.toContain('aria-label="Gợi ý câu hỏi nhanh"');
   });
 
   it("Ticket 09 static responsive, touch-target, keyboard dialog, and floating-assistant guard checks", async () => {
@@ -913,6 +914,105 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
 
     expect(manualFallbackHtml).toContain("Chưa có quyền truy cập vị trí");
     expect(manualFallbackHtml).toContain("Chọn vị trí thủ công");
-    expect(manualFallbackHtml).toContain("Dùng tọa độ");
+    expect(manualFallbackHtml).toContain('role="dialog"');
+    expect(manualFallbackHtml).toContain("Dùng vị trí này");
+  });
+
+  it("Point 4: enforces mobile 375px layout ergonomics — single-row 30px chips hidden during chat/GPS, 44px composer, threshold counter, dirty-only save bar, and sheet picker", async () => {
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const css = await readFile(resolve(dir, "./edit-trip.module.css"), "utf8");
+    const pickerCss = await readFile(resolve(dir, "../../../../components/in-trip/manual-location-picker.module.css"), "utf8");
+    const clientSource = await readFile(resolve(dir, "./edit-trip-client.tsx"), "utf8");
+    const barSource = await readFile(resolve(dir, "./ai-edit-bar.tsx"), "utf8");
+
+    const emptyHtml = renderToStaticMarkup(createElement(AiEditBar, {
+      open: true,
+      onToggleOpen: () => {},
+      inputValue: "Ngắn gọn",
+      onInputChange: () => {},
+      disabled: false,
+      messages: [],
+      tripStatus: "ONGOING",
+      issues: [],
+      state: { kind: "IDLE" },
+      onSubmitPrompt: () => {},
+      onRetry: () => {},
+      onUndoAiStep: () => {},
+      onDismissApplied: () => {},
+    }));
+    expect(emptyHtml).toContain('aria-label="Gợi ý câu hỏi nhanh"');
+    expect(emptyHtml).not.toContain("/500 ký tự");
+    expect(emptyHtml).toContain('aria-label="Gửi"');
+    expect(emptyHtml).not.toContain('aria-label="Tùy chọn hội thoại"');
+
+    const longInputHtml = renderToStaticMarkup(createElement(AiEditBar, {
+      open: true,
+      onToggleOpen: () => {},
+      inputValue: "a".repeat(405),
+      onInputChange: () => {},
+      disabled: false,
+      messages: [],
+      state: { kind: "IDLE" },
+      onSubmitPrompt: () => {},
+      onRetry: () => {},
+      onUndoAiStep: () => {},
+      onDismissApplied: () => {},
+    }));
+    expect(longInputHtml).toContain("405/500 ký tự");
+
+    const ongoingAskHtml = renderToStaticMarkup(createElement(AiEditBar, {
+      open: true,
+      onToggleOpen: () => {},
+      inputValue: "",
+      onInputChange: () => {},
+      disabled: false,
+      messages: [{ id: "u-loc", role: "user", text: "Từ chỗ mình đi tới điểm tiếp theo mất bao lâu?" }],
+      tripStatus: "ONGOING",
+      state: {
+        kind: "NEEDS_LOCATION",
+        prompt: "Yêu cầu này cần vị trí hiện tại.",
+        pendingMessage: "Từ chỗ mình đi tới điểm tiếp theo mất bao lâu?",
+        locationFlow: { status: "idle", requestId: 0 },
+        manualPickerOpen: false,
+        manualCoords: null,
+        coverageError: null,
+      },
+      onClearHistory: () => {},
+      onSubmitPrompt: () => {},
+      onRequestGps: () => {},
+      onOpenManualLocation: () => {},
+      onSelectManualCoords: () => {},
+      onRetry: () => {},
+      onUndoAiStep: () => {},
+      onDismissApplied: () => {},
+    }));
+    expect(ongoingAskHtml).not.toContain('aria-label="Gợi ý câu hỏi nhanh"');
+    expect(ongoingAskHtml).toContain("Dùng vị trí GPS hiện tại");
+    expect(ongoingAskHtml).toContain("Chọn vị trí thủ công trên bản đồ");
+    expect(ongoingAskHtml).toContain('aria-label="Tùy chọn hội thoại"');
+
+    // Clean initial render of EditTripClient has no unsaved changes -> no mobileBottomBar rendered
+    const cleanClientHtml = renderToStaticMarkup(createElement(EditTripClient, {
+      tripId: "trip-clean-mobile",
+      baseRevision: "2026-11-18T00:00:00.000Z",
+      initialCandidate: candidate,
+      destinationLabels: { d1: "Cột cờ Lũng Cú · Đồng Văn", d2: "Điểm đã ẩn · Mèo Vạc" },
+      placeDetails,
+      tripStatus: "ONGOING",
+      hasCompanionPublication: false,
+      entryMode: "in-trip",
+    }));
+    expect(cleanClientHtml).not.toContain("Đã lưu</span><button");
+    expect(clientSource).toContain("{editDirty && (");
+
+    // Static checks for §3.5, §3.6, §3.9 compliance in CSS and components
+    expect(barSource).toContain("Xóa hội thoại tạm");
+    expect(barSource).toContain("scrollIntoView");
+    expect(css).toContain("height: 30px");
+    expect(css).toContain("flex-wrap: nowrap");
+    expect(css).toContain("overflow-x: auto");
+    expect(css).toContain(".aiComposerHint");
+    expect(css).toContain("aiLocationSheet");
+    expect(pickerCss).toContain("mapSheet");
   });
 });

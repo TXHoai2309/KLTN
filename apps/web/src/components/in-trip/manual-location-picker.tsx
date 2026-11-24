@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type MutableRefObject } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@KLTN/ui/components/button";
 import { Input } from "@KLTN/ui/components/input";
@@ -19,9 +19,20 @@ import styles from "./manual-location-picker.module.css";
 
 type PinSession = ReturnType<typeof mountDestinationPinPicker>;
 
-export default function ManualLocationPicker({ coordinates, onChange }: {
+export default function ManualLocationPicker({
+  coordinates,
+  onChange,
+  onConfirm,
+  variant = "inline",
+  hideApplyButton = false,
+  applyTriggerRef,
+}: {
   coordinates: MapCoordinate | null;
   onChange: (coordinates: MapCoordinate) => void;
+  onConfirm?: (coordinates: MapCoordinate) => void;
+  variant?: "inline" | "sheet";
+  hideApplyButton?: boolean;
+  applyTriggerRef?: MutableRefObject<(() => void) | null>;
 }) {
   const id = useId();
   const container = useRef<HTMLDivElement>(null);
@@ -31,6 +42,8 @@ export default function ManualLocationPicker({ coordinates, onChange }: {
   const coordinatesRef = useRef(coordinates);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
   const [fields, setFields] = useState(() => coordinateFieldsFromValue(coordinates));
   const [errors, setErrors] = useState<CoordinateErrors>({});
   const [state, setState] = useState<ManualLocationMapState>("loading");
@@ -87,6 +100,11 @@ export default function ManualLocationPicker({ coordinates, onChange }: {
     coordinatesRef.current = result.coordinates;
     session.current?.setCoordinates(result.coordinates);
     onChangeRef.current(result.coordinates);
+    onConfirmRef.current?.(result.coordinates);
+  }
+
+  if (applyTriggerRef) {
+    applyTriggerRef.current = applyCoordinates;
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -102,13 +120,22 @@ export default function ManualLocationPicker({ coordinates, onChange }: {
   }
 
   const mapFailed = state === "error" || state === "timeout";
+  const isSheet = variant === "sheet";
 
-  return <section className={styles.picker} aria-labelledby={`${id}-title`}>
-    <h2 id={`${id}-title`} className={styles.title}>Chọn vị trí thủ công</h2>
-    <p className={styles.helper} id={`${id}-help`}>
-      Nhấp bản đồ để đặt pin. Kéo pin hoặc đưa tiêu điểm vào pin rồi dùng phím mũi tên để điều chỉnh. Bạn cũng có thể nhập tọa độ bên dưới.
-    </p>
-    <div className={styles.map}>
+  return <section
+    className={isSheet ? `${styles.picker} ${styles.pickerSheet}` : styles.picker}
+    aria-labelledby={isSheet ? undefined : `${id}-title`}
+    aria-label={isSheet ? "Chọn vị trí thủ công" : undefined}
+  >
+    {!isSheet && (
+      <>
+        <h2 id={`${id}-title`} className={styles.title}>Chọn vị trí thủ công</h2>
+        <p className={styles.helper} id={`${id}-help`}>
+          Nhấp bản đồ để đặt pin. Kéo pin hoặc đưa tiêu điểm vào pin rồi dùng phím mũi tên để điều chỉnh. Bạn cũng có thể nhập tọa độ bên dưới.
+        </p>
+      </>
+    )}
+    <div className={isSheet ? `${styles.map} ${styles.mapSheet}` : styles.map}>
       <div ref={container} className={styles.canvas} aria-label="Bản đồ chọn vị trí thủ công"
         style={{ visibility: state === "ready" ? "visible" : "hidden" }} />
       {state !== "ready" && <div className={styles.overlay} role={mapFailed ? "alert" : "status"} aria-busy={state === "loading"}>
@@ -141,10 +168,12 @@ export default function ManualLocationPicker({ coordinates, onChange }: {
           {errors.longitude && <p id={`${id}-longitude-error`} className={styles.error} role="alert">{errors.longitude}</p>}
         </div>
       </div>
-      <Button type="button" className={styles.apply} onClick={applyCoordinates}>Dùng tọa độ</Button>
+      {!hideApplyButton && (
+        <Button type="button" className={styles.apply} onClick={applyCoordinates}>Dùng tọa độ</Button>
+      )}
     </fieldset>
     <p className={styles.helper} role="status" aria-live="polite" aria-atomic="true">
-      {coordinates ? `Đã chọn vị trí: vĩ độ ${coordinates.latitude}, kinh độ ${coordinates.longitude}.` : "Chưa chọn vị trí. Chọn pin hoặc nhập đủ hai tọa độ để tiếp tục."}
+      {coordinates ? `Đã chọn: ${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}.` : "Chạm bản đồ hoặc nhập đủ vĩ độ và kinh độ."}
     </p>
   </section>;
 }

@@ -44,15 +44,36 @@ describe("Saved-trip assistant onboarding", () => {
     expect(pending).not.toContain("điểm cần xem lại");
   });
 
-  it("keeps suggestions visible after the first message, putting the trip's own fixes first", () => {
-    const html = render({
+  it("shows quick suggestion chips on initial view with trip fixes first, and hides them during chat or location prompts", () => {
+    const emptyHtml = render({
+      issues: [issue],
+      messages: [],
+    });
+
+    const chips = emptyHtml.split('aria-label="Gợi ý câu hỏi nhanh"')[1] ?? "";
+    expect(chips.indexOf("Sửa giúp tôi lỗi của Chợ tình Khâu Vai ở Ngày 2")).toBeGreaterThanOrEqual(0);
+    expect(chips.indexOf("Sửa giúp tôi lỗi của Chợ tình Khâu Vai")).toBeLessThan(chips.indexOf("Tôi đi thế này được không?"));
+    expect(emptyHtml).not.toContain("Gợi ý câu hỏi</button>");
+
+    const activeChatHtml = render({
       issues: [issue],
       messages: [{ id: "m1", role: "user", text: "chào" }, { id: "m2", role: "assistant", kind: "ADVISED", text: "Chào bạn" }],
     });
+    expect(activeChatHtml).not.toContain('aria-label="Gợi ý câu hỏi nhanh"');
 
-    const chips = html.split('aria-label="Gợi ý câu hỏi nhanh"')[1] ?? "";
-    expect(chips.indexOf("Sửa giúp tôi lỗi của Chợ tình Khâu Vai ở Ngày 2")).toBeGreaterThanOrEqual(0);
-    expect(chips.indexOf("Sửa giúp tôi lỗi của Chợ tình Khâu Vai")).toBeLessThan(chips.indexOf("Tôi đi thế này được không?"));
-    expect(html).not.toContain("Gợi ý câu hỏi</button>");
+    const locationPromptHtml = render({
+      issues: [issue],
+      messages: [],
+      state: {
+        kind: "NEEDS_LOCATION",
+        prompt: "Yêu cầu này cần vị trí hiện tại.",
+        pendingMessage: "Quán ăn gần đây?",
+        locationFlow: { status: "idle", requestId: 0 },
+        manualPickerOpen: false,
+        manualCoords: null,
+        coverageError: null,
+      },
+    });
+    expect(locationPromptHtml).not.toContain('aria-label="Gợi ý câu hỏi nhanh"');
   });
 });

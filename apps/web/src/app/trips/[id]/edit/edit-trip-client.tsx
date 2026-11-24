@@ -1540,7 +1540,7 @@ export default function EditTripClient({
 
   return (
     <main
-      className={`${styles.page} ${styles.pageFullscreen}`}
+      className={`${styles.page} ${styles.pageFullscreen} ${editDirty ? styles.pageFullscreenDirty : ""}`}
       lang="vi"
       aria-label="Không gian chỉnh sửa hành trình"
     >
@@ -1929,6 +1929,13 @@ export default function EditTripClient({
                       setAiBarState((current) =>
                         current.kind === "NEEDS_LOCATION"
                           ? { ...current, manualPickerOpen: true, coverageError: null }
+                          : current,
+                      )
+                    }
+                    onCloseManualLocation={() =>
+                      setAiBarState((current) =>
+                        current.kind === "NEEDS_LOCATION"
+                          ? { ...current, manualPickerOpen: false, coverageError: null }
                           : current,
                       )
                     }
@@ -2876,20 +2883,22 @@ export default function EditTripClient({
         </div>
       )}
 
-      <div className={styles.mobileBottomBar}>
-        <span className={`${styles.statusBadge} ${editDirty ? styles.statusDirty : styles.statusSaved}`}>
-          {editDirty ? `${changeCount} thay đổi chưa lưu` : "Đã lưu"}
-        </span>
-        <button
-          type="button"
-          className={styles.primaryButton}
-          disabled={!editDirty || !previewCanConfirm || applyInProgress}
-          onClick={() => setConfirmOpen(true)}
-        >
-          <Save size={15} aria-hidden="true" />
-          Lưu thay đổi
-        </button>
-      </div>
+      {editDirty && (
+        <div className={styles.mobileBottomBar}>
+          <span className={`${styles.statusBadge} ${styles.statusDirty}`}>
+            {changeCount} thay đổi chưa lưu
+          </span>
+          <button
+            type="button"
+            className={styles.primaryButton}
+            disabled={!previewCanConfirm || applyInProgress}
+            onClick={() => setConfirmOpen(true)}
+          >
+            <Save size={15} aria-hidden="true" />
+            Lưu thay đổi
+          </button>
+        </div>
+      )}
 
       <dialog
         ref={confirmDialogRef}
