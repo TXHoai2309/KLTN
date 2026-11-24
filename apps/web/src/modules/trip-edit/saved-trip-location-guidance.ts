@@ -1,6 +1,10 @@
 import type { Database } from "@KLTN/db";
 import { cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
-import type { InTripLocation } from "../in-trip/in-trip-location";
+import {
+  formatLocationSharedClockVi,
+  isInTripLocationFresh,
+  type InTripLocation,
+} from "../in-trip/in-trip-location";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
 import { haversine } from "../trip-planner/planner-geography";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
@@ -381,6 +385,7 @@ export async function runOngoingLocationScenario(input: {
   mode: string;
   tripStatus: TripStatus;
   location?: InTripLocation;
+  locationReused?: boolean;
   baseCandidate: EditCandidate;
   savedShape: SavedTripForEdit & { manuallyCompletedAt?: Date | null };
   placeNames: ReadonlyMap<string, string>;
@@ -421,14 +426,34 @@ export async function runOngoingLocationScenario(input: {
     };
   }
 
-  if (!input.location) {
+  if (!input.location || !isInTripLocationFresh(input.location, input.timeReference.getTime())) {
+    const expiredClock = input.location ? formatLocationSharedClockVi(input.location.capturedAt) : "";
+    const prompt = input.location
+      ? expiredClock
+        ? `Vị trí bạn chia sẻ lúc ${expiredClock} đã quá 15 phút. Bạn hãy chia sẻ lại GPS một lần hoặc chọn vị trí thủ công trên bản đồ.`
+        : "Vị trí bạn chia sẻ đã quá 15 phút. Bạn hãy chia sẻ lại GPS một lần hoặc chọn vị trí thủ công trên bản đồ."
+      : "Yêu cầu này cần biết vị trí bạn đang đứng để tính chính xác quãng đường và thời gian tới các điểm còn lại. Bạn hãy chia sẻ GPS một lần hoặc chọn vị trí thủ công trên bản đồ.";
     return {
       kind: "NEEDS_LOCATION",
-      prompt:
-        "Yêu cầu này cần biết vị trí bạn đang đứng để tính chính xác quãng đường và thời gian tới các điểm còn lại. Bạn hãy chia sẻ GPS một lần hoặc chọn vị trí thủ công trên bản đồ.",
+      prompt,
       pendingMessage: input.message,
     };
   }
+
+  const capturedMs = Date.parse(input.location.capturedAt);
+  const ageMs = Number.isFinite(capturedMs)
+    ? Math.max(0, input.timeReference.getTime() - capturedMs)
+    : 0;
+  const isReusedLocation = Boolean(input.locationReused) || ageMs >= 60_000;
+  const sharedClock = formatLocationSharedClockVi(input.location.capturedAt);
+  const sharedLocationRef =
+    isReusedLocation && sharedClock
+      ? `theo vị trí bạn chia sẻ lúc ${sharedClock}`
+      : "theo vị trí bạn vừa chia sẻ";
+  const sharedLocationLead =
+    isReusedLocation && sharedClock
+      ? `Theo vị trí bạn chia sẻ lúc ${sharedClock}`
+      : "Theo vị trí bạn vừa chia sẻ";
 
   const coverage = vietnamCoverageAt({
     latitude: input.location.latitude,
@@ -459,7 +484,7 @@ export async function runOngoingLocationScenario(input: {
       return {
         kind: "ADVISED",
         advice:
-          "Theo vị trí bạn vừa chia sẻ, hành trình hiện không còn lượt tham quan nào sắp tới; các lượt trong lịch đều đã qua giờ.",
+          `${sharedLocationLead}, hành trình hiện không còn lượt tham quan nào sắp tới; các lượt trong lịch đều đã qua giờ.`,
         suggestions: [],
       };
     }
@@ -489,7 +514,7 @@ export async function runOngoingLocationScenario(input: {
     if (typeof targetLat !== "number" || typeof targetLon !== "number") {
       return {
         kind: "ADVISED",
-        advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Hiện điểm này chưa có đủ tọa độ để định tuyến theo vị trí bạn vừa chia sẻ bằng ${vehicleLabel}, nên chưa tính được quãng đường, thời gian di chuyển hay giờ xuất phát.`,
+        advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Hiện điểm này chưa có đủ tọa độ để định tuyến ${sharedLocationRef} bằng ${vehicleLabel}, nên chưa tính được quãng đường, thời gian di chuyển hay giờ xuất phát.`,
         suggestions: [],
       };
     }
@@ -509,7 +534,7 @@ export async function runOngoingLocationScenario(input: {
     if (route.kind !== "ok" || typeof route.durationSeconds !== "number") {
       return {
         kind: "ADVISED",
-        advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Hiện hệ thống chưa định tuyến được lộ trình bằng ${vehicleLabel} theo vị trí bạn vừa chia sẻ tới điểm này nên chưa có số đo quãng đường, thời gian di chuyển và giờ xuất phát chính xác.`,
+        advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Hiện hệ thống chưa định tuyến được lộ trình bằng ${vehicleLabel} ${sharedLocationRef} tới điểm này nên chưa có số đo quãng đường, thời gian di chuyển và giờ xuất phát chính xác.`,
         suggestions: [],
       };
     }
@@ -540,7 +565,7 @@ export async function runOngoingLocationScenario(input: {
 
     return {
       kind: "ADVISED",
-      advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Từ chỗ bạn tới điểm này (theo vị trí bạn vừa chia sẻ) ${distancePart}${durationPart}, ${leaveAdvice}.`,
+      advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Từ chỗ bạn tới điểm này (${sharedLocationRef}) ${distancePart}${durationPart}, ${leaveAdvice}.`,
       suggestions: [],
     };
   }
@@ -562,13 +587,13 @@ export async function runOngoingLocationScenario(input: {
       if (searchResult.status === "UNAVAILABLE") {
         return {
           kind: "ADVISED",
-          advice: `Theo vị trí bạn vừa chia sẻ, hiện hệ thống chưa tra cứu được danh sách ${category.label} quanh đây từ Google Maps (dịch vụ tìm địa điểm tạm thời chưa sẵn sàng). Mình chưa thể nêu tên điểm hay giờ mở cửa cụ thể; bạn hãy thử lại sau hoặc tra trực tiếp trên Google Maps.`,
+          advice: `${sharedLocationLead}, hiện hệ thống chưa tra cứu được danh sách ${category.label} quanh đây từ Google Maps (dịch vụ tìm địa điểm tạm thời chưa sẵn sàng). Mình chưa thể nêu tên điểm hay giờ mở cửa cụ thể; bạn hãy thử lại sau hoặc tra trực tiếp trên Google Maps.`,
           suggestions: [],
         };
       }
       return {
         kind: "ADVISED",
-        advice: `Theo vị trí bạn vừa chia sẻ, trong bán kính tới ${NEARBY_SERVICE_RADII_KM[NEARBY_SERVICE_RADII_KM.length - 1]} km chưa thấy ${category.label} phù hợp trên dữ liệu từ Google Maps, chưa kiểm tra; giờ mở cửa thực tế có thể khác.`,
+        advice: `${sharedLocationLead}, trong bán kính tới ${NEARBY_SERVICE_RADII_KM[NEARBY_SERVICE_RADII_KM.length - 1]} km chưa thấy ${category.label} phù hợp trên dữ liệu từ Google Maps, chưa kiểm tra; giờ mở cửa thực tế có thể khác.`,
         suggestions: [],
       };
     }
@@ -595,7 +620,7 @@ export async function runOngoingLocationScenario(input: {
 
     return {
       kind: "ADVISED",
-      advice: `Theo vị trí bạn vừa chia sẻ (quanh bán kính ${searchResult.radiusKm} km, gợi ý từ Google Maps, chưa kiểm tra; giờ mở cửa thực tế có thể khác), có một số ${category.label} gần bạn:\n${lines.join("\n")}\n${missingHoursNote} Đây chỉ là gợi ý tham khảo, chưa thêm vào lịch trình; nếu muốn đưa điểm nào vào lịch, bạn có thể gửi yêu cầu chỉnh sửa lịch để kiểm tra và xác nhận riêng.`.replace(
+      advice: `${sharedLocationLead} (quanh bán kính ${searchResult.radiusKm} km, gợi ý từ Google Maps, chưa kiểm tra; giờ mở cửa thực tế có thể khác), có một số ${category.label} gần bạn:\n${lines.join("\n")}\n${missingHoursNote} Đây chỉ là gợi ý tham khảo, chưa thêm vào lịch trình; nếu muốn đưa điểm nào vào lịch, bạn có thể gửi yêu cầu chỉnh sửa lịch để kiểm tra và xác nhận riêng.`.replace(
         /\n\s+/gu,
         "\n",
       ),
@@ -751,8 +776,8 @@ export async function runOngoingLocationScenario(input: {
 
     const deterministic =
       nearbyLines.length > 0
-        ? `Từ vị trí hiện tại của bạn, có thể ghé các điểm công khai gần nhất trong Ngày ${todayObj.dayIndex}: ${nearbyLines.join("; ")}. Các lượt đã qua giờ được giữ cố định hoàn toàn.`
-        : `Từ vị trí và quỹ thời gian còn lại hôm nay (từ ${minuteClockLabel(nowMin)}), chưa có điểm công khai mới nào phù hợp trước cuối ngày.`;
+        ? `${sharedLocationLead}, có thể ghé các điểm công khai gần nhất trong Ngày ${todayObj.dayIndex}: ${nearbyLines.join("; ")}. Các lượt đã qua giờ được giữ cố định hoàn toàn.`
+        : `${sharedLocationLead} và quỹ thời gian còn lại hôm nay (từ ${minuteClockLabel(nowMin)}), chưa có điểm công khai mới nào phù hợp trước cuối ngày.`;
 
     return {
       kind: "ADVISED",
@@ -779,13 +804,13 @@ export async function runOngoingLocationScenario(input: {
       );
       return {
         kind: "ADVISED",
-        advice: `Các lượt trong Ngày ${todayObj.dayIndex} đã qua giờ và được giữ cố định. Theo vị trí bạn vừa chia sẻ, lượt sắp tới tiếp theo là ${nextName}, ${whenLabel}; bạn có thể hỏi khoảng cách hoặc thời gian di chuyển tới điểm này.`,
+        advice: `Các lượt trong Ngày ${todayObj.dayIndex} đã qua giờ và được giữ cố định. ${sharedLocationLead}, lượt sắp tới tiếp theo là ${nextName}, ${whenLabel}; bạn có thể hỏi khoảng cách hoặc thời gian di chuyển tới điểm này.`,
         suggestions: [],
       };
     }
     return {
       kind: "ADVISED",
-      advice: `Toàn bộ các lượt tham quan trong Ngày ${todayObj.dayIndex} đã qua giờ và được khóa cố định. Bạn có thể hỏi gợi ý điểm gần vị trí hiện tại hoặc xem lịch Ngày kế tiếp.`,
+      advice: `${sharedLocationLead}, toàn bộ các lượt tham quan trong Ngày ${todayObj.dayIndex} đã qua giờ và được khóa cố định. Bạn có thể hỏi gợi ý điểm gần vị trí hiện tại hoặc xem lịch Ngày kế tiếp.`,
       suggestions: [],
     };
   }
@@ -879,7 +904,7 @@ export async function runOngoingLocationScenario(input: {
       ? computeSunTimes(firstDest.latitude, firstDest.longitude, localDate).sunsetMinute
       : null;
 
-  const fallbackText = `Từ vị trí hiện tại lúc ${minuteClockLabel(nowMin)}, cần khoảng ${outboundDriveMinutes} phút để di chuyển tới ${firstName} (dự kiến có mặt từ ${minuteClockLabel(firstEta)}). Còn ${unlockedToday.length} điểm chưa hoàn thành trong Ngày ${todayObj.dayIndex}; toàn bộ các lượt đã qua giờ và nơi xuất phát ban đầu vẫn được giữ cố định.${sunsetNote !== null ? ` Giờ hoàng hôn tham khảo: ${formatMinute(sunsetNote)}.` : ""} Bạn có thể bấm áp dụng phương án bên dưới vào bản nháp.`;
+  const fallbackText = `${sharedLocationLead} (tính lúc ${minuteClockLabel(nowMin)}), cần khoảng ${outboundDriveMinutes} phút để di chuyển tới ${firstName} (dự kiến có mặt từ ${minuteClockLabel(firstEta)}). Còn ${unlockedToday.length} điểm chưa hoàn thành trong Ngày ${todayObj.dayIndex}; toàn bộ các lượt đã qua giờ và nơi xuất phát ban đầu vẫn được giữ cố định.${sunsetNote !== null ? ` Giờ hoàng hôn tham khảo: ${formatMinute(sunsetNote)}.` : ""} Bạn có thể bấm áp dụng phương án bên dưới vào bản nháp.`;
 
   const facts = buildVerifiedAdvisoryFacts({
     candidate: input.baseCandidate,
@@ -896,7 +921,7 @@ export async function runOngoingLocationScenario(input: {
   });
 
   const advice = await composeGroundedAdviceWithFallback({
-    message: `${input.message}\n[Vị trí hiện tại đã xác nhận: dự kiến ${outboundDriveMinutes} phút tới ${firstName} lúc ${minuteClockLabel(firstEta)}, giữ nguyên ${input.lockedVisitIds.size} lượt đã hoàn thành]`,
+    message: `${input.message}\n[Vị trí hiện tại đã xác nhận (${sharedLocationRef}): dự kiến ${outboundDriveMinutes} phút tới ${firstName} lúc ${minuteClockLabel(firstEta)}, giữ nguyên ${input.lockedVisitIds.size} lượt đã hoàn thành]`,
     facts,
     fallbackText,
     knownDestinationIds: new Set(input.allCatalogDestinations.map((d) => d.id)),

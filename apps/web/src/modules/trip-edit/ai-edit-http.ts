@@ -40,6 +40,7 @@ export const aiEditRequestSchema = z
     draft: editCandidateSchema.optional(),
     history: aiChatHistorySchema.optional(),
     location: inTripLocationSchema.optional(),
+    locationReused: z.boolean().optional(),
   })
   .strict();
 

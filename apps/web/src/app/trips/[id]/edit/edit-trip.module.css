@@ -3734,3 +3734,39 @@
   color: var(--tv-ink-3, var(--muted-foreground));
   cursor: not-allowed;
 }
+
+.aiTurnLocationActions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.aiUpdateLocationBtn {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: var(--tv-radius-control, 8px);
+  border: 1px solid var(--tv-line, var(--border));
+  background: var(--tv-surface, var(--card));
+  color: var(--tv-ink-2, var(--muted-foreground));
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color var(--tv-motion-fast, 120ms ease), color var(--tv-motion-fast, 120ms ease);
+}
+
+.aiUpdateLocationBtn:hover:not(:disabled) {
+  background: var(--tv-sunken, var(--muted));
+  color: var(--tv-ink, var(--foreground));
+}
+
+.aiUpdateLocationBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

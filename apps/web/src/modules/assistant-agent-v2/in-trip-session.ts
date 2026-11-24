@@ -22,7 +22,7 @@ import { createPlanningQaSession, planningQaStateSchema } from "./qa-session";
 import type { QaActionServices } from "./qa-actions";
 import { planningTurnKeySchema } from "./planning-actions";
 import { inTripApplyInputSchema, inTripReplanOutputSchema, inTripPreviewOutputSchema, type InTripActionServices, type SavedTripSnapshot } from "./in-trip-actions";
-import { inTripLocationSchema } from "../in-trip/in-trip-location";
+import { inTripLocationSchema, isInTripLocationFresh } from "../in-trip/in-trip-location";
 import { editClarificationSchema } from "../trip-edit/edit-clarification";
 import type { AssistantActionOutput } from "./assistant-actions";
 import { inTripReply, type InTripResponsePlan } from "./in-trip-response";
@@ -65,7 +65,10 @@ export async function startInTripV2Session(input: { tripId: string; headers: Hea
   await read(); // Authorization/ownership before private state or model work.
   const restored = input.resume ? inTripSessionStateSchema.parse(input.resume) : null;
   const qa = createPlanningQaSession(s.userId, input.headers, boundaries.qaForActor, undefined, restored?.qa);
-  let location: InTripLocation | null = restored?.location ?? null;
+  let location: InTripLocation | null =
+    restored?.location && isInTripLocationFresh(restored.location, s.now().getTime())
+      ? restored.location
+      : null;
   let locationFlow = createLocationFlowState();
   let awaitingLocation: { need: string; baseRevision: string; scopeDays?: number[] } | null = restored?.awaitingLocation ?? null;
   let clarification: Clarification | null = restored?.clarification ?? null;
@@ -183,6 +186,10 @@ export async function startInTripV2Session(input: { tripId: string; headers: Hea
     if ([...need].length > 500) throw new AppError("INVALID_INPUT", "Nhu cầu tối đa 500 ký tự.", 400);
     // Semantic materiality chooses the prompt; the deterministic future-day
     // guard in US-36/37 still prevents an absent location from bypassing checks.
+    if (location && !isInTripLocationFresh(location, s.now().getTime())) {
+      location = null;
+      pending = null;
+    }
     if (route.needsLocation && !location) { awaitingLocation = { need, baseRevision: trip.baseRevision, scopeDays: route.affectedDays }; return response(trip, "ASK_LOCATION"); }
     return propose(trip, need, undefined, route.affectedDays);
   }

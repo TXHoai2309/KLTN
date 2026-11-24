@@ -61,7 +61,11 @@ import { resolveAiStreamOutcome } from "@/modules/trip-edit/ai-stream-outcome";
 import type { EditResolution } from "@/modules/trip-edit/edit-clarification";
 import type { AdviceSuggestionCard } from "@/modules/trip-edit/saved-trip-advisory";
 import { requestBrowserLocation } from "@/modules/in-trip/browser-location";
-import { inTripLocationSchema, type InTripLocation } from "@/modules/in-trip/in-trip-location";
+import {
+  inTripLocationSchema,
+  isInTripLocationFresh,
+  type InTripLocation,
+} from "@/modules/in-trip/in-trip-location";
 import { createLocationFlowState, transitionLocationFlow } from "@/modules/in-trip/location-flow";
 import type { MapCoordinate } from "@/modules/map/map-model";
 import {
@@ -432,8 +436,15 @@ export default function EditTripClient({
         content: [...item.text.trim()].slice(0, MAX_AI_HISTORY_TURN_CHARS).join(""),
       }))
       .filter((item) => item.content.length > 0);
+    const freshSessionLocation =
+      sessionLocation && isInTripLocationFresh(sessionLocation) ? sessionLocation : null;
+    if (sessionLocation && !freshSessionLocation) {
+      setSessionLocation(null);
+    }
     const activeLocation =
-      liveTripStatus === "ONGOING" ? (overrideLocation ?? sessionLocation ?? undefined) : undefined;
+      liveTripStatus === "ONGOING" ? (overrideLocation ?? freshSessionLocation ?? undefined) : undefined;
+    const isReusingSessionLocation =
+      liveTripStatus === "ONGOING" && !overrideLocation && freshSessionLocation !== null;
     const shouldAppendOptimisticUser = !overrideLocation;
     const optimisticUserId = shouldAppendOptimisticUser ? `u-${++aiTurnSeqRef.current}` : null;
     setAiOpen(true);
@@ -496,6 +507,7 @@ export default function EditTripClient({
         draft: requestedDraft,
         ...(boundedHistory.length > 0 ? { history: boundedHistory } : {}),
         ...(activeLocation ? { location: activeLocation } : {}),
+        ...(isReusingSessionLocation ? { locationReused: true } : {}),
       },
       {
         signal: abortController.signal,
@@ -577,13 +589,16 @@ export default function EditTripClient({
     }
 
     if (decision.action === "REQUEST_LOCATION") {
+      const isCoverageRejection =
+        activeLocation !== undefined &&
+        decision.result.prompt.includes("ngoài phạm vi");
       setSessionLocation(null);
       setAiBarState({
         kind: "NEEDS_LOCATION",
         prompt: decision.result.prompt,
         pendingMessage: decision.result.pendingMessage,
         locationFlow: createLocationFlowState(),
-        manualPickerOpen: activeLocation !== undefined,
+        manualPickerOpen: isCoverageRejection,
         manualCoords: null,
         coverageError: null,
       });
@@ -1905,8 +1920,32 @@ export default function EditTripClient({
                     autoFocus={entryMode === "in-trip" || (!desktopSplit && mobileTab === "assistant")}
                     tripHeadline={`Trợ lý chuyến đi ${workspace.baseline.durationDays} ngày`}
                     showCollapseToggle={desktopSplit}
+                    hasSharedLocation={
+                      liveTripStatus === "ONGOING" &&
+                      sessionLocation !== null &&
+                      isInTripLocationFresh(sessionLocation)
+                    }
+                    onRequestUpdateLocation={() => {
+                      const lastUserMessage = [...aiThread]
+                        .reverse()
+                        .find((item) => item.role === "user")?.text;
+                      setSessionLocation(null);
+                      setAiBarState({
+                        kind: "NEEDS_LOCATION",
+                        prompt: "Chọn cách cập nhật vị trí hiện tại để tính lại câu trả lời.",
+                        pendingMessage:
+                          lastUserMessage ??
+                          (aiInput.trim() || "Cập nhật thông tin quanh vị trí hiện tại"),
+                        locationFlow: createLocationFlowState(),
+                        manualPickerOpen: false,
+                        manualCoords: null,
+                        coverageError: null,
+                      });
+                    }}
                     onClearHistory={() => {
+                      aiAbortRef.current?.abort();
                       setAiThread([]);
+                      setSessionLocation(null);
                       setAiBarState({ kind: "IDLE" });
                       void clearTripEditChatMessagesClient(tripId);
                     }}

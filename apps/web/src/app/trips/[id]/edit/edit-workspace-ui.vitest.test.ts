@@ -1015,4 +1015,42 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(css).toContain("aiLocationSheet");
     expect(pickerCss).toContain("mapSheet");
   });
+
+  it("Point 5: clears session location on clear history, checks 15-min TTL before reuse, and renders 'Cập nhật vị trí' button on shared-location replies", async () => {
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const clientSource = await readFile(resolve(dir, "./edit-trip-client.tsx"), "utf8");
+
+    const onRequestUpdateLocation = vi.fn();
+    const reusedReplyHtml = renderToStaticMarkup(createElement(AiEditBar, {
+      open: true,
+      onToggleOpen: () => {},
+      inputValue: "",
+      onInputChange: () => {},
+      disabled: false,
+      hasSharedLocation: true,
+      onRequestUpdateLocation,
+      messages: [
+        { id: "u-1", role: "user", text: "Quanh đây có quán ăn nào không?" },
+        {
+          id: "a-1",
+          role: "assistant",
+          kind: "ADVISED",
+          text: "Theo vị trí bạn chia sẻ lúc 23:30 (quanh bán kính 3 km, gợi ý từ Google Maps, chưa kiểm tra; giờ mở cửa thực tế có thể khác), có một số quán ăn gần bạn:",
+        },
+      ],
+      state: { kind: "ADVISED", advice: "Theo vị trí bạn chia sẻ lúc 23:30..." },
+      onSubmitPrompt: () => {},
+      onRetry: () => {},
+      onUndoAiStep: () => {},
+      onDismissApplied: () => {},
+    }));
+    expect(reusedReplyHtml).toContain("Cập nhật vị trí");
+
+    // Verify client clears sessionLocation inside onClearHistory and checks freshness
+    expect(clientSource).toMatch(/onClearHistory=\{[\s\S]*?setSessionLocation\(null\)/);
+    expect(clientSource).toContain("isInTripLocationFresh");
+    expect(clientSource).toContain("locationReused");
+    // Preserve US-35 storage & continuous tracking invariants
+    expect(clientSource).not.toMatch(/localStorage|sessionStorage|indexedDB|document\.cookie|watchPosition/u);
+  });
 });

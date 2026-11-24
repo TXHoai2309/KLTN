@@ -506,6 +506,7 @@ export type AiTripEditInput = {
   draft?: EditCandidate;
   history?: AiChatHistoryTurn[];
   location?: InTripLocation;
+  locationReused?: boolean;
 };
 
 export type AiTripEditOutcome =
@@ -545,6 +546,7 @@ function buildAiRequestBody(input: AiTripEditInput): string {
     ...(validatedDraft ? { draft: validatedDraft } : {}),
     ...(validatedHistory ? { history: validatedHistory } : {}),
     ...(validatedLocation ? { location: validatedLocation } : {}),
+    ...(validatedLocation && input.locationReused ? { locationReused: true } : {}),
   });
 }
 

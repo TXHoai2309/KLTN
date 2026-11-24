@@ -972,4 +972,107 @@ describe("Saved-trip assistant Ticket 06: Conditional ONGOING GPS & manual locat
     const streamed = await chunksPromise;
     expect(streamed).toBe("Điểm đầu tiên ngày 2 là Thị trấn Mèo Vạc");
   });
+
+  it("Point 5: includes HH:MM timestamp when reusing fresh location (<= 15m) and re-prompts NEEDS_LOCATION when expired (> 15m)", async () => {
+    const { database, draft } = createLocationFixture();
+    // ongoingAt1100Vn = 2026-10-20T04:00:00.000Z (11:00 VN)
+
+    // 1. Reused location 12 minutes old (10:48 VN at 11:00 VN): answers with "theo vị trí bạn chia sẻ lúc 10:48"
+    const reusedAt1048 = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?",
+        draft,
+        location: {
+          source: "GPS",
+          latitude: 23.2785,
+          longitude: 105.3625,
+          accuracyMeters: 15,
+          capturedAt: "2026-10-20T03:48:00.000Z", // 10:48 VN (12m ago)
+        },
+      },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("not used"); } },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 1200, distanceMeters: 12_000 }),
+      },
+      ongoingAt1100Vn,
+    );
+    expect(reusedAt1048.status).toBe("ADVISED");
+    if (reusedAt1048.status === "ADVISED") {
+      expect(reusedAt1048.advice).toContain("theo vị trí bạn chia sẻ lúc 10:48");
+    }
+
+    // 2. Same-minute location explicitly marked as locationReused: true -> still prints HH:MM
+    const sameMinReused = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Quanh chỗ mình đang đứng có quán ăn nào mở muộn không?",
+        draft,
+        location: {
+          source: "GPS",
+          latitude: 23.2785,
+          longitude: 105.3625,
+          accuracyMeters: 15,
+          capturedAt: ongoingAt1100Vn.toISOString(), // 11:00 VN
+        },
+        locationReused: true,
+      },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("not used"); } },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 600, distanceMeters: 2_000 }),
+        places: async () => ({
+          status: "RESULTS" as const,
+          places: [
+            {
+              placeId: "ext-food-1",
+              name: "Quán Cơm Đêm Phố Cổ",
+              latitude: 23.279,
+              longitude: 105.363,
+              types: ["restaurant"],
+            },
+          ],
+        }),
+      },
+      new Date(ongoingAt1100Vn.getTime() + 10_000),
+    );
+    expect(sameMinReused.status).toBe("ADVISED");
+    if (sameMinReused.status === "ADVISED") {
+      expect(sameMinReused.advice).toContain("Theo vị trí bạn chia sẻ lúc 11:00");
+    }
+
+    // 3. Expired location (16 minutes old: 10:44 VN at 11:00 VN) -> must prompt NEEDS_LOCATION again
+    const expiredRes = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?",
+        draft,
+        location: {
+          source: "GPS",
+          latitude: 23.2785,
+          longitude: 105.3625,
+          accuracyMeters: 15,
+          capturedAt: "2026-10-20T03:44:00.000Z", // 10:44 VN (16m ago)
+        },
+      },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("not used"); } },
+        getRoute: async () => { throw new Error("Must not call getRoute when location is expired"); },
+      },
+      ongoingAt1100Vn,
+    );
+    expect(expiredRes.status).toBe("NEEDS_LOCATION");
+    if (expiredRes.status === "NEEDS_LOCATION") {
+      expect(expiredRes.prompt).toContain("15 phút");
+      expect(expiredRes.pendingMessage).toBe("Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?");
+    }
+  });
 });

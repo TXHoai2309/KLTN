@@ -416,6 +416,8 @@ export type AiEditBarProps = {
   autoFocus?: boolean;
   tripHeadline?: string;
   showCollapseToggle?: boolean;
+  hasSharedLocation?: boolean;
+  onRequestUpdateLocation?: () => void;
   onClearHistory?: () => void;
   onSubmitPrompt: (prompt: string, resolution?: EditResolution) => void;
   onStopStream?: () => void;
@@ -466,6 +468,8 @@ export default function AiEditBar({
   autoFocus = false,
   tripHeadline,
   showCollapseToggle = false,
+  hasSharedLocation = false,
+  onRequestUpdateLocation,
   onClearHistory,
   onSubmitPrompt,
   onStopStream,
@@ -601,6 +605,18 @@ export default function AiEditBar({
     state.kind === "CLARIFYING" &&
     lastMessage?.role === "assistant" &&
     lastMessage.text.trim() === state.clarification.prompt.trim();
+  const latestSharedLocationEntryId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const entry = messages[i];
+      if (
+        entry?.role === "assistant" &&
+        /theo vị trí bạn (?:chia sẻ lúc \d{2}:\d{2}|vừa chia sẻ)/iu.test(entry.text)
+      ) {
+        return entry.id;
+      }
+    }
+    return null;
+  }, [messages]);
 
   function submitCurrentPrompt() {
     const trimmed = inputValue.trim();
@@ -825,6 +841,24 @@ export default function AiEditBar({
                             )}
                           </div>
                         )}
+                        {entry.role === "assistant" &&
+                          entry.id === latestSharedLocationEntryId &&
+                          hasSharedLocation &&
+                          onRequestUpdateLocation &&
+                          !isBusy &&
+                          state.kind !== "NEEDS_LOCATION" && (
+                            <div className={styles.aiTurnLocationActions}>
+                              <button
+                                type="button"
+                                className={styles.aiUpdateLocationBtn}
+                                disabled={controlsDisabled}
+                                onClick={onRequestUpdateLocation}
+                              >
+                                <Navigation size={12} aria-hidden="true" />
+                                Cập nhật vị trí
+                              </button>
+                            </div>
+                          )}
                       </div>
                     );
                   })}

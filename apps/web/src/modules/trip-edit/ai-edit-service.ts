@@ -60,7 +60,11 @@ import {
   parseLocationDependentRequest,
   runOngoingLocationScenario,
 } from "./saved-trip-location-guidance";
-import type { InTripLocation } from "../in-trip/in-trip-location";
+import {
+  formatLocationSharedClockVi,
+  isInTripLocationFresh,
+  type InTripLocation,
+} from "../in-trip/in-trip-location";
 import { effectiveTripStatus } from "../trip-read/trip-status";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import {
@@ -225,6 +229,7 @@ export type AiEditRequest = {
   draft?: EditCandidate;
   history?: AiChatHistoryTurn[];
   location?: InTripLocation;
+  locationReused?: boolean;
 };
 
 export type AiEditNeedsLocationResult = {
@@ -1137,14 +1142,27 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
       })
     : { needsCurrentLocation: false, intentMode: "TRAFFIC_RECOVER" as const };
 
-  if (preLocationParsed.needsCurrentLocation && liveTripStatus === "ONGOING" && !request.location) {
-    const prompt =
-      "Yêu cầu này cần biết vị trí bạn đang đứng để tính chính xác quãng đường và thời gian tới các điểm còn lại. Bạn hãy chia sẻ GPS một lần hoặc chọn vị trí thủ công trên bản đồ.";
+  const freshLocation =
+    request.location && isInTripLocationFresh(request.location, timeReference.getTime())
+      ? request.location
+      : undefined;
+  const expiredClock =
+    request.location && !freshLocation
+      ? formatLocationSharedClockVi(request.location.capturedAt)
+      : "";
+  const needsLocationPrompt =
+    request.location && !freshLocation
+      ? expiredClock
+        ? `Vị trí bạn chia sẻ lúc ${expiredClock} đã quá 15 phút. Bạn hãy chia sẻ lại GPS một lần hoặc chọn vị trí thủ công trên bản đồ.`
+        : "Vị trí bạn chia sẻ đã quá 15 phút. Bạn hãy chia sẻ lại GPS một lần hoặc chọn vị trí thủ công trên bản đồ."
+      : "Yêu cầu này cần biết vị trí bạn đang đứng để tính chính xác quãng đường và thời gian tới các điểm còn lại. Bạn hãy chia sẻ GPS một lần hoặc chọn vị trí thủ công trên bản đồ.";
+
+  if (preLocationParsed.needsCurrentLocation && liveTripStatus === "ONGOING" && !freshLocation) {
     return {
       status: "NEEDS_LOCATION",
-      prompt,
+      prompt: needsLocationPrompt,
       pendingMessage: request.message,
-      aiSummary: prompt,
+      aiSummary: needsLocationPrompt,
     };
   }
 
@@ -1260,14 +1278,12 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
     hydratedPlan.candidateVisitIds.length === 0 &&
     hydratedPlan.candidateDestinationIds.length === 0;
 
-  if (locationSignal && liveTripStatus === "ONGOING" && !request.location) {
-    const prompt =
-      "Yêu cầu này cần biết vị trí bạn đang đứng để tính chính xác quãng đường và thời gian tới các điểm còn lại. Bạn hãy chia sẻ GPS một lần hoặc chọn vị trí thủ công trên bản đồ.";
+  if (locationSignal && liveTripStatus === "ONGOING" && !freshLocation) {
     return {
       status: "NEEDS_LOCATION",
-      prompt,
+      prompt: needsLocationPrompt,
       pendingMessage: request.message,
-      aiSummary: prompt,
+      aiSummary: needsLocationPrompt,
     };
   }
 
@@ -1333,7 +1349,8 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
         message: request.message,
         mode: "ADVISED",
         tripStatus: liveTripStatus,
-        location: request.location,
+        location: freshLocation,
+        locationReused: request.locationReused,
         baseCandidate,
         savedShape,
         placeNames,

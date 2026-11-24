@@ -1,7 +1,14 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { AppError } from "../../server/http/app-error";
 import { isValidMapCoordinate, type MapCoordinate } from "../map/map-model";
-import { inTripLocationSchema, normalizeInTripLocation, type InTripLocation } from "./in-trip-location";
+import {
+  formatLocationSharedClockVi,
+  IN_TRIP_LOCATION_TTL_MS,
+  inTripLocationSchema,
+  isInTripLocationFresh,
+  normalizeInTripLocation,
+  type InTripLocation,
+} from "./in-trip-location";
 
 const input = {
   source: "GPS",
@@ -120,5 +127,17 @@ describe("in-trip location normalization", () => {
       expect(fetch).not.toHaveBeenCalled();
       expect(log).not.toHaveBeenCalled();
     } finally { date.mockRestore(); fetch.mockRestore(); log.mockRestore(); }
+  });
+
+  it("Point 5: enforces 15-minute TTL on capturedAt and formats Vietnam clock HH:MM", () => {
+    expect(IN_TRIP_LOCATION_TTL_MS).toBe(15 * 60 * 1000);
+    const capturedMs = Date.parse("2026-11-23T16:42:00.000Z"); // 23:42 VN
+    expect(formatLocationSharedClockVi("2026-11-23T16:42:00.000Z")).toBe("23:42");
+    expect(formatLocationSharedClockVi("2026-10-15T09:05:00+07:00")).toBe("09:05");
+
+    expect(isInTripLocationFresh({ capturedAt: "2026-11-23T16:42:00.000Z" }, capturedMs)).toBe(true);
+    expect(isInTripLocationFresh({ capturedAt: "2026-11-23T16:42:00.000Z" }, capturedMs + 15 * 60 * 1000)).toBe(true);
+    expect(isInTripLocationFresh({ capturedAt: "2026-11-23T16:42:00.000Z" }, capturedMs + 15 * 60 * 1000 + 1)).toBe(false);
+    expect(isInTripLocationFresh({ capturedAt: "invalid-timestamp" }, capturedMs)).toBe(false);
   });
 });

@@ -308,4 +308,14 @@ describe("V2-06 saved-trip authority through existing US-35/36/37", () => {
     expect((await a.send("Đồng ý", "v206-two-tabs-a-apply")).plan.goal).toBe("APPLY_SUCCESS");
     const stale = await b.send("Đồng ý", "v206-two-tabs-b-apply"); expect(stale.plan).toMatchObject({ goal: "APPLY_REJECTED", code: "TRIP_REVISION_CONFLICT" }); expect(f.writes.filter(v => v === "revision")).toHaveLength(1);
   });
+
+  it("Point 5: expires shared location after 15 minutes and re-prompts ASK_LOCATION", async () => {
+    const f = fixture(); const session = await f.start();
+    await session.provideLocation(location, "v206-ttl-set");
+    f.setNow(new Date("2026-10-27T03:16:00.000Z")); // 16m later (> 15m TTL)
+    f.edit([1], true);
+    const expired = await session.send("Từ vị trí hiện tại điều chỉnh hôm nay", "v206-ttl-expired");
+    expect(expired.plan.goal).toBe("ASK_LOCATION");
+    expect(expired.plan.currentLocationSource).toBe("UNKNOWN");
+  });
 });
