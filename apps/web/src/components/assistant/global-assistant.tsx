@@ -29,6 +29,43 @@ export function isGlobalAssistantVisibleRoute(pathname: string | null): boolean 
   return !/^\/(admin|assistant|login|register|forgot-password|reset-password)(\/|$)/.test(pathname);
 }
 
+/** Detect any open page-level dialog/sheet outside the floating assistant portal itself. */
+export function hasOpenDialogOrSheet(doc?: Document): boolean {
+  if (!doc || typeof doc.querySelectorAll !== "function") return false;
+  const candidates = doc.querySelectorAll(
+    'dialog[open], [role="dialog"], [role="alertdialog"], [aria-modal="true"]',
+  );
+  for (const el of Array.from(candidates)) {
+    if (typeof el.closest === "function" && el.closest("[data-assistant-overlay-root]")) continue;
+    if (el.hasAttribute("hidden")) continue;
+    if (el.getAttribute("aria-hidden") === "true") continue;
+    if (el.getAttribute("data-state") === "closed") continue;
+    if (el.tagName === "DIALOG" && !el.hasAttribute("open")) continue;
+    return true;
+  }
+  return false;
+}
+
+/** Shrink floating launcher when scrolling down; expand back on scroll up or reduced-motion. */
+export function nextAssistantLauncherCompact({
+  scrollY,
+  lastScrollY,
+  wasCompact,
+  prefersReducedMotion,
+}: {
+  scrollY: number;
+  lastScrollY: number;
+  wasCompact: boolean;
+  prefersReducedMotion: boolean;
+}): boolean {
+  if (prefersReducedMotion) return false;
+  if (scrollY <= 80) return false;
+  const delta = scrollY - lastScrollY;
+  if (delta > 8 && scrollY > 120) return true;
+  if (delta < -8) return false;
+  return wasCompact;
+}
+
 /** Root-layout owner: normal client navigation hides/shows a view, never its session. */
 export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -37,16 +74,38 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<{ context: QaContext; name?: string }>({ context: { type: "GENERAL" } });
   const [hasSession, setHasSession] = useState(false);
   const [open, setOpen] = useState(false);
-  // Shrink to an icon once the page is scrolled so the pill covers less of the content.
+  // Shrink to an icon while scrolling down, restore when scrolling up (disabled on prefers-reduced-motion).
   const [compact, setCompact] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const lastScrollYRef = useRef(0);
   const panelId = useId();
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    const update = () => setCompact(window.scrollY > 160);
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
+    const media = typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)")
+      : null;
+    lastScrollYRef.current = window.scrollY;
+    const syncCompact = () => {
+      const scrollY = window.scrollY;
+      const prefersReducedMotion = media?.matches ?? false;
+      setCompact(prev =>
+        nextAssistantLauncherCompact({
+          scrollY,
+          lastScrollY: lastScrollYRef.current,
+          wasCompact: prev,
+          prefersReducedMotion,
+        }),
+      );
+      lastScrollYRef.current = scrollY;
+    };
+    syncCompact();
+    window.addEventListener("scroll", syncCompact, { passive: true });
+    media?.addEventListener?.("change", syncCompact);
+    return () => {
+      window.removeEventListener("scroll", syncCompact);
+      media?.removeEventListener?.("change", syncCompact);
+    };
   }, []);
 
   const register = useCallback((destination: Destination) => {
@@ -69,6 +128,22 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
     });
   }, [hasSession, current]);
 
+  // Keep after destination-switch effect (effects[2]) and hide launcher whenever any sheet/dialog is open.
+  useEffect(() => {
+    if (typeof document === "undefined" || typeof document.querySelectorAll !== "function") return;
+    const sync = () => setDialogOpen(hasOpenDialogOrSheet(document));
+    sync();
+    if (typeof MutationObserver === "undefined" || !document.body) return;
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["open", "hidden", "aria-hidden", "aria-modal", "role", "data-state"],
+    });
+    return () => observer.disconnect();
+  }, [pathname]);
+
   function openPanel() {
     if (!hasSession) {
       setActive({ context: nextContext, name: current?.name });
@@ -87,7 +162,7 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
     {children}
     {mounted && createPortal(
       <div data-assistant-overlay-root="" className="global-assistant-root">
-        <aside className="global-assistant-launcher" data-compact={compact} hidden={!routeVisible || open} aria-label="Trợ lý AI">
+        <aside className="global-assistant-launcher" data-compact={compact} hidden={!routeVisible || open || dialogOpen} aria-label="Trợ lý AI">
           <button ref={triggerRef} type="button" onClick={openPanel} aria-label="Hỏi trợ lý AI" title="Hỏi trợ lý AI"
             aria-haspopup="dialog" aria-expanded={open && routeVisible} aria-controls={hasSession ? panelId : undefined}>
             <Sparkles size={20} aria-hidden="true" /><span className="global-assistant-launcher-label">Hỏi trợ lý AI</span>
