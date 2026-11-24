@@ -386,3 +386,26 @@
     flex: 1 1 100%;
   }
 }
+
+/* Flow inside TOC shell (P3) */
+.emg.emg-gen .emg-article-flow > :is(section, .emg-prose, .emg-gen-heading, .emg-lead-heading) {
+  width: 100%;
+  max-width: var(--emg-reading-width);
+  margin-bottom: var(--emg-space);
+  padding-inline: 0;
+}
+
+.emg.emg-gen .emg-article-single .emg-article-flow > :is(section, .emg-prose, .emg-gen-heading, .emg-lead-heading) {
+  margin-inline: auto;
+}
+
+.emg.emg-gen .emg-article-flow > .emg-mosaic-section,
+.emg.emg-gen .emg-article-flow > .emg-gallery-section,
+.emg.emg-gen .emg-article-flow > .emg-full-image,
+.emg.emg-gen .emg-article-flow > .emg-map {
+  max-width: 100%;
+}
+
+.emg.emg-gen .emg-gen-facts {
+  box-shadow: none;
+}

@@ -227,6 +227,195 @@
   border-top: 1px solid var(--detail-line);
 }
 
+.public-detail-category-sub {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--tv-ink-muted, var(--detail-muted));
+  line-height: 1.5;
+}
+
+.public-detail-area-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--tv-ink-muted, var(--detail-muted));
+}
+
+/* ─── Summary Card right below Hero (P3) ─── */
+.public-detail-summary {
+  background: var(--tv-surface, var(--detail-surface));
+  border: 1px solid var(--tv-line, var(--detail-line));
+  border-radius: var(--tv-radius, 12px);
+  padding: 20px 22px;
+  margin: 0 0 28px;
+}
+
+.public-detail-summary-top {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--tv-line, var(--detail-line));
+}
+
+.public-detail-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.public-detail-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.public-detail-plan-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: var(--tv-radius-sm, 8px);
+  background: var(--tv-accent, var(--detail-green));
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: none;
+  transition: background-color 0.15s ease;
+}
+
+.public-detail-plan-cta:hover {
+  background: var(--tv-accent-strong, var(--detail-green-dark));
+}
+
+.public-detail-ask-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: var(--tv-radius-sm, 8px);
+  border: 1px solid var(--tv-line, var(--detail-line));
+  background: var(--tv-paper, var(--detail-surface));
+  color: var(--tv-ink, var(--detail-ink));
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.public-detail-ask-cta:hover {
+  background: var(--tv-sunken, var(--detail-tint));
+}
+
+.public-detail-summary-fav .favorite-button {
+  min-height: 34px !important;
+  padding: 5px 12px !important;
+  font-size: 13.5px;
+  font-weight: 500;
+  border-radius: var(--tv-radius-sm, 8px);
+  box-shadow: none;
+}
+
+.public-detail-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.public-detail-summary-facts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.public-detail-summary-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--tv-radius-sm, 8px);
+  border: 1px solid var(--tv-line, var(--detail-line));
+  background: var(--tv-paper, var(--detail-surface));
+}
+
+.public-detail-summary-row dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tv-ink-muted, var(--detail-muted));
+}
+
+.public-detail-summary-row dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tv-ink, var(--detail-ink));
+  line-height: 1.5;
+}
+
+.public-detail-summary-hours {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.public-detail-day-select {
+  min-height: 30px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--tv-line, var(--detail-line));
+  background: var(--tv-surface, var(--detail-surface));
+  color: var(--tv-ink, var(--detail-ink));
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.public-detail-weather-brief {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.public-detail-weather-jump {
+  color: var(--tv-accent, var(--detail-green));
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.public-detail-summary-map .destination-map {
+  border-radius: var(--tv-radius-sm, 8px);
+  overflow: hidden;
+  border: 1px solid var(--tv-line, var(--detail-line));
+}
+
+@media (max-width: 820px) {
+  .public-detail-summary {
+    padding: 16px;
+  }
+  .public-detail-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .public-detail-ai-btn {
   display: inline-flex;
   align-items: center;

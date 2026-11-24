@@ -3,20 +3,26 @@ import DestinationDetailIframeMap from "@/components/map/destination-detail-ifra
 import { formatSuggestedDuration } from "@/modules/destination/public-destination-contract";
 import type { EditorialContext, EditorialLayoutV2, EditorialNodeV2, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import { isV2Layout } from "@/modules/destination-editorial/editorial-contract";
-import { formatHeroLocation, renderFormattedEditorialText } from "./editorial-story";
+import { formatHeroLocation, renderEditorialSectionHeading, renderFormattedEditorialText } from "./editorial-story";
 import EditorialPhoto from "./editorial-photo";
+import { EditorialTocNav } from "./editorial-toc";
 import type { EditorialPageData } from "./editorial-renderer";
-import { cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
+import { cleanAreaDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { stripMarkdownHeading, editorialTitlePhrases } from "@/modules/destination-editorial/editorial-content";
-import { hasEditorialCoordinates, hasEditorialFacts } from "@/modules/destination-editorial/editorial-display-policy";
+import { editorialValue, hasEditorialCoordinates, hasEditorialFacts } from "@/modules/destination-editorial/editorial-display-policy";
+import { projectPublicEditorialV2 } from "@/modules/destination-editorial/editorial-display-transform";
 import { editorialHeroPlan } from "@/modules/destination-editorial/editorial-hero";
 
 export default function EditorialGenerativeRenderer({
   data,
   editorial,
+  summarySlot,
+  sanitizeForReader = true,
 }: {
   data: EditorialPageData;
   editorial: ResolvedEditorial;
+  summarySlot?: React.ReactNode;
+  sanitizeForReader?: boolean;
 }) {
   if (!isV2Layout(editorial.layout)) return null;
 
@@ -28,6 +34,13 @@ export default function EditorialGenerativeRenderer({
     containerWidth: "STANDARD",
   };
   const { media, sources } = editorial;
+  const projection = sanitizeForReader
+    ? projectPublicEditorialV2(layout.sections)
+    : { sections: layout.sections.filter(sec => !sec.hidden), headings: new Map(), toc: [] };
+  const heroSections = projection.sections.filter(sec => sec.type === "HERO");
+  const bodySections = projection.sections.filter(sec => sec.type !== "HERO");
+  const displayCategory = cleanTravelerDisplay(editorialValue(data.category));
+  const cleanFactArea = cleanAreaDisplayLabel(data.area);
 
   const findPhoto = (id: string, node: EditorialNodeV2, priority = false) => {
     const item = media.find(m => m.id === id);
@@ -57,10 +70,11 @@ export default function EditorialGenerativeRenderer({
     );
   };
 
-  const renderNode = (node: EditorialNodeV2, index: number): React.ReactNode => {
+  const renderNode = (node: EditorialNodeV2, _index: number): React.ReactNode => {
     if (node.hidden) return null;
 
     const cleanTitle = cleanPlaceDisplayName(stripMarkdownHeading(node.title ?? ""));
+    const heading = projection.headings.get(node.id);
     let cleanText = cleanTravelerDisplay(node.text ?? "");
     if (cleanTitle && cleanText) {
       const normTitle = stripMarkdownHeading(cleanTitle).toLowerCase();
@@ -93,7 +107,6 @@ export default function EditorialGenerativeRenderer({
           >
             {composition === "PANORAMA" && heroPhoto && <div className="emg-hero-visual">{heroPhoto}</div>}
             <div className="emg-title" data-title-length={title.length > 45 ? "long" : "short"}>
-              <p className="emg-kicker">Hà Giang · {data.category}</p>
               <h1>
                 {phrases.map((p, i) => (
                   <React.Fragment key={i}>
@@ -102,7 +115,8 @@ export default function EditorialGenerativeRenderer({
                   </React.Fragment>
                 ))}
               </h1>
-              {node.deck && <p className="emg-deck">{node.deck}</p>}
+              {displayCategory && <p className="emg-category-sub">{displayCategory}</p>}
+              {node.deck && <p className="emg-deck">{cleanTravelerDisplay(node.deck)}</p>}
               {locationText && <span className="emg-location">{locationText}</span>}
             </div>
             {composition !== "PANORAMA" && heroPhoto && <div className="emg-hero-visual">{heroPhoto}</div>}
@@ -111,11 +125,11 @@ export default function EditorialGenerativeRenderer({
       }
 
       case "LEAD": {
-        if (!cleanText && !cleanTitle) return null;
+        if (!cleanText && !cleanTitle && !heading) return null;
         return (
           <section key={node.id} className="emg-intro">
             <div className="emg-prose">
-              {cleanTitle && <h2>{cleanTitle}</h2>}
+              {renderEditorialSectionHeading(cleanTitle, heading)}
               {cleanText && <p>{renderFormattedEditorialText(cleanText)}</p>}
             </div>
           </section>
@@ -128,8 +142,8 @@ export default function EditorialGenerativeRenderer({
         return (
           <section key={node.id} className={`emg-split emg-image-${placement} emg-ratio-${(node.columnRatio ?? "EQUAL").toLowerCase()} ${photo ? "" : "no-image"}`}>
             <div className={`emg-prose ${node.emphasis === "FEATURED" ? "emg-prose-featured" : ""}`}>
-              {cleanTitle && <h2>{cleanTitle}</h2>}
-              {cleanText.split(/\n\s*\n/).map((p, i) => (
+              {renderEditorialSectionHeading(cleanTitle, heading)}
+              {cleanText && cleanText.split(/\n\s*\n/).map((p, i) => (
                 <p key={i}>{renderFormattedEditorialText(p)}</p>
               ))}
               {node.children?.map((child, i) => renderNode(child, i))}
@@ -147,7 +161,7 @@ export default function EditorialGenerativeRenderer({
             key={node.id}
             className={`emg-gen-grid emg-gen-cols-${cols} emg-gen-gap-${(node.gap ?? "medium").toLowerCase()}`}
           >
-            {cleanTitle && <h2 className="emg-gen-grid-title">{cleanTitle}</h2>}
+            {renderEditorialSectionHeading(cleanTitle, heading, "emg-gen-grid-title")}
             {cleanText && (
               <div className={`emg-gen-grid-lead ${cols > 1 && !node.children?.length ? "emg-columns-text" : ""} emg-prose`}>
                 {cleanText.split(/\n\s*\n/).map((p, i) => (
@@ -177,7 +191,7 @@ export default function EditorialGenerativeRenderer({
         });
         return (
           <section key={node.id} className="emg-gen-section">
-            {cleanTitle && <h2>{cleanTitle}</h2>}
+            {renderEditorialSectionHeading(cleanTitle, heading)}
             {cleanText && (
               <div className={`emg-prose ${node.emphasis === "FEATURED" ? "emg-prose-featured" : ""}`}>
                 {cleanText.split(/\n\s*\n/).map((p, i) => (
@@ -192,15 +206,17 @@ export default function EditorialGenerativeRenderer({
       }
 
       case "HEADING": {
-        return cleanTitle || cleanText ? <h2 key={node.id} className="emg-gen-heading">{cleanTitle || cleanText}</h2> : null;
+        const value = cleanTitle || cleanText;
+        if (!value) return null;
+        return renderEditorialSectionHeading(value, heading, "emg-gen-heading");
       }
 
       case "PARAGRAPH": {
-        if (!cleanText && !cleanTitle) return null;
+        if (!cleanText && !cleanTitle && !heading) return null;
         return (
           <div key={node.id} className={`emg-prose ${node.emphasis === "FEATURED" ? "emg-prose-featured" : ""}`}>
-            {cleanTitle && <h2>{cleanTitle}</h2>}
-            {cleanText.split(/\n\s*\n/).map((p, i) => (
+            {renderEditorialSectionHeading(cleanTitle, heading)}
+            {cleanText && cleanText.split(/\n\s*\n/).map((p, i) => (
               <p key={i}>{renderFormattedEditorialText(p)}</p>
             ))}
           </div>
@@ -209,14 +225,14 @@ export default function EditorialGenerativeRenderer({
 
       case "IMAGE": {
         if (!node.mediaIds?.[0]) return null;
-        return <section key={node.id} className="emg-gen-image">{cleanTitle && <h2>{cleanTitle}</h2>}{cleanText && <div className="emg-prose"><p>{renderFormattedEditorialText(cleanText)}</p></div>}{findPhoto(node.mediaIds[0], node)}</section>;
+        return <section key={node.id} className="emg-gen-image">{renderEditorialSectionHeading(cleanTitle, heading)}{cleanText && <div className="emg-prose"><p>{renderFormattedEditorialText(cleanText)}</p></div>}{findPhoto(node.mediaIds[0], node)}</section>;
       }
 
       case "PANORAMA": {
         if (!node.mediaIds?.[0]) return null;
         return (
           <section key={node.id} className="emg-full-image">
-            {cleanTitle && <h2>{cleanTitle}</h2>}
+            {renderEditorialSectionHeading(cleanTitle, heading)}
             {cleanText && <div className="emg-prose"><p>{renderFormattedEditorialText(cleanText)}</p></div>}
             {findPhoto(node.mediaIds[0], node)}
           </section>
@@ -227,7 +243,7 @@ export default function EditorialGenerativeRenderer({
         if (!node.mediaIds?.length) return null;
         return (
           <section key={node.id} className={`emg-mosaic-section ${node.crop === "original" ? "emg-mosaic-original" : ""}`}>
-            {cleanTitle && <h2 className="emg-mosaic-title">{cleanTitle}</h2>}
+            {renderEditorialSectionHeading(cleanTitle, heading, "emg-mosaic-title")}
             {cleanText && <div className="emg-prose"><p>{renderFormattedEditorialText(cleanText)}</p></div>}
             <div className="emg-mosaic-grid" data-images={node.mediaIds.length}>
               {node.mediaIds.map((id, mIdx) => (
@@ -248,7 +264,7 @@ export default function EditorialGenerativeRenderer({
         const galleryType = node.gallery ?? "grid";
         return (
           <section key={node.id} className="emg-gallery-section">
-            {cleanTitle && <h2>{cleanTitle}</h2>}
+            {renderEditorialSectionHeading(cleanTitle, heading)}
             {cleanText && <div className="emg-prose"><p>{renderFormattedEditorialText(cleanText)}</p></div>}
             <div className={`emg-gallery emg-gallery-${galleryType}`} data-images={node.mediaIds.length}>
               {node.mediaIds.map(id => findPhoto(id, node))}
@@ -272,12 +288,12 @@ export default function EditorialGenerativeRenderer({
         if (!node.entries?.length) return null;
         return (
           <section key={node.id} className="emg-timeline">
-            <h2>{cleanTitle || "Dấu mốc lịch sử"}</h2>
+            <h2 id={heading?.anchorId}>{heading?.kind === "h2" ? heading.text : cleanTitle || "Dấu mốc lịch sử"}</h2>
             <ol>
               {node.entries.map((entry, eIdx) => (
                 <li key={eIdx}>
-                  <strong>{entry.label}</strong>
-                  <p>{entry.text}</p>
+                  <strong>{cleanTravelerDisplay(entry.label)}</strong>
+                  <p>{cleanTravelerDisplay(entry.text)}</p>
                   <span>
                     {entry.sourceIds.map(id => { const t = sources.find(s => s.id === id)?.title; return t ? (cleanDocumentSourceTitle(t) || t) : ""; }).filter(Boolean).join(" · ")}
                   </span>
@@ -292,16 +308,16 @@ export default function EditorialGenerativeRenderer({
         if (!hasEditorialFacts(data)) return null;
         return (
           <section key={node.id} className="emg-facts emg-gen-facts" aria-label="Điểm nhấn">
-            {data.area && (
+            {cleanFactArea && (
               <div className="emg-fact-item">
                 <span className="emg-fact-label">Khu vực</span>
-                <strong className="emg-fact-value">{data.area}</strong>
+                <strong className="emg-fact-value">{cleanFactArea}</strong>
               </div>
             )}
-            {data.category && (
+            {displayCategory && (
               <div className="emg-fact-item">
                 <span className="emg-fact-label">Loại hình</span>
-                <strong className="emg-fact-value">{data.category}</strong>
+                <strong className="emg-fact-value">{displayCategory}</strong>
               </div>
             )}
             {data.suggestedDurationMinutes && (
@@ -367,7 +383,19 @@ export default function EditorialGenerativeRenderer({
       data-generative-version="2"
       data-typography={design.typography}
     >
-      {layout.sections.map((sec, idx) => renderNode(sec, idx))}
+      {heroSections.map((sec, idx) => renderNode(sec, idx))}
+      {summarySlot && <div className="emg-summary-wrap">{summarySlot}</div>}
+      {bodySections.length > 0 && (
+        <div className="emg-body-shell">
+          <EditorialTocNav items={projection.toc} variant="mobile" />
+          <div className={projection.toc.length >= 2 ? "emg-article-with-toc" : "emg-article-single"}>
+            <div className="emg-article-flow">
+              {bodySections.map((sec, idx) => renderNode(sec, idx))}
+            </div>
+            {projection.toc.length >= 2 && <EditorialTocNav items={projection.toc} variant="aside" />}
+          </div>
+        </div>
+      )}
     </article>
   );
 }

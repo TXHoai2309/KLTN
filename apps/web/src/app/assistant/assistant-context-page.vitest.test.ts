@@ -21,4 +21,16 @@ describe("US22 server page resolves references and projects public choices", () 
     query.mockResolvedValueOnce([]); expect(await loadAssistantContext({})).toEqual({ initialContext: { type: "GENERAL" }, destinations: [], syncContextUrl: true });
     query.mockRejectedValueOnce(new Error("database unavailable")); await expect(loadAssistantContext({ destinationId: "a" })).rejects.toThrow("database unavailable");
   });
+  it("resolves verified public mustInclude destination IDs and plan intent while dropping unknown IDs (P3 & P8)", async () => {
+    query
+      .mockResolvedValueOnce([{ id: "selected", name: "Cột cờ Lũng Cú" }])
+      .mockResolvedValueOnce([{ id: "selected", name: "Cột cờ Lũng Cú" }, { id: "d2", name: "Đèo Mã Pì Lèng" }])
+      .mockResolvedValueOnce([]);
+    const res = await loadAssistantContext({ destinationId: "selected", mustInclude: "selected,d2,missing-stop", intent: "plan" });
+    expect(res.initialPlanIntent).toBe(true);
+    expect(res.mustIncludeDestinations).toEqual([
+      { id: "selected", name: "Cột cờ Lũng Cú" },
+      { id: "d2", name: "Đèo Mã Pì Lèng" },
+    ]);
+  });
 });

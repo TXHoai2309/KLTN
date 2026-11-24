@@ -67,6 +67,8 @@ function AuthenticatedRuntimeChat({ boundary, authReady, tripsageChatEnabled, me
         identity={identity}
         initialContext={contextProps.initialContext}
         destinationName={destinationName}
+        mustIncludeDestinations={contextProps.mustIncludeDestinations}
+        initialPlanIntent={contextProps.initialPlanIntent}
         conversationId={conversationId}
         memoryEnabled={memoryEnabled}
         renderLegacyAnswer={turn => <AssistantAnswer turn={turn.response} />}

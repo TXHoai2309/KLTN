@@ -6,6 +6,7 @@ import { FileText, Menu, MessageSquare, PanelLeft, PanelLeftOpen, Plus, Send, Sh
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { createIdempotencyKey } from "@/lib/mutation-client";
+import { cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import type { QaContext } from "@/modules/ai/qa-contract";
 import { conversationMetaPartSchema, extractSuggestRepliesDirectives } from "@/modules/tripsage-chat/assistant-conversation-contract";
 import { accessLegPartSchema, isCurrentAccessLeg, reconcileAccessPins, resolveTravelDaysContext } from "@/modules/tripsage-chat/tripsage-access-leg";
@@ -98,11 +99,20 @@ const SUGGESTION_CARDS = [
   { icon: "🌿", title: "Văn hóa & ẩm thực", prompt: (subject: string) => `${subject} có những nét văn hóa và ẩm thực nào nổi bật?` },
 ] as const;
 
+export function buildPreselectedPlanningDraft(stops: readonly { id: string; name: string }[]): string {
+  const names = stops.map(stop => cleanPlaceDisplayName(stop.name) || stop.name.trim()).filter(Boolean);
+  if (names.length === 0) return "";
+  if (names.length === 1) return `Lên lịch trình Hà Giang có ghé ${names[0]}.`;
+  return `Lên lịch trình Hà Giang ưu tiên ghé các điểm: ${names.join(", ")}.`;
+}
+
 export type TripsageChatClientProps = {
   memoryEnabled?: boolean;
   identity?: string;
   initialContext?: QaContext;
   destinationName?: string;
+  mustIncludeDestinations?: readonly { id: string; name: string }[];
+  initialPlanIntent?: boolean;
   conversationId?: string;
   renderLegacyAnswer?: (turn: ConfirmedTurn) => ReactNode;
 };
@@ -117,10 +127,20 @@ export function TripsageChatClient({
   identity,
   initialContext,
   destinationName,
+  mustIncludeDestinations = [],
+  initialPlanIntent = false,
   conversationId: initialConversationId,
   renderLegacyAnswer,
 }: TripsageChatClientProps) {
-  const [draft, setDraft] = useState("");
+  const [selectedStops, setSelectedStops] = useState<{ id: string; name: string }[]>(() =>
+    mustIncludeDestinations.slice(0, 4).map(stop => ({ id: stop.id, name: cleanPlaceDisplayName(stop.name) || stop.name })),
+  );
+  const [draft, setDraft] = useState(() =>
+    initialPlanIntent && mustIncludeDestinations.length > 0 && !initialConversationId
+      ? buildPreselectedPlanningDraft(mustIncludeDestinations.slice(0, 4))
+      : "",
+  );
+  const draftEditedRef = useRef(false);
   const [status, setStatus] = useState<StatusPart | null>(null);
   const [planProgress, setPlanProgress] = useState<PlanProgressSnapshot | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -362,9 +382,18 @@ export function TripsageChatClient({
     [pinned, state.accessLeg?.data],
   );
 
+  const preselectedTripInfo = useMemo(() => {
+    if (activeConversationId || !selectedStops.length) return state.tripInfo;
+    if (state.tripInfo?.mustIncludeDestinationIds?.length) return state.tripInfo;
+    return {
+      ...(state.tripInfo ?? {}),
+      mustIncludeDestinationIds: selectedStops.slice(0, 4).map(stop => stop.id),
+    };
+  }, [activeConversationId, selectedStops, state.tripInfo]);
+
   bodyRef.current = {
     journey: state.journey,
-    tripInfo: state.tripInfo,
+    tripInfo: preselectedTripInfo,
     itinerary: itineraryCurrent ? summarizeItinerary(latestItinerary) : null,
     suggestions: itineraryCurrent ? state.suggestions : undefined,
     accessLeg: state.accessLeg?.data ?? null,
@@ -471,6 +500,32 @@ export function TripsageChatClient({
     }
   }
 
+  const candidateStops = useMemo(() => {
+    const seen = new Set<string>();
+    return mustIncludeDestinations
+      .map(stop => ({ id: stop.id, name: cleanPlaceDisplayName(stop.name) || stop.name }))
+      .filter(stop => {
+        if (seen.has(stop.id)) return false;
+        seen.add(stop.id);
+        return true;
+      });
+  }, [mustIncludeDestinations]);
+
+  function togglePreselectedStop(stop: { id: string; name: string }) {
+    setSelectedStops(current => {
+      const exists = current.some(item => item.id === stop.id);
+      const next = exists
+        ? current.filter(item => item.id !== stop.id)
+        : current.length >= 4
+          ? current
+          : [...current, stop];
+      if (!draftEditedRef.current) {
+        setDraft(buildPreselectedPlanningDraft(next));
+      }
+      return next;
+    });
+  }
+
   function handleOpenSidebar() {
     userToggledSidebarRef.current = true;
     setSidebarOpen(true);
@@ -571,6 +626,9 @@ export function TripsageChatClient({
     setLegacyReadOnly(null);
     setActiveConversationId(null);
     setHistoryNotice(null);
+    setSelectedStops([]);
+    draftEditedRef.current = false;
+    setDraft("");
     setChosenLodgings({});
     setPlanProgress(null);
     streamedMessageIdsRef.current.clear();
@@ -1038,6 +1096,29 @@ export function TripsageChatClient({
               </div>
             )}
             <TripsageChatNotice notice={notice} onResend={saveLocked ? undefined : () => void regenerate()} />
+            {!messages.length && !activeConversationId && candidateStops.length > 0 && (
+              <div className="tripsage-preselected-bar" data-testid="assistant-preselected-stops" role="group" aria-label="Điểm bắt buộc trong lịch">
+                <span className="tripsage-preselected-label">Điểm bắt buộc ({selectedStops.length}/4):</span>
+                <div className="tripsage-preselected-chips">
+                  {candidateStops.map(stop => {
+                    const active = selectedStops.some(item => item.id === stop.id);
+                    const disabledChip = !active && selectedStops.length >= 4;
+                    return (
+                      <button
+                        key={stop.id}
+                        type="button"
+                        className="tripsage-preselected-chip"
+                        aria-pressed={active}
+                        disabled={locked || disabledChip}
+                        onClick={() => togglePreselectedStop(stop)}
+                      >
+                        <span>{stop.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <form noValidate className="assistant-composer" onSubmit={submit}>
               <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>
               <div
@@ -1058,7 +1139,10 @@ export function TripsageChatClient({
                   placeholder="Hỏi về chuyến đi Hà Giang…"
                   value={draft}
                   disabled={locked}
-                  onChange={event => setDraft(event.target.value)}
+                  onChange={event => {
+                    draftEditedRef.current = true;
+                    setDraft(event.target.value);
+                  }}
                   onKeyDown={event => {
                     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                       event.preventDefault();

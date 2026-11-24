@@ -36,5 +36,41 @@ export async function loadAssistantContext(query: Record<string, string | string
   const rows = await db.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`SELECT id,name FROM destination WHERE visibility='VISIBLE' ORDER BY name,id LIMIT 50`);
   const destinations = rows.filter(row => row.name.trim() && !containsEvidenceInstruction(row.name) && !/[\u0000-\u001f\u007f]/u.test(row.name));
   if (selected && !destinations.some(row => row.id === selected.id)) destinations.unshift(selected);
-  return { initialContext: selected ? { type: "DESTINATION", destinationId: selected.id } : { type: "GENERAL" }, destinations, syncContextUrl: true };
+
+  // P3 / P8: allow pre-selecting verified public destination IDs for planning (mustInclude=...&intent=plan)
+  const rawMustInclude = query.mustInclude;
+  const candidateIds = (Array.isArray(rawMustInclude) ? rawMustInclude : rawMustInclude ? rawMustInclude.split(",") : [])
+    .map(value => value.trim())
+    .filter(Boolean);
+  const validIds: string[] = [];
+  for (const candidate of candidateIds) {
+    const parsed = qaReferenceIdSchema.safeParse(candidate);
+    if (parsed.success && !validIds.includes(parsed.data)) validIds.push(parsed.data);
+  }
+  const byId = new Map(destinations.map(d => [d.id, d]));
+  const missingIds = validIds.filter(id => !byId.has(id)).slice(0, 20);
+  if (missingIds.length > 0) {
+    const extraRows = await db.$queryRaw<{ id: string; name: string }[]>(
+      Prisma.sql`SELECT id,name FROM destination WHERE visibility='VISIBLE' AND id IN (${Prisma.join(missingIds)})`,
+    );
+    for (const row of extraRows) {
+      if (row.name.trim() && !containsEvidenceInstruction(row.name) && !/[\u0000-\u001f\u007f]/u.test(row.name)) {
+        if (!destinations.some(d => d.id === row.id)) destinations.push(row);
+        byId.set(row.id, row);
+      }
+    }
+  }
+  const mustIncludeDestinations = validIds
+    .map(id => byId.get(id))
+    .filter((item): item is { id: string; name: string } => Boolean(item));
+  const initialPlanIntent =
+    query.intent === "plan" || (Array.isArray(query.intent) && query.intent.includes("plan"));
+
+  return {
+    initialContext: selected ? { type: "DESTINATION", destinationId: selected.id } : { type: "GENERAL" },
+    destinations,
+    syncContextUrl: true,
+    ...(mustIncludeDestinations.length > 0 ? { mustIncludeDestinations } : {}),
+    ...(initialPlanIntent ? { initialPlanIntent: true } : {}),
+  };
 }

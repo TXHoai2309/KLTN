@@ -17,11 +17,11 @@ import {
   Mountain,
   CalendarDays,
   Compass,
-  Sparkles,
   Tag,
 } from "lucide-react";
 import { DestinationAiFab } from "@/components/destination-ai-fab";
-import { cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
+import { DestinationSummaryCard } from "./destination-summary-card";
+import { cleanAreaDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts, hasEditorialDuration } from "@/modules/destination-editorial/editorial-display-policy";
 import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
 
@@ -106,14 +106,36 @@ export default function DestinationDetail({
   editorial?: ResolvedEditorial | null;
 }) {
   const visit = editorialVisitData(d);
+  const displayName = cleanPlaceDisplayName(d.name) || d.name;
+  const displayCategory = cleanTravelerDisplay(editorialValue(d.category) || d.category);
+  const cleanArea = cleanAreaDisplayLabel(d.area);
+  const summaryCard = (
+    <DestinationSummaryCard
+      destinationId={d.id}
+      destinationName={displayName}
+      area={d.area}
+      hours={visit.hours}
+      suggestedDurationMinutes={d.suggestedDurationMinutes}
+      ticketPrice={d.profile?.ticketPrice ?? null}
+      hasCoordinates={hasEditorialCoordinates(d)}
+      mapSlot={
+        <DestinationDetailIframeMap
+          destination={{ name: displayName, area: d.area, latitude: d.latitude, longitude: d.longitude, profile: d.profile }}
+          label={`Bản đồ vị trí ${displayName}`}
+          compact
+        />
+      }
+    />
+  );
+
   if (editorial) return (
     <Shell
       returnTo={resolveExploreReturnTo(returnTo)}
       topActions={<FavoriteButton targetType="destinations" targetId={d.id} />}
     >
-      <EditorialRenderer data={d} editorial={editorial} />
-      <div className="public-detail-weather-editorial"><DestinationWeatherCard destinationId={d.id} /></div>
-      <DestinationAiFab destinationId={d.id} destinationName={d.name} />
+      <EditorialRenderer data={d} editorial={editorial} summarySlot={summaryCard} />
+      <div id="thoi-tiet-chi-tiet" className="public-detail-weather-editorial"><DestinationWeatherCard destinationId={d.id} /></div>
+      <DestinationAiFab destinationId={d.id} destinationName={displayName} />
     </Shell>
   );
   return (
@@ -122,26 +144,13 @@ export default function DestinationDetail({
       topActions={<FavoriteButton targetType="destinations" targetId={d.id} />}
     >
       <header className="public-detail-hero">
-        <div className="public-detail-hero-top">
-          <span className="public-detail-eyebrow">
-            <Mountain size={16} aria-hidden="true" />
-            <span>Hà Giang · Điểm đến</span>
-          </span>
-          <div className="public-detail-tags">
-            <span>
-              <MapPin size={13} aria-hidden="true" />
-              {d.area}
-            </span>
-            <span>
-              <Tag size={13} aria-hidden="true" />
-              {d.category}
-            </span>
-          </div>
-        </div>
-
-        <h1>{cleanPlaceDisplayName(d.name) || d.name}</h1>
+        <h1>{displayName}</h1>
+        {displayCategory && <p className="public-detail-category-sub">{displayCategory}</p>}
+        {cleanArea && <p className="public-detail-area-sub"><MapPin size={14} aria-hidden="true" /><span>{cleanArea}</span></p>}
         <p className="public-detail-description">{cleanTravelerDisplay(d.description)}</p>
       </header>
+
+      {summaryCard}
 
       <div className="public-detail-grid">
         <div className="public-detail-main">
@@ -153,7 +162,7 @@ export default function DestinationDetail({
                 <MapPin size={21} aria-hidden="true" />
                 Vị trí
               </h2>
-              <span className="public-detail-location-sub">{d.area}</span>
+              {cleanArea && <span className="public-detail-location-sub">{cleanArea}</span>}
             </div>
             <dl className="public-detail-coordinates">
               <div className="public-detail-coord-box">
@@ -165,15 +174,9 @@ export default function DestinationDetail({
                 <dd>{d.longitude}</dd>
               </div>
             </dl>
-            <div className="public-detail-map-frame">
-              <DestinationDetailIframeMap
-                destination={{ name: d.name, area: d.area, latitude: d.latitude, longitude: d.longitude, profile: d.profile }}
-                label={`Bản đồ vị trí ${d.name}`}
-              />
-            </div>
           </section>}
 
-          <DestinationWeatherCard destinationId={d.id} />
+          <div id="thoi-tiet-chi-tiet"><DestinationWeatherCard destinationId={d.id} /></div>
 
           {mvpFeatures.culture && d.relatedCulture.length > 0 && (
 <section className="public-detail-card" aria-labelledby="culture-title">

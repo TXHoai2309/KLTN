@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
 
 export default async function AssistantPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const contextProps = searchParams ? await (await import("./assistant-context-page")).loadAssistantContext(await searchParams) : {};
-  const contextKey = contextProps.initialContext?.type === "DESTINATION" ? contextProps.initialContext.destinationId : contextProps.contextError ? "invalid" : "GENERAL";
+  const mustIncludeKey = contextProps.mustIncludeDestinations?.map(d => d.id).join(",") ?? "";
+  const intentKey = contextProps.initialPlanIntent ? "plan" : "qa";
+  const baseKey = contextProps.initialContext?.type === "DESTINATION" ? contextProps.initialContext.destinationId : contextProps.contextError ? "invalid" : "GENERAL";
+  const contextKey = `${baseKey}:${intentKey}:${mustIncludeKey}`;
   // Use the same server-side gate as the AI API. A closed environment stays visibly
   // unavailable; there is no other chat to fall back to.
   if (await qaSettings().then(isConfiguredQaRuntimeEnabled, () => false)) {

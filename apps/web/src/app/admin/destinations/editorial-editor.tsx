@@ -483,7 +483,7 @@ export default function EditorialEditor({ id }: { id: string }) {
 
           <div className="ed-col-body ed-preview-body">
             <div className={mobile ? "ed-preview is-mobile" : "ed-preview"}>
-              {preview ? <EditorialRenderer data={state.context} editorial={preview} /> : <p className="ed-empty-preview">Chưa có block hợp lệ để xem trước.</p>}
+              {preview ? <EditorialRenderer data={state.context} editorial={preview} sanitizeForReader={false} /> : <p className="ed-empty-preview">Chưa có block hợp lệ để xem trước.</p>}
             </div>
           </div>
         </section>

@@ -7,6 +7,7 @@ import type { EditorialPageData } from "./editorial-renderer";
 import { heroDeck } from "@/modules/destination-editorial/editorial-hero";
 
 import { editorialValue, hasEditorialCoordinates, hasEditorialDuration, hasEditorialFacts } from "@/modules/destination-editorial/editorial-display-policy";
+import type { EditorialHeadingPresentation } from "@/modules/destination-editorial/editorial-display-transform";
 
 function renderInlineMarkdown(str: string): React.ReactNode {
   const parts = str.split(/(\*\*[^*]+?\*\*|__[^_]+?__)/g);
@@ -41,14 +42,33 @@ export function renderFormattedEditorialText(text: string): React.ReactNode {
   return renderInlineMarkdown(cleanLine);
 }
 
-type StoryProps = { block: EditorialBlock; children?: React.ReactNode };
-export function EditorialProse({ block }: { block: Pick<EditorialBlock, "title" | "text" | "emphasis"> }) {
-  if (!block.title && !block.text.trim()) return null;
+type StoryProps = { block: EditorialBlock; heading?: EditorialHeadingPresentation; children?: React.ReactNode };
+export function renderEditorialSectionHeading(
+  fallbackTitle: string,
+  heading?: EditorialHeadingPresentation,
+  extraClassName?: string,
+): React.ReactNode {
+  if (heading?.kind === "lead") {
+    return <p className={`emg-lead-heading${extraClassName ? ` ${extraClassName}` : ""}`}><strong>{heading.text}</strong></p>;
+  }
+  const text = heading?.kind === "h2" ? heading.text : fallbackTitle;
+  if (!text) return null;
+  return <h2 id={heading?.anchorId} className={extraClassName}>{text}</h2>;
+}
+
+export function EditorialProse({
+  block,
+  heading,
+}: {
+  block: Pick<EditorialBlock, "title" | "text" | "emphasis">;
+  heading?: EditorialHeadingPresentation;
+}) {
+  if (!block.title && !block.text.trim() && !heading) return null;
   const cleanTitle = cleanPlaceDisplayName(stripMarkdownHeading(block.title));
   const paragraphs = block.text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   return (
     <div className={`emg-prose ${block.emphasis === "FEATURED" ? "emg-prose-featured" : ""}`}>
-      {cleanTitle && <h2>{cleanTitle}</h2>}
+      {renderEditorialSectionHeading(cleanTitle, heading)}
       {paragraphs.map((p, i) => {
         const lines = p.split("\n").map(l => l.trim()).filter(Boolean);
         const isList = lines.length > 1 && lines.every(l => /^[-*•+]\s+/.test(l));
@@ -101,10 +121,11 @@ function HeroTitle({ block, data, intro = "" }: { block: EditorialBlock; data: E
     )
   );
   const showDeck = Boolean(deck && normDeck !== normTitle && !isDeckLocationDuplicate);
+  const displayCategory = cleanTravelerDisplay(editorialValue(data.category));
   return (
     <div className="emg-title" data-title-length={title.length > 32 ? "long" : "short"}>
-      <p className="emg-kicker">Hà Giang{editorialValue(data.category) && ` · ${editorialValue(data.category)}`}</p>
       <h1>{phrases.map((p, i) => <React.Fragment key={i}><span>{p}</span>{i < phrases.length - 1 ? " " : null}</React.Fragment>)}</h1>
+      {displayCategory && <p className="emg-category-sub">{displayCategory}</p>}
       {showDeck && <p className="emg-deck">{deck}</p>}
       {locationText && <span className="emg-location">{locationText}</span>}
     </div>
@@ -120,14 +141,14 @@ export function HeroSplit({ block, data, children, intro, limited }: HeroProps) 
 export function HeroCover({ block, data, children, intro, limited }: HeroProps) {
   return <header className={`emg-hero emg-hero-cover ${children ? "has-image" : "typography-first"} ${limited ? "emg-hero-limited" : ""}`} data-composition="EDITORIAL"><HeroTitle block={block} data={data} intro={intro} />{children && <div className="emg-hero-visual">{children}</div>}</header>;
 }
-export function EditorialIntroduction({ block }: StoryProps) { return block.text.trim() || block.title ? <section className="emg-intro"><EditorialProse block={block} /></section> : null; }
-export function TextImageStorySection({ block, children }: StoryProps) {
-  if (!block.mediaIds.length) return <section className="emg-text-section"><EditorialProse block={block} /></section>;
-  const hasCopy = Boolean(block.text.trim() || block.title);
-  return <section className={`emg-split emg-image-${block.placement} ${hasCopy ? "" : "emg-photo-only"}`}><EditorialProse block={block} /><div className="emg-story-image">{children}</div></section>;
+export function EditorialIntroduction({ block, heading }: StoryProps) { return block.text.trim() || block.title || heading ? <section className="emg-intro"><EditorialProse block={block} heading={heading} /></section> : null; }
+export function TextImageStorySection({ block, heading, children }: StoryProps) {
+  if (!block.mediaIds.length) return <section className="emg-text-section"><EditorialProse block={block} heading={heading} /></section>;
+  const hasCopy = Boolean(block.text.trim() || block.title || heading);
+  return <section className={`emg-split emg-image-${block.placement} ${hasCopy ? "" : "emg-photo-only"}`}><EditorialProse block={block} heading={heading} /><div className="emg-story-image">{children}</div></section>;
 }
-export function FullBleedImage({ block, children }: StoryProps) { const title = stripMarkdownHeading(block.title); return <section className="emg-full-image">{title && <h2>{title}</h2>}{children}</section>; }
-export function StaggeredImageGallery({ block, children }: StoryProps) { const title = stripMarkdownHeading(block.title); return <section className="emg-gallery-section">{title && <h2>{title}</h2>}<div className={`emg-gallery emg-gallery-${block.gallery}`} data-images={block.mediaIds.length}>{children}</div></section>; }
+export function FullBleedImage({ block, heading, children }: StoryProps) { const title = cleanPlaceDisplayName(stripMarkdownHeading(block.title)); return <section className="emg-full-image">{renderEditorialSectionHeading(title, heading)}{children}</section>; }
+export function StaggeredImageGallery({ block, heading, children }: StoryProps) { const title = cleanPlaceDisplayName(stripMarkdownHeading(block.title)); return <section className="emg-gallery-section">{renderEditorialSectionHeading(title, heading)}<div className={`emg-gallery emg-gallery-${block.gallery}`} data-images={block.mediaIds.length}>{children}</div></section>; }
 export function VisualHighlights({ data, duration }: { data: EditorialPageData; duration: string }) {
   if (!hasEditorialFacts(data)) return null;
   return <section className="emg-facts" aria-label="Điểm nhấn">{editorialValue(data.area) && <div><span>Khu vực</span><strong>{editorialValue(data.area)}</strong></div>}{editorialValue(data.category) && <div><span>Loại hình</span><strong>{editorialValue(data.category)}</strong></div>}{hasEditorialDuration(data.suggestedDurationMinutes) && <div><span>Nhịp tham quan</span><strong>{duration}</strong></div>}</section>;

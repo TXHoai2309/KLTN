@@ -143,6 +143,8 @@ export const PROMPT_SUGGESTIONS = [
 export type AssistantContextProps = {
   initialContext?: QaContext;
   destinations?: readonly { id: string; name: string }[];
+  mustIncludeDestinations?: readonly { id: string; name: string }[];
+  initialPlanIntent?: boolean;
   contextError?: string;
   syncContextUrl?: boolean;
 };

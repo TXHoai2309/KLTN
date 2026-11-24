@@ -36,22 +36,30 @@ export function destinationDetailEmbedUrl(coordinates: string): string {
   return `https://maps.google.com/maps?q=${encodeURIComponent(coordinates)}&z=13&output=embed`;
 }
 
-export default function DestinationDetailIframeMap({ destination, label }: { destination: Destination; label?: string }) {
+export default function DestinationDetailIframeMap({
+  destination,
+  label,
+  compact = false,
+}: {
+  destination: Destination;
+  label?: string;
+  compact?: boolean;
+}) {
   const mapLabel = label ?? `Bản đồ vị trí ${destination.name}`;
   const coordinates = destinationDetailCoordinates(destination);
 
-  if (!coordinates) return <section className="destination-map" aria-label={mapLabel}><div className="destination-map-state" role="status">Điểm đến chưa có tọa độ hợp lệ để hiển thị trên bản đồ.</div></section>;
+  if (!coordinates) return <section className="destination-map" data-compact={compact ? "true" : undefined} aria-label={mapLabel}><div className="destination-map-state" role="status">Điểm đến chưa có tọa độ hợp lệ để hiển thị trên bản đồ.</div></section>;
 
   const verifiedPlaceUrl = verifiedGooglePlaceUrl(destination.profile);
   const searchQuery = [destination.name.trim(), destination.profile?.address?.trim() || destination.area?.trim() || "Hà Giang", "Việt Nam"].filter(Boolean).join(", ");
   const locationUrl = verifiedPlaceUrl ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
-  return <section className="destination-map destination-detail-iframe-map" aria-label={mapLabel}>
+  return <section className="destination-map destination-detail-iframe-map" data-compact={compact ? "true" : undefined} aria-label={mapLabel}>
     <iframe
       className="destination-map-canvas"
       title={mapLabel}
       src={destinationDetailEmbedUrl(coordinates)}
       width="100%"
-      height="440"
+      height={compact ? "210" : "440"}
       style={{ border: 0 }}
       allowFullScreen
       loading="lazy"
