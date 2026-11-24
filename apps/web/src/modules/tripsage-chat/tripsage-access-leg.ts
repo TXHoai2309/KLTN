@@ -43,7 +43,7 @@ export const APPROVED_ACCESS_ROUTE_PRICES: readonly ApprovedAccessRoutePrice[] =
     minVnd: 1_200_000,
     maxVnd: 2_500_000,
     midpointVnd: 1_850_000,
-    label: "Vé máy bay TP.HCM ⇄ Hà Nội (phổ thông)",
+    label: "Vé máy bay TP Hồ Chí Minh ⇄ Hà Nội (phổ thông)",
   },
 ] as const;
 

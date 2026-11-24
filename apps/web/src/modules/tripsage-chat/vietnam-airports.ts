@@ -33,7 +33,7 @@ export const VIETNAM_AIRPORTS: readonly VietnamAirport[] = [
   { code: "BMV", name: "Sân bay Buôn Ma Thuột", city: "Đắk Lắk", latitude: 12.6683, longitude: 108.1203 },
   { code: "CXR", name: "Sân bay Quốc tế Cam Ranh", city: "Khánh Hòa", latitude: 11.9982, longitude: 109.2194 },
   { code: "DLI", name: "Sân bay Liên Khương", city: "Lâm Đồng", latitude: 11.7506, longitude: 108.3736 },
-  { code: "SGN", name: "Sân bay Quốc tế Tân Sơn Nhất", city: "TP. Hồ Chí Minh", latitude: 10.8188, longitude: 106.6519 },
+  { code: "SGN", name: "Sân bay Quốc tế Tân Sơn Nhất", city: "TP Hồ Chí Minh", latitude: 10.8188, longitude: 106.6519 },
   { code: "VCA", name: "Sân bay Quốc tế Cần Thơ", city: "Cần Thơ", latitude: 10.0851, longitude: 105.7119 },
   { code: "VCS", name: "Sân bay Côn Đảo", city: "Bà Rịa - Vũng Tàu", latitude: 8.7318, longitude: 106.6289 },
   { code: "PQC", name: "Sân bay Quốc tế Phú Quốc", city: "Kiên Giang", latitude: 10.1698, longitude: 103.9931 },

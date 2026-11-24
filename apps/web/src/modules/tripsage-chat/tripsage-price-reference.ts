@@ -17,7 +17,7 @@ const EMBEDDED_TRANSPORT_SECTION = [
   "| Thuê xe máy côn tay | 250.000–350.000đ/ngày | |",
   "| Thuê xe máy có người lái (easy rider) | 700.000–1.000.000đ/ngày | |",
   "| Xe khách giường nằm Hà Nội ⇄ TP Hà Giang | 250.000–400.000đ/lượt | 6–7 giờ, nhiều chuyến đêm |",
-  "| Vé máy bay TP.HCM ⇄ Hà Nội (phổ thông) | 1.200.000–2.500.000đ/lượt | Thay đổi theo mùa |",
+  "| Vé máy bay TP Hồ Chí Minh ⇄ Hà Nội (phổ thông) | 1.200.000–2.500.000đ/lượt | Thay đổi theo mùa |",
   "| Gửi xe máy qua đêm | 10.000–20.000đ/đêm | |",
 ].join("\n");
 

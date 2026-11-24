@@ -19,10 +19,30 @@ function shortDateDayMonth(iso: string | undefined): string | null {
   return `${Number(m[3])}/${Number(m[2])}`;
 }
 
+export function extractTitleCountMetadata(title: string | null | undefined): {
+  travelers: number | null;
+  days: number | null;
+  date: string | null;
+} {
+  const normalized = title?.normalize("NFC").trim() ?? "";
+  if (!normalized) return { travelers: null, days: null, date: null };
+  const travelersMatch = /(?:^|[\s,·])(\d{1,2})\s*ng[uư][oờ]i(?=$|[\s,·])/iu.exec(normalized);
+  const daysMatch = /(?:^|[\s,·])(\d{1,2})\s*ng[aà]y(?=$|[\s,·])/iu.exec(normalized);
+  const dateMatch = /(?:^|[\s,·])(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)(?=$|[\s,·])/u.exec(normalized);
+  const travelers = travelersMatch ? Number(travelersMatch[1]) : null;
+  const days = daysMatch ? Number(daysMatch[1]) : null;
+  return {
+    travelers: travelers && travelers > 0 ? travelers : null,
+    days: days && days > 0 ? days : null,
+    date: dateMatch?.[1] ?? null,
+  };
+}
+
 export interface ConversationAutoTitleInput {
   tripInfo?: TripsageTripInfo | null;
   journey?: TripJourney | null;
   accessLeg?: AccessLegPart | null;
+  existingTitle?: string | null;
 }
 
 /**
@@ -37,6 +57,7 @@ export interface ConversationAutoTitleInput {
 export function buildConversationAutoTitle(input: ConversationAutoTitleInput): string | null {
   const info = input.tripInfo;
   const assumed = new Set(info?.assumedFields ?? []);
+  const existingMeta = extractTitleCountMetadata(input.existingTitle);
 
   const confirmedHome = shortCity(input.accessLeg?.homeCity) ?? shortCity(info?.homeCity);
   const confirmedOrigin =
@@ -48,13 +69,13 @@ export function buildConversationAutoTitle(input: ConversationAutoTitleInput): s
   const confirmedStartDate = !assumed.has("startDate") ? shortDateDayMonth(info?.startDate) : null;
   const confirmedDays = !assumed.has("durationDays") && typeof info?.durationDays === "number"
     ? info.durationDays
-    : null;
+    : existingMeta.days;
   const confirmedTravelers =
-    typeof input.accessLeg?.travelers === "number"
+    typeof input.accessLeg?.travelers === "number" && input.accessLeg.travelers > 0
       ? input.accessLeg.travelers
-      : typeof info?.travelers === "number"
+      : typeof info?.travelers === "number" && info.travelers > 0
         ? info.travelers
-        : null;
+        : existingMeta.travelers;
 
   // Require at least a confirmed departure/hub OR confirmed date/days to rename from raw first message.
   if (!departure && !confirmedStartDate && !confirmedDays) return null;
@@ -70,6 +91,7 @@ export function buildConversationAutoTitle(input: ConversationAutoTitleInput): s
     parts.push(`${confirmedTravelers} người`);
   }
   if (confirmedStartDate) {
+    if (existingMeta.days !== null) parts.push(`${existingMeta.days} ngày`);
     parts.push(confirmedStartDate);
   } else if (confirmedDays !== null) {
     parts.push(`${confirmedDays} ngày`);
@@ -79,14 +101,43 @@ export function buildConversationAutoTitle(input: ConversationAutoTitleInput): s
 }
 
 /** Extracts confirmed trip info / journey / access leg from stored assistant parts to derive an auto-title. */
-export function autoTitleFromAssistantParts(parts: readonly StoredAssistantPart[]): string | null {
-  let tripInfo: TripsageTripInfo | null = null;
+export function autoTitleFromAssistantParts(
+  parts: readonly StoredAssistantPart[],
+  options?: { existingTitle?: string | null },
+): string | null {
+  let tripInfo: NonNullable<TripsageTripInfo> | null = null;
   let journey: TripJourney | null = null;
   let accessLeg: AccessLegPart | null = null;
+  let costTravelers: number | null = null;
   for (const part of parts) {
-    if (part.type === "data-trip-info") tripInfo = part.data.tripInfo;
-    else if (part.type === "data-journey") journey = part.data.journey;
-    else if (part.type === "data-access-leg") accessLeg = part.data;
+    if (part.type === "data-trip-info") {
+      const rawIncoming =
+        part.data.tripInfo && typeof part.data.tripInfo === "object"
+          ? (part.data.tripInfo as Record<string, unknown>)
+          : {};
+      const incoming = Object.fromEntries(
+        Object.entries(rawIncoming).filter(([, value]) => value !== undefined),
+      ) as NonNullable<TripsageTripInfo>;
+      tripInfo = Object.assign({}, tripInfo ?? {}, incoming);
+    } else if (part.type === "data-journey") {
+      journey = part.data.journey;
+    } else if (part.type === "data-access-leg") {
+      accessLeg = part.data;
+    } else if (part.type === "data-cost") {
+      const maybeTravelers = (part.data as { travelers?: unknown } | undefined)?.travelers;
+      if (typeof maybeTravelers === "number" && maybeTravelers > 0) {
+        costTravelers = maybeTravelers;
+      }
+    }
   }
-  return buildConversationAutoTitle({ tripInfo, journey, accessLeg });
+  const effectiveTripInfo: NonNullable<TripsageTripInfo> | null =
+    costTravelers !== null && !(typeof tripInfo?.travelers === "number" && tripInfo.travelers > 0)
+      ? Object.assign({}, tripInfo ?? {}, { travelers: costTravelers })
+      : tripInfo;
+  return buildConversationAutoTitle({
+    tripInfo: effectiveTripInfo,
+    journey,
+    accessLeg,
+    existingTitle: options?.existingTitle,
+  });
 }

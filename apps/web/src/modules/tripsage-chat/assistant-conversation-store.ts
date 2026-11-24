@@ -405,7 +405,9 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
           });
           // Ticket 14 (slim B11, BR-7): update auto-title from newly confirmed trip data only if the user has not renamed it.
           const ownedMeta = owned as { title?: string; titleCustomized?: boolean };
-          const derivedTitle = ownedMeta.titleCustomized ? null : autoTitleFromAssistantParts(sanitized);
+          const derivedTitle = ownedMeta.titleCustomized
+            ? null
+            : autoTitleFromAssistantParts(sanitized, { existingTitle: ownedMeta.title });
           const nextTitle = derivedTitle && derivedTitle !== ownedMeta.title ? derivedTitle : undefined;
           await tx.assistantConversation.update({
             where: { id: owned.id },

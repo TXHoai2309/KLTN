@@ -50,8 +50,8 @@ async function main() {
     const updates: Array<{ id: string; nextTitle: string }> = [];
 
     for (const row of autoRows) {
-      const latestMsg = await db.$queryRaw<Array<{ parts: unknown }>>(
-        Prisma.sql`SELECT parts FROM assistant_message WHERE "conversationId" = ${row.id} AND role = 'ASSISTANT' ORDER BY "createdAt" DESC LIMIT 1`,
+      const assistantMsgs = await db.$queryRaw<Array<{ parts: unknown }>>(
+        Prisma.sql`SELECT parts FROM assistant_message WHERE "conversationId" = ${row.id} AND role = 'ASSISTANT' ORDER BY "createdAt" ASC`,
       );
       let tripRow: { journeySnapshot: unknown; pinnedItems: unknown; startDate: Date; durationDays: number } | undefined;
       if (row.savedTripId) {
@@ -74,7 +74,8 @@ async function main() {
         title: row.title,
         titleCustomized: row.titleCustomized,
         savedTripId: row.savedTripId,
-        latestAssistantParts: latestMsg[0]?.parts,
+        assistantMessagesParts: assistantMsgs.map((m) => m.parts),
+        latestAssistantParts: assistantMsgs.at(-1)?.parts,
         tripJourneySnapshot: tripRow?.journeySnapshot,
         tripPinnedItems: tripRow?.pinnedItems,
         tripStartDate: tripRow?.startDate ? tripRow.startDate.toISOString().slice(0, 10) : null,

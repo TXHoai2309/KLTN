@@ -67,7 +67,7 @@ describe("Ticket 14: Conversation auto-title & saved trip indicator (slim B11, B
         { type: "text", text: "Mình đã ghi nhận." },
         { type: "data-trip-info", data: { tripInfo: { homeCity: "TP.HCM", travelers: 3, startDate: "2026-12-20" } } },
       ]),
-    ).toBe("TP.HCM → HG · 3 người · 20/12");
+    ).toBe("TP Hồ Chí Minh → HG · 3 người · 20/12");
   });
 
   it("updates title on recordAssistantMessage ONLY when titleCustomized is false, and preserves user-edited titles", async () => {
@@ -155,5 +155,41 @@ describe("Ticket 14: Conversation auto-title & saved trip indicator (slim B11, B
         tripInfo: { homeCity: "96 P. Định Công", travelers: 2, startDate: "2026-11-29" },
       }),
     ).toBe("Hà Giang · 2 người · 29/11");
+  });
+});
+
+describe("Lỗi 6: conversation auto-title preserves travelers and days", () => {
+  it("extracts travelers from data-cost and preserves existingTitle travelers/days on follow-up turns", () => {
+    expect(
+      autoTitleFromAssistantParts([
+        {
+          type: "data-trip-info",
+          data: { tripInfo: { homeCity: "Đà Nẵng", startDate: "2026-12-13" } },
+        },
+        {
+          type: "data-cost",
+          data: { travelers: 4 },
+        } as never,
+      ]),
+    ).toBe("Đà Nẵng → HG · 4 người · 13/12");
+
+    expect(
+      autoTitleFromAssistantParts(
+        [
+          {
+            type: "data-trip-info",
+            data: { tripInfo: { homeCity: "Đà Nẵng", startDate: "2026-12-13" } },
+          },
+        ],
+        { existingTitle: "Đà Nẵng → HG · 4 người · 13/12" },
+      ),
+    ).toBe("Đà Nẵng → HG · 4 người · 13/12");
+
+    expect(
+      buildConversationAutoTitle({
+        tripInfo: { homeCity: "Hà Giang", durationDays: 3 },
+        existingTitle: "Hà Giang · 2 người · 3 ngày",
+      }),
+    ).toBe("Hà Giang · 2 người · 3 ngày");
   });
 });
