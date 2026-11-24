@@ -425,7 +425,7 @@
   font-weight: 500;
   text-transform: none;
   letter-spacing: normal;
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
   padding: 0 8px;
   margin: 0 0 4px;
   text-align: left;
@@ -2196,7 +2196,7 @@
 }
 
 .dark .assistant-composer-footer span {
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
 }
 
 .dark .assistant-trust-footer {
@@ -2903,7 +2903,7 @@
 .tripsage-cost-item-line { display: inline; }
 .tripsage-cost-item-name { color: var(--tv-ink); font-weight: 400; }
 .tripsage-cost-computed-tag {
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
   font-size: var(--tv-text-xs);
   font-weight: 400;
 }
@@ -3033,7 +3033,7 @@
     margin-top: 2px;
     font-size: var(--tv-text-xs);
     line-height: var(--tv-leading-xs);
-    color: var(--tv-ink-3);
+    color: var(--tv-ink-2);
     font-weight: 400;
   }
 }

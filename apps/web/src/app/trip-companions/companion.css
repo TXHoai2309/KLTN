@@ -4095,8 +4095,14 @@ body:has([data-testid="companion-management-view"]) .global-assistant-launcher {
   text-transform: uppercase;
 }
 
+.trip-pinned-wide .trip-pinned-body {
+  overflow-wrap: break-word;
+}
+
 .trip-pinned-price strong {
   font-size: 1.0625rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .trip-pinned-price span {
@@ -4127,9 +4133,16 @@ body:has([data-testid="companion-management-view"]) .global-assistant-launcher {
 .trip-pinned-costLines li {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: 12px;
   padding-block: 4px;
   border-block-end: 1px dashed var(--trip-read-border, rgba(20, 60, 42, 0.11));
+}
+
+.trip-pinned-costLines li > span:last-child {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: no-preference) {

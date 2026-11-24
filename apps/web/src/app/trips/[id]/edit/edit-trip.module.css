@@ -2746,7 +2746,7 @@
 
 .aiComposerHint {
   font-size: 12px;
-  color: var(--tv-ink-3, var(--muted-foreground));
+  color: var(--tv-ink-2, var(--muted-foreground));
 }
 
 .aiCharCounter {

@@ -235,7 +235,7 @@
 .my-trips-filter-count {
   font-size: var(--tv-text-xs);
   font-weight: 400;
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -273,7 +273,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
   font-size: var(--tv-text-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -1611,7 +1611,7 @@
 .my-trips-tab-count {
   font-size: var(--tv-text-xs);
   font-weight: 400;
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2011,7 +2011,7 @@
   margin: 0;
   padding: 0 10px 4px;
   font-size: var(--tv-text-xs);
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
 }
 
 .tv-overflow-menu-panel .my-trips-management {

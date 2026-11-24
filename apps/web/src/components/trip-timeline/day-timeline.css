@@ -168,7 +168,7 @@
 }
 
 .dt-visit-time span {
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
   font-size: var(--tv-text-xs);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
@@ -246,7 +246,7 @@
 }
 
 .dt-order-label {
-  color: var(--tv-ink-3);
+  color: var(--tv-ink-2);
   font-size: var(--tv-text-xs);
   font-weight: 500;
 }
