@@ -42,8 +42,8 @@
   overflow: hidden;
 }
 :global(.dark) .page {
-  --edit-green: #48a07c;
-  --edit-green-hover: #58b68f;
+  --edit-green: var(--tv-accent, #6fb894);
+  --edit-green-hover: var(--tv-accent-hover, #85c7a5);
   --edit-green-deep: #1d4d38;
   --edit-soft: #1d2c23;
   --edit-accent: var(--edit-green);

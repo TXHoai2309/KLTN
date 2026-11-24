@@ -124,7 +124,8 @@
   flex-shrink: 0;
 }
 
-.my-trips-action {
+.my-trips-action,
+.my-trips-page a.my-trips-action {
   background: var(--tv-accent);
   color: var(--tv-on-accent);
   border: 1px solid transparent;

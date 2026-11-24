@@ -20,7 +20,11 @@
 .dark .destination-map .maplibregl-popup-close-button { color: #e6eee8; }
 .destination-map .maplibregl-ctrl-group { overflow: hidden; border: 1px solid #dce6de; border-radius: 9px; box-shadow: 0 2px 8px #14291b14; }
 .destination-map .maplibregl-ctrl-group button { width: 34px; height: 34px; }
-.dark .destination-map .maplibregl-ctrl-group { border-color: #46544a; background: #202a23; }
+.dark .destination-map .maplibregl-ctrl-group,
+.dark .maplibregl-ctrl-group { border-color: var(--tv-line); background: var(--tv-surface); }
+.dark .maplibregl-ctrl-group button + button { border-top-color: var(--tv-line); }
+.dark .maplibregl-ctrl-group button:hover { background-color: var(--tv-sunken); }
+.dark .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: invert(0.92); }
 .destination-map-marker { width: 36px; height: 36px; border: 3px solid white; border-radius: 50%; background: #306b4f; color: white; font-size: 20px; cursor: pointer; box-shadow: 0 2px 6px #0006; }
 .destination-map .maplibregl-popup-content { background: white; }
 .destination-map .maplibregl-popup-close-button { color: #17251d; padding: 2px 8px; }
