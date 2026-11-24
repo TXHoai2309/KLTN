@@ -1,4 +1,4 @@
-import type { db as defaultDb } from "@KLTN/db";
+import type { Database } from "@KLTN/db";
 import { visibleDestinationWhere } from "./destination-eligibility";
 
 export type PublicDestinationPlannerDuration = {
@@ -12,7 +12,7 @@ export type PublicDestinationPlannerDuration = {
  */
 export async function readPublicDestinationPlannerDuration(
   id: string,
-  database: typeof defaultDb,
+  database: Database,
 ): Promise<PublicDestinationPlannerDuration | null> {
   const delegate = (database as { destination?: { findFirst?: unknown } } | null | undefined)?.destination;
   if (!delegate || typeof delegate.findFirst !== "function") return null;
