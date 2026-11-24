@@ -42,7 +42,7 @@
   width: min(100%, 1400px);
 }
 
-.my-trips-page a {
+.my-trips-page a:not(.tv-btn):not(.my-trips-action) {
   color: inherit;
 }
 
