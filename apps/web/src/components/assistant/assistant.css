@@ -4176,15 +4176,15 @@
   gap: 8px;
   padding: 10px 12px;
   margin-bottom: 10px;
-  border-radius: var(--tv-radius, 12px);
-  border: 1px solid var(--tv-line, #e2e2db);
-  background: var(--tv-surface, #f7f7f2);
+  border-radius: var(--tv-radius);
+  border: 1px solid var(--tv-line);
+  background: var(--tv-surface);
 }
 
 .tripsage-preselected-label {
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--tv-ink-muted, #6b6b65);
+  color: var(--tv-ink-2);
   margin-right: 4px;
 }
 
@@ -4201,18 +4201,18 @@
   min-height: 30px;
   padding: 4px 10px;
   border-radius: 9999px;
-  border: 1px solid var(--tv-line, #e2e2db);
-  background: var(--tv-paper, #ffffff);
-  color: var(--tv-ink, #1c1e1c);
+  border: 1px solid var(--tv-line);
+  background: var(--tv-ground);
+  color: var(--tv-ink);
   font-size: 12.5px;
   font-weight: 500;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .tripsage-preselected-chip[aria-pressed="true"] {
-  background: var(--tv-accent-tint, #e8f1eb);
-  border-color: var(--tv-accent, #2d5a43);
-  color: var(--tv-accent, #2d5a43);
+  background: var(--tv-accent-tint);
+  border-color: var(--tv-accent);
+  color: var(--tv-accent);
 }
 
 .tripsage-preselected-chip:disabled {
