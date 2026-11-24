@@ -147,7 +147,11 @@ export default function ManualLocationPicker({
     </div>
     <fieldset className={styles.coordinates} aria-describedby={`${id}-coordinate-help`}>
       <legend className={styles.legend}>Nhập tọa độ</legend>
-      <p className={styles.helper} id={`${id}-coordinate-help`}>Dùng dấu chấm cho phần thập phân. Bấm “Dùng tọa độ” hoặc Enter để chọn.</p>
+      <p className={styles.helper} id={`${id}-coordinate-help`}>
+        {hideApplyButton
+          ? "Chạm bản đồ hoặc dùng dấu chấm cho phần thập phân."
+          : "Dùng dấu chấm cho phần thập phân. Bấm “Dùng tọa độ” hoặc Enter để chọn."}
+      </p>
       <div className={styles.fields}>
         <div className={styles.field}>
           <label htmlFor={`${id}-latitude`}>Vĩ độ</label>

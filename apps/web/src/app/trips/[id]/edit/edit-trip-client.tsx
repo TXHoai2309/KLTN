@@ -474,7 +474,7 @@ export default function EditTripClient({
 
     const persistCommittedTurn = (assistantEntry: AiConversationEntry) => {
       const batch: PersistedTripEditChatPayload[] = [];
-      if (shouldAppendOptimisticUser) {
+      if (shouldAppendOptimisticUser || Boolean(overrideLocation)) {
         batch.push({ role: "user", text: trimmed });
       }
       if (assistantEntry.text.trim().length > 0) {

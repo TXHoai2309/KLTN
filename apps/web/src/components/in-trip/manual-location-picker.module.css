@@ -52,8 +52,8 @@
 
 @media (max-width: 767px) {
   .pickerSheet .mapSheet {
-    height: min(62dvh, 520px);
-    min-height: 300px;
+    height: clamp(260px, 50dvh, 430px);
+    min-height: 260px;
   }
 }
 

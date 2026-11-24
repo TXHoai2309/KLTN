@@ -2766,6 +2766,20 @@
     gap: 12px;
   }
 
+  .aiEmptyState {
+    margin: 0;
+    padding: 10px 4px 16px;
+    gap: 8px;
+  }
+
+  .aiEmptyState h2 {
+    font-size: 20px;
+  }
+
+  .aiStarterCard {
+    padding: 10px 12px;
+  }
+
   .aiBottomDockInner {
     padding: 4px 12px 10px;
   }
