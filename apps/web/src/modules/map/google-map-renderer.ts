@@ -3,6 +3,7 @@ import type { PlannerStop } from "../trip-planner/planner-contract";
 import { EXTERNAL_PLACE_LABEL } from "../trip-planner/planner-contract";
 import { destinationDetailHref, haGiangViewport, normalizeMapCoordinate, type MapCoordinate, type MapDestination, type RouteGeometry } from "./map-model";
 import { itineraryDayColorToken, type ItineraryMapRoute } from "./itinerary-map-model";
+import { cleanCategoryDisplayLabel } from "../../lib/traveler-display-clean";
 import { onGoogleAuthorizationFailure, type GoogleMap, type GoogleMarker, type GoogleMapsSdk, type GooglePoint } from "./google-maps-sdk";
 
 const point = (p: MapCoordinate): GooglePoint => ({ lat: p.latitude, lng: p.longitude });
@@ -87,7 +88,7 @@ export function mountGoogleDestinations(host: HTMLDivElement, sdk: GoogleMapsSdk
         const card = document.createElement("div"); card.className = "destination-map-popup";
         if (p.image?.url) { const image = document.createElement("img"); image.className = "destination-map-popup-thumb"; image.src = p.image.url; image.alt = p.image.alt || p.name; card.append(image); }
         const title = document.createElement("strong"); title.textContent = p.name;
-        const context = document.createElement("p"); context.textContent = [p.area, p.category].filter(Boolean).join(" · ");
+        const context = document.createElement("p"); context.textContent = [p.area, cleanCategoryDisplayLabel(p.category) || p.category].filter(Boolean).join(" · ");
         const link = document.createElement("a"); link.textContent = "Xem chi tiết"; link.href = destinationDetailHref(p.id, returnTo); card.append(title, context, link);
         const popup = new sdk.InfoWindow({ content: card });
         const click = () => popup.open({ map: scene.map, anchor: marker, shouldFocus: true }); button.addEventListener("click", click);

@@ -13,7 +13,7 @@ import {
   destinationSearchHref,
   type PublicLocationList,
 } from "@/modules/destination/public-destination-query";
-import { cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
+import { cleanCategoryDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import {
   collectRealExploreAreas,
   exploreDistanceKm,
@@ -193,7 +193,7 @@ export default function ExploreResults({ data: initialData, error, initialQuery 
                   aria-pressed={activeCategory === cat.toLocaleLowerCase("vi-VN")}
                   onClick={() => selectCategory(activeCategory === cat.toLocaleLowerCase("vi-VN") ? "" : cat)}
                 >
-                  {cleanTravelerDisplay(cat) || cat}
+                  {cleanCategoryDisplayLabel(cat) || cat}
                 </button>
               ))}
             </div>
@@ -280,7 +280,7 @@ export default function ExploreResults({ data: initialData, error, initialQuery 
                   <li key={item.id}>
                     <Link href={destinationDetailHref(item.id, returnTo)} className="explore-map-result">
                       <span className="explore-map-result-mark" aria-hidden="true"><MapPin size={18} /></span>
-                      <span className="explore-map-result-copy"><strong>{cleanPlaceDisplayName(item.name) || item.name}</strong>{areaText && <span>{areaText}</span>}<small>{cleanTravelerDisplay(item.category) || item.category}</small></span>
+                      <span className="explore-map-result-copy"><strong>{cleanPlaceDisplayName(item.name) || item.name}</strong>{areaText && <span>{areaText}</span>}<small>{cleanCategoryDisplayLabel(item.category) || item.category}</small></span>
                       <ArrowUpRight aria-hidden="true" size={16} />
                     </Link>
                   </li>

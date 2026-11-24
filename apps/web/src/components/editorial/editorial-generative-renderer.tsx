@@ -7,7 +7,7 @@ import { formatHeroLocation, renderEditorialSectionHeading, renderFormattedEdito
 import EditorialPhoto from "./editorial-photo";
 import { EditorialTocNav } from "./editorial-toc";
 import type { EditorialPageData } from "./editorial-renderer";
-import { cleanAreaDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
+import { cleanAreaDisplayLabel, cleanCategoryDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { stripMarkdownHeading, editorialTitlePhrases } from "@/modules/destination-editorial/editorial-content";
 import { editorialValue, hasEditorialCoordinates, hasEditorialFacts } from "@/modules/destination-editorial/editorial-display-policy";
 import { projectPublicEditorialV2 } from "@/modules/destination-editorial/editorial-display-transform";
@@ -39,7 +39,7 @@ export default function EditorialGenerativeRenderer({
     : { sections: layout.sections.filter(sec => !sec.hidden), headings: new Map(), toc: [] };
   const heroSections = projection.sections.filter(sec => sec.type === "HERO");
   const bodySections = projection.sections.filter(sec => sec.type !== "HERO");
-  const displayCategory = cleanTravelerDisplay(editorialValue(data.category));
+  const displayCategory = cleanCategoryDisplayLabel(editorialValue(data.category));
   const cleanFactArea = cleanAreaDisplayLabel(data.area);
 
   const findPhoto = (id: string, node: EditorialNodeV2, priority = false) => {

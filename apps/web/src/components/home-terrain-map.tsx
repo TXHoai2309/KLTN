@@ -8,6 +8,7 @@ import { ArrowRight, Info, X } from "lucide-react";
 import type { PublicLocation } from "@/modules/destination/public-destination-list";
 import { destinationThumbnail } from "@/modules/destination/destination-image-url";
 import { destinationDetailHref } from "@/modules/map/map-model";
+import { cleanCategoryDisplayLabel } from "@/lib/traveler-display-clean";
 import { terrainDefaults, terrainPlaces, type TerrainData, type TerrainPlace } from "@/modules/map/terrain-model";
 import type { TerrainScene, TerrainView } from "@/modules/map/terrain-renderer";
 import "./home-terrain-map.css";
@@ -97,7 +98,7 @@ export default function HomeTerrainMap({ destinations, descriptions = {} }: {
         <button type="button" className="hg-terrain-close" aria-label="Đóng thông tin địa điểm" onClick={close}><X size={17} aria-hidden="true" /></button>
         {destination?.image?.url && <Image className="hg-terrain-photo" src={destinationThumbnail(destination.image.url)} alt={destination.image.alt || destination.name} width={320} height={140} />}
         <div className="hg-terrain-preview-body">
-          <p className="hg-terrain-meta">{selected.area}{destination?.category ? ` · ${destination.category}` : ""}</p>
+          <p className="hg-terrain-meta">{selected.area}{destination?.category ? ` · ${cleanCategoryDisplayLabel(destination.category) || destination.category}` : ""}</p>
           <h3 ref={heading} tabIndex={-1}>{destination?.name ?? selected.name}</h3>
           <p>{destination ? descriptions[destination.id] || "Khám phá hình ảnh và thông tin của điểm đến." : "Địa danh tham khảo trên bản đồ. Chưa có bài giới thiệu trong Khám phá."}</p>
           {destination && <Link className="hg-terrain-detail" href={destinationDetailHref(destination.id)}>Xem chi tiết <ArrowRight size={16} aria-hidden="true" /></Link>}

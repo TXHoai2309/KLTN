@@ -6,7 +6,7 @@ import { defaultEditorialDesign, isV2Layout } from "@/modules/destination-editor
 import EditorialPhoto from "./editorial-photo";
 import { EditorialTocNav } from "./editorial-toc";
 import { HeroPanorama, HeroSplit, HeroCover, formatHeroLocation, EditorialIntroduction, EditorialProse, TextImageStorySection, FullBleedImage, StaggeredImageGallery, VisualHighlights, MapSection, SourceAttribution } from "./editorial-story";
-import { cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
+import { cleanCategoryDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { editorialHeroPlan, heroDeck } from "@/modules/destination-editorial/editorial-hero";
 import { normalizeEditorialText } from "@/modules/destination-editorial/editorial-content";
 import { editorialValue } from "@/modules/destination-editorial/editorial-display-policy";
@@ -63,7 +63,7 @@ export default function EditorialRenderer({
   };
   const renderHero = () => {
     if (!heroBlock) {
-      const cat = cleanTravelerDisplay(editorialValue(data.category));
+      const cat = cleanCategoryDisplayLabel(editorialValue(data.category));
       return (
         <header className="emg-title">
           <h1>{cleanPlaceDisplayName(data.name) || data.name}</h1>

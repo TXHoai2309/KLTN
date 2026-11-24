@@ -1,6 +1,6 @@
 import React from "react";
 import DestinationDetailIframeMap from "@/components/map/destination-detail-iframe-map";
-import { cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
+import { cleanCategoryDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { editorialTitlePhrases, normalizeEditorialText, stripMarkdownHeading } from "@/modules/destination-editorial/editorial-content";
 import type { EditorialBlock, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import type { EditorialPageData } from "./editorial-renderer";
@@ -121,7 +121,7 @@ function HeroTitle({ block, data, intro = "" }: { block: EditorialBlock; data: E
     )
   );
   const showDeck = Boolean(deck && normDeck !== normTitle && !isDeckLocationDuplicate);
-  const displayCategory = cleanTravelerDisplay(editorialValue(data.category));
+  const displayCategory = cleanCategoryDisplayLabel(editorialValue(data.category));
   return (
     <div className="emg-title" data-title-length={title.length > 32 ? "long" : "short"}>
       <h1>{phrases.map((p, i) => <React.Fragment key={i}><span>{p}</span>{i < phrases.length - 1 ? " " : null}</React.Fragment>)}</h1>
@@ -151,7 +151,7 @@ export function FullBleedImage({ block, heading, children }: StoryProps) { const
 export function StaggeredImageGallery({ block, heading, children }: StoryProps) { const title = cleanPlaceDisplayName(stripMarkdownHeading(block.title)); return <section className="emg-gallery-section">{renderEditorialSectionHeading(title, heading)}<div className={`emg-gallery emg-gallery-${block.gallery}`} data-images={block.mediaIds.length}>{children}</div></section>; }
 export function VisualHighlights({ data, duration }: { data: EditorialPageData; duration: string }) {
   if (!hasEditorialFacts(data)) return null;
-  return <section className="emg-facts" aria-label="Điểm nhấn">{editorialValue(data.area) && <div><span>Khu vực</span><strong>{editorialValue(data.area)}</strong></div>}{editorialValue(data.category) && <div><span>Loại hình</span><strong>{editorialValue(data.category)}</strong></div>}{hasEditorialDuration(data.suggestedDurationMinutes) && <div><span>Nhịp tham quan</span><strong>{duration}</strong></div>}</section>;
+  return <section className="emg-facts" aria-label="Điểm nhấn">{editorialValue(data.area) && <div><span>Khu vực</span><strong>{editorialValue(data.area)}</strong></div>}{editorialValue(data.category) && <div><span>Loại hình</span><strong>{cleanCategoryDisplayLabel(editorialValue(data.category))}</strong></div>}{hasEditorialDuration(data.suggestedDurationMinutes) && <div><span>Nhịp tham quan</span><strong>{duration}</strong></div>}</section>;
 }
 export function MapSection({ block, data }: StoryProps & { data: EditorialPageData }) {
   if (!hasEditorialCoordinates(data)) return null;

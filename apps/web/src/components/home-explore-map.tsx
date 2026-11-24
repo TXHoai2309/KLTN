@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { Route } from "next";
 import type { PublicLocation } from "@/modules/destination/public-destination-list";
 import { destinationDetailHref } from "@/modules/map/map-model";
+import { cleanCategoryDisplayLabel } from "@/lib/traveler-display-clean";
 import { destinationThumbnail } from "@/modules/destination/destination-image-url";
 import { ArrowRight, Compass, MapPin, X } from "lucide-react";
 
@@ -156,7 +157,7 @@ export default function HomeExploreMap({
                   <span className="home-destination-list-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                   <span className="home-destination-list-copy">
                     <strong>{destination.name}</strong>
-                    <small>{destination.area} · {destination.category}</small>
+                    <small>{destination.area} · {cleanCategoryDisplayLabel(destination.category) || destination.category}</small>
                   </span>
                   <ArrowRight size={15} aria-hidden="true" />
                 </button>
@@ -200,7 +201,7 @@ export default function HomeExploreMap({
                             {destination.area}
                           </span>
                           <span className="home-map-preview-category">
-                            {destination.category}
+                            {cleanCategoryDisplayLabel(destination.category) || destination.category}
                           </span>
                         </div>
 

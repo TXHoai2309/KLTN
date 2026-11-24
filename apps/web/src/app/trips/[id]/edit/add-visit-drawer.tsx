@@ -4,6 +4,7 @@ import { Clock, Heart, LoaderCircle, MapPin, Plus, RotateCcw, Search, X } from "
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getDestinationVisual } from "@/lib/destination-visuals";
+import { cleanCategoryDisplayLabel } from "@/lib/traveler-display-clean";
 import { toMinute } from "@/modules/destination/destination-contract";
 import {
   startDestinationRequest,
@@ -413,7 +414,7 @@ export default function AddVisitDrawer({
                         </div>
                         <span className={styles.visitArea}>
                           <MapPin size={12} aria-hidden="true" />
-                          {item.area} · {item.category}
+                          {item.area} · {cleanCategoryDisplayLabel(item.category) || item.category}
                         </span>
                         <span className={styles.drawerCardMeta}>
                           <Clock size={12} aria-hidden="true" />

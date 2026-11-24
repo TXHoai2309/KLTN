@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cleanAreaDisplayLabel,
+  cleanCategoryDisplayLabel,
   cleanDocumentSourceTitle,
   cleanOvernightAreaLabel,
   cleanPlaceDisplayName,
@@ -136,5 +137,21 @@ describe("Ticket 04: traveler display cleanup helpers", () => {
       "- **Núi Đôi Cô Tiên** (09:21)\n- Thị trấn Mèo Vạc (08:00)",
     );
     expect(cleanTravelerDisplay("Điểm 1: [Tam] Chợ Đồng Văn")).toBe("Điểm 1: Chợ Đồng Văn");
+  });
+
+  it("Lỗi 2: sentence-cases category labels while preserving existing uppercase and Vietnamese Đ", () => {
+    expect(cleanCategoryDisplayLabel("chợ phiên")).toBe("Chợ phiên");
+    expect(cleanCategoryDisplayLabel("công viên địa chất")).toBe("Công viên địa chất");
+    expect(cleanCategoryDisplayLabel("di tích lịch sử – kiến trúc")).toBe("Di tích lịch sử – kiến trúc");
+    expect(cleanCategoryDisplayLabel("làng du lịch – bản làng")).toBe("Làng du lịch – bản làng");
+    expect(cleanCategoryDisplayLabel("thiên nhiên – thắng cảnh")).toBe("Thiên nhiên – thắng cảnh");
+    expect(cleanCategoryDisplayLabel("văn hóa")).toBe("Văn hóa");
+    expect(cleanCategoryDisplayLabel("đèo núi")).toBe("Đèo núi");
+    expect(cleanCategoryDisplayLabel("Công viên địa chất")).toBe("Công viên địa chất");
+    expect(cleanCategoryDisplayLabel("di sản UNESCO")).toBe("Di sản UNESCO");
+    expect(cleanCategoryDisplayLabel("ẩm thực & café")).toBe("Ẩm thực & café");
+    expect(cleanCategoryDisplayLabel("")).toBe("");
+    expect(cleanCategoryDisplayLabel(null)).toBe("");
+    expect(cleanCategoryDisplayLabel(undefined)).toBe("");
   });
 });

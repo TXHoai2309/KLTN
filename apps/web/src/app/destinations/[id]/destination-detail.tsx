@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { DestinationAiFab } from "@/components/destination-ai-fab";
 import { DestinationSummaryCard } from "./destination-summary-card";
-import { cleanAreaDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
+import { cleanAreaDisplayLabel, cleanCategoryDisplayLabel, cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts, hasEditorialDuration } from "@/modules/destination-editorial/editorial-display-policy";
 import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
 
@@ -107,7 +107,7 @@ export default function DestinationDetail({
 }) {
   const visit = editorialVisitData(d);
   const displayName = cleanPlaceDisplayName(d.name) || d.name;
-  const displayCategory = cleanTravelerDisplay(editorialValue(d.category) || d.category);
+  const displayCategory = cleanCategoryDisplayLabel(editorialValue(d.category) || d.category);
   const cleanArea = cleanAreaDisplayLabel(d.area);
   const summaryCard = (
     <DestinationSummaryCard
@@ -237,7 +237,7 @@ export default function DestinationDetail({
                   <Tag size={15} aria-hidden="true" />
                   Danh mục
                 </dt>
-                <dd>{editorialValue(d.category)}</dd>
+                <dd>{cleanCategoryDisplayLabel(editorialValue(d.category))}</dd>
               </div>}
               {hasEditorialDuration(d.suggestedDurationMinutes) && <div className="public-detail-fact-row">
                 <dt>

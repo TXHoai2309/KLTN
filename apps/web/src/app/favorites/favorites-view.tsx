@@ -12,7 +12,7 @@ import { Skeleton } from "@KLTN/ui/components/skeleton";
 import { createIdempotencyKey } from "@/lib/mutation-client";
 import type { MutationOutcome } from "@/lib/mutation-contract";
 import DestinationCardImage from "@/components/destination-card-image";
-import { cleanAreaDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
+import { cleanAreaDisplayLabel, cleanCategoryDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import { loadFavorites, removeFavoriteRequest, confirmedRemoval } from "@/modules/favorite/favorite-client";
 import type { FavoriteItem, FavoriteList } from "@/modules/favorite/favorite-contract";
 
@@ -102,7 +102,7 @@ export function FavoriteCard({
     )}
     <div className="favorite-card-body">
       <div className="favorite-card-top">
-        {item.category && <p className="favorite-card-category">{item.category}</p>}
+        {item.category && <p className="favorite-card-category">{cleanCategoryDisplayLabel(item.category) || item.category}</p>}
         {onToggleSelectForPlan && group === "destinations" && item.availability === "AVAILABLE" && (
           <label className="favorite-card-select">
             <input

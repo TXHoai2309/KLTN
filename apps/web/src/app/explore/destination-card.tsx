@@ -7,7 +7,7 @@ import type { ExploreReturnHref } from "@/modules/destination/destination-detail
 import { destinationDetailHref } from "@/modules/map/map-model";
 import DestinationCardImage from "@/components/destination-card-image";
 import FavoriteButton from "@/components/favorite-button";
-import { cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
+import { cleanCategoryDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import { resolveExploreDisplayArea } from "@/modules/destination/explore-filter-sort";
 
 export default function DestinationCard({
@@ -21,7 +21,7 @@ export default function DestinationCard({
 }) {
   const displayName = cleanPlaceDisplayName(destination.name) || destination.name;
   const displayArea = resolveExploreDisplayArea(destination);
-  const displayCategory = cleanTravelerDisplay(destination.category) || destination.category;
+  const displayCategory = cleanCategoryDisplayLabel(destination.category) || destination.category;
   const distanceLabel = typeof distanceKm === "number" && Number.isFinite(distanceKm)
     ? distanceKm < 1
       ? `${Math.round(distanceKm * 1000)} m`

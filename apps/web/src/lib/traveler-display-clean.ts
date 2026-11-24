@@ -140,6 +140,13 @@ export function cleanDocumentSourceTitle(raw: string | null | undefined): string
   return cleanTravelerDisplay(raw);
 }
 
+/** Formats category labels in Vietnamese sentence case without changing underlying filter keys or DB values. */
+export function cleanCategoryDisplayLabel(raw: string | null | undefined): string {
+  const cleaned = cleanTravelerDisplay(raw);
+  if (!cleaned) return "";
+  return cleaned.replace(/^\p{L}/u, (first) => first.toLocaleUpperCase("vi-VN"));
+}
+
 /**
  * Cleans an area/address label for display. Returns null when the value is empty
  * or only a generic placeholder such as "khu vực hà giang" (design §3.3, slim D23).

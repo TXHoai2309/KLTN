@@ -1,6 +1,7 @@
 import type * as MapLibre from "maplibre-gl";
 import type { ExploreReturnHref } from "../destination/destination-detail-navigation";
 import { destinationDetailHref, haGiangViewport, normalizeMapCoordinate, toMapCoordinate, type MapCoordinate, type MapDestination, type RouteGeometry } from "./map-model";
+import { cleanCategoryDisplayLabel } from "../../lib/traveler-display-clean";
 
 export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, returnTo: ExploreReturnHref | undefined, onReady: () => void, onFailure: (error?: unknown) => void, extras: { routeGeometry?: RouteGeometry; onMap?: (map: MapLibre.Map | null) => void; disablePopup?: boolean } = {}) {
   const map = new library.Map({ container: host, style, center: toMapCoordinate(haGiangViewport.center), zoom: haGiangViewport.zoom, maxZoom: 15, cooperativeGestures: true, attributionControl: { compact: true } });
@@ -41,7 +42,7 @@ export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, po
           card.append(thumb);
         }
         const heading = document.createElement("strong"); heading.textContent = point.name;
-        const context = document.createElement("p"); context.textContent = [point.area, point.category].filter(Boolean).join(" · "); card.append(heading, context);
+        const context = document.createElement("p"); context.textContent = [point.area, cleanCategoryDisplayLabel(point.category) || point.category].filter(Boolean).join(" · "); card.append(heading, context);
         const link = document.createElement("a"); link.textContent = "Xem chi tiết"; link.href = destinationDetailHref(point.id, returnTo); card.append(link);
         const popup = new library.Popup({ offset: 24, focusAfterOpen: true }).setDOMContent(card);
         popups.push(popup);
