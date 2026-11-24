@@ -167,7 +167,7 @@ describe("Saved Journey & Privacy UI (Tickets 06, 08, 09)", () => {
       expect(html).not.toContain("21.03330");
       expect(html).not.toContain("105.79550");
       expect(html).not.toContain("data-testid=\"trip-saved-journey-section\"");
-      expect(html).not.toContain("Đổi nơi/giờ xuất phát");
+      expect(html).not.toContain("Đổi giờ xuất phát");
       expect(html).not.toContain("Bổ sung nơi xuất phát");
 
       // Member still sees destination stops normally
@@ -181,7 +181,7 @@ describe("Saved Journey & Privacy UI (Tickets 06, 08, 09)", () => {
       const trip = createTrip();
       const html = renderToStaticMarkup(createElement(TripDetailView, { trip }));
 
-      expect(html).toContain("Đổi nơi/giờ xuất phát");
+      expect(html).toContain("Đổi giờ xuất phát");
     });
 
     it("does not show edit journey action for completed trips", () => {
@@ -191,7 +191,7 @@ describe("Saved Journey & Privacy UI (Tickets 06, 08, 09)", () => {
       });
       const html = renderToStaticMarkup(createElement(TripDetailView, { trip }));
 
-      expect(html).not.toContain("Đổi nơi/giờ xuất phát");
+      expect(html).not.toContain("Đổi giờ xuất phát");
     });
   });
 
