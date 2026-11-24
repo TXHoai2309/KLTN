@@ -734,3 +734,7 @@ The origin picker uses explicit search/select/confirm with a manual fallback and
 ## Traveler slim UI system — owner-approved direction (2026-11-23)
 
 For the Assistant (`/assistant`), My Trips (`/trips`, `/trips/[id]`) and the shared trip page, the token set, button system, day tabs, plan panel/sheet and layouts are defined in `docs/design/traveler-ui-system.md` (`--tv-*` tokens: buttons 28/34/44px at weight 500, no resting shadows, one primary action per screen, Be Vietnam Pro + Lora only, ink #17231d, accent #2f6b53). It supersedes earlier entries in this file for those three screens. Implementation: `docs/stories/TRAVELER-UI-SLIM-REDESIGN.md`.
+
+## Public & Traveler UI alignment with `traveler-ui-system.md` (2026-11-24)
+
+Home (`/`), Explore (`/explore`), Destination Detail (`/destinations/[id]`), Favorites (`/favorites`), Companion (`/trip-companions/...`), and shared Site Header/Launcher controls also follow `docs/design/traveler-ui-system.md` (`--tv-*` light/dark surfaces, Lora display + Be Vietnam Pro UI typography, lowercase/sentence-case labels without tracked uppercase eyebrows, zero resting card/button shadows, single primary CTA per view, and clean `travel assistant` brand subtitle). Earlier editorial/gallery sections in `DESIGN.md` are superseded wherever they conflict with `docs/design/traveler-ui-system.md`.
