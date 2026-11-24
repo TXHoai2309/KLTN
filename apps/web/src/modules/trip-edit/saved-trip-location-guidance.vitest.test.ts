@@ -638,7 +638,7 @@ describe("Saved-trip assistant Ticket 06: Conditional ONGOING GPS & manual locat
     if (manualRes.status !== "ADVISED") return;
     expect(manualRes.suggestions ?? []).toHaveLength(0);
     expect(manualRes.advice).toContain("Thị trấn Mèo Vạc");
-    expect(manualRes.advice).toContain("2.1 km");
+    expect(manualRes.advice).toContain("2,1 km");
     expect(manualRes.advice).toContain("10 phút");
     expect(manualRes.advice).toContain("07:50");
     expect(manualRes.advice).toContain("theo vị trí bạn vừa chia sẻ");
@@ -702,7 +702,7 @@ describe("Saved-trip assistant Ticket 06: Conditional ONGOING GPS & manual locat
     expect(midDayRes.suggestions ?? []).toHaveLength(0);
     expect(midDayRes.advice).toContain("Dinh Vua Mèo");
     expect(midDayRes.advice).toContain("11:30");
-    expect(midDayRes.advice).toContain("14.5 km");
+    expect(midDayRes.advice).toContain("14,5 km");
     expect(midDayRes.advice).toContain("20 phút");
     expect(midDayRes.advice).toContain("ô tô");
     expect(midDayRes.advice).toContain("11:10");
@@ -1074,5 +1074,75 @@ describe("Saved-trip assistant Ticket 06: Conditional ONGOING GPS & manual locat
       expect(expiredRes.prompt).toContain("15 phút");
       expect(expiredRes.pendingMessage).toBe("Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?");
     }
+  });
+
+  it("Lỗi 5: formats Vietnamese km distances with commas (34,4 km, 2,3 km) and meters (<1 km)", async () => {
+    const { database, draft } = createLocationFixture();
+    const ongoingAt1100Vn = new Date("2026-10-20T04:00:00.000Z");
+
+    const eta34Res = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Từ chỗ mình đi điểm tiếp theo bao xa?",
+        draft,
+        location: {
+          source: "GPS",
+          latitude: 23.2785,
+          longitude: 105.3625,
+          accuracyMeters: 15,
+          capturedAt: "2026-10-20T03:58:00.000Z",
+        },
+      },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("not used"); } },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 2700, distanceMeters: 34_400 }),
+      },
+      ongoingAt1100Vn,
+    );
+    expect(eta34Res.status).toBe("ADVISED");
+    if (eta34Res.status !== "ADVISED") return;
+    expect(eta34Res.advice).toContain("34,4 km");
+    expect(eta34Res.advice).not.toContain("34.4 km");
+
+    // Near Đồng Văn (23.2785, 105.3625): ~0.107 km north (~23.27946, 105.3625) and ~2.25 km north (~23.29873, 105.3625)
+    const nearbyRes = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Quanh đây có quán ăn nào không?",
+        draft,
+        location: {
+          source: "GPS",
+          latitude: 23.2785,
+          longitude: 105.3625,
+          accuracyMeters: 15,
+          capturedAt: "2026-10-20T03:58:00.000Z",
+        },
+      },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("not used"); } },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 300, distanceMeters: 107 }),
+        places: async () => ({
+          status: "RESULTS",
+          places: [
+            { placeId: "ChIJ-m", name: "Quán Gần", latitude: 23.27946, longitude: 105.3625, types: ["restaurant"] },
+            { placeId: "ChIJ-km1", name: "Quán Chợ", latitude: 23.29828, longitude: 105.3625, types: ["restaurant"] },
+            { placeId: "ChIJ-km2", name: "Quán Phố Cổ", latitude: 23.29875, longitude: 105.3625, types: ["restaurant"] },
+          ],
+        }),
+      },
+      ongoingAt1100Vn,
+    );
+    expect(nearbyRes.status).toBe("ADVISED");
+    if (nearbyRes.status !== "ADVISED") return;
+    expect(nearbyRes.advice).toContain("107 m");
+    expect(nearbyRes.advice).toContain("2,2 km");
+    expect(nearbyRes.advice).toContain("2,3 km");
+    expect(nearbyRes.advice).not.toContain("2.3 km");
   });
 });

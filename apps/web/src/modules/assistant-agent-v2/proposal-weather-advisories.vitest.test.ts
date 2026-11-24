@@ -209,7 +209,7 @@ describe("Ticket 05: Proposal reply weather advisory line", () => {
     const three = await evalThree(oneDayProposal);
     expect(three).toHaveLength(2);
     const lineThree = formatProposalWeatherAdvisoryLine(three)!;
-    expect(lineThree).toContain("cảnh báo sương mù (tầm nhìn 0.5 km)");
+    expect(lineThree).toContain("cảnh báo sương mù (tầm nhìn 0,5 km)");
     expect(lineThree).toContain("cảnh báo mưa (khả năng mưa 85%)");
     expect(lineThree).not.toContain("gió giật");
 
@@ -296,7 +296,7 @@ describe("Ticket 05: Proposal reply weather advisory line", () => {
       return "Với 2 ngày đi xe máy, mình xếp ngày 1: Điểm a; ngày 2: Điểm b để giữ tuyến gọn. Lịch này chưa lưu; các kiểm tra hiện có đều đáp ứng.";
     });
     expect(seenByModel[0]?.weatherAdvisories).toBeUndefined();
-    expect(presentReply).toContain("Lưu ý thời tiết (chỉ để tham khảo): ngày 1 tại Điểm a (08:00–09:00) có cảnh báo sương mù (tầm nhìn 0.5 km) — bạn xem chi tiết ở bảng thời tiết bên dưới nhé.");
+    expect(presentReply).toContain("Lưu ý thời tiết (chỉ để tham khảo): ngày 1 tại Điểm a (08:00–09:00) có cảnh báo sương mù (tầm nhìn 0,5 km) — bạn xem chi tiết ở bảng thời tiết bên dưới nhé.");
 
     // Renders cleanly in AssistantPlanMessage without breaking day parsing
     const planHtml = renderToStaticMarkup(createElement(AssistantPlanMessage, { message: presentReply, proposalBelow: true }));
@@ -311,7 +311,7 @@ describe("Ticket 05: Proposal reply weather advisory line", () => {
     };
     const replanReply = await safePlanningV2Reply(replanPlan, loadAssistantSkill("itinerary-replanning"), async () => "");
     expect(replanReply).toContain("Mình đã thêm Điểm a vào ngày 1");
-    expect(replanReply).toContain("Lưu ý thời tiết (chỉ để tham khảo): ngày 1 tại Điểm a (08:00–09:00) có cảnh báo sương mù (tầm nhìn 0.5 km)");
+    expect(replanReply).toContain("Lưu ý thời tiết (chỉ để tham khảo): ngày 1 tại Điểm a (08:00–09:00) có cảnh báo sương mù (tầm nhìn 0,5 km)");
 
     // 3. Read-only PLANNING_GUIDANCE and ACKNOWLEDGE_NO_CHANGE: NEVER adds weather advisory line even if present
     const guidancePlan: PlanningResponsePlan = {

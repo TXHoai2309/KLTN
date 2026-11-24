@@ -1,4 +1,5 @@
 import type { Database } from "@KLTN/db";
+import { formatDecimalNumber } from "../../lib/traveler-number-format";
 import { createQaGenerator } from "../ai/qa-generation";
 import { createQaRetriever } from "../ai/qa-retrieval";
 import type { QaAnswer } from "../ai/qa-runtime-contract";
@@ -456,8 +457,8 @@ async function answerWeatherQuestion(input: {
         ? `${Math.round(s.minTemperatureC)}–${Math.round(s.maxTemperatureC)}°C`
         : "chưa rõ nhiệt độ";
     const rain = s.maxPrecipitationProbability !== null ? `xác suất mưa tối đa ${Math.round(s.maxPrecipitationProbability)}%` : "";
-    const mm = s.maxPrecipitationMm !== null && s.maxPrecipitationMm > 0 ? ` (~${s.maxPrecipitationMm.toFixed(1)} mm/h)` : "";
-    const vis = s.minVisibilityM !== null ? `tầm nhìn ~${(s.minVisibilityM / 1000).toFixed(1)} km` : "";
+    const mm = s.maxPrecipitationMm !== null && s.maxPrecipitationMm > 0 ? ` (~${formatDecimalNumber(s.maxPrecipitationMm, "vi", 1)} mm/h)` : "";
+    const vis = s.minVisibilityM !== null ? `tầm nhìn ~${formatDecimalNumber(s.minVisibilityM / 1000, "vi", 1)} km` : "";
     const wind = s.maxWindGustKmh !== null ? `gió giật ~${Math.round(s.maxWindGustKmh)} km/h` : "";
     lines.push(
       `Thời tiết lúc có mặt tại **${stopName}** (Ngày ${targetDay.dayIndex} · ${ddMmYyyy(localDate)}, ${minuteClockLabel(focusVisit!.startMinute)}–${minuteClockLabel(focusVisit!.startMinute + focusVisit!.plannedDurationMinutes)}): ${[temp, `${rain}${mm}`, vis, wind].filter(Boolean).join(", ")}.`,
@@ -571,7 +572,7 @@ async function answerWeatherQuestion(input: {
         a.kind === "RAIN"
           ? `mưa (${Math.round(a.observed)}${a.threshold < 10 ? " mm/h" : "%"})`
           : a.kind === "FOG"
-            ? `sương mù (tầm nhìn ${(a.observed / 1000).toFixed(1)} km)`
+            ? `sương mù (tầm nhìn ${formatDecimalNumber(a.observed / 1000, "vi", 1)} km)`
             : `gió giật (${Math.round(a.observed)} km/h)`,
       )
       .join(", ");

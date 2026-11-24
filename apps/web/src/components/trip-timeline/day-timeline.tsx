@@ -26,6 +26,7 @@ import {
   cleanPlaceDisplayName,
   cleanTravelerDisplay,
 } from "@/lib/traveler-display-clean";
+import { formatDistanceKm } from "@/lib/traveler-number-format";
 
 export type DayTimelineVariant = "full" | "compact";
 
@@ -206,7 +207,7 @@ function StopNearbyRow({
         <span className="dt-suggestion-name">{firstName}</span>
         {first.distanceKm != null && (
           <span className="dt-suggestion-dist">
-            · {first.distanceKm.toLocaleString("vi-VN")} km
+            · {formatDistanceKm(first.distanceKm)}
           </span>
         )}
         <PreviewLink
@@ -241,7 +242,7 @@ function StopNearbyRow({
                 <span className="dt-suggestion-name">{itemName}</span>
                 {item.distanceKm != null && (
                   <span className="dt-suggestion-dist">
-                    · {item.distanceKm.toLocaleString("vi-VN")} km
+                    · {formatDistanceKm(item.distanceKm)}
                   </span>
                 )}
                 <PreviewLink
@@ -315,7 +316,7 @@ function SuggestionMarkerItem({
                   <span className="dt-suggestion-name">{itemName}</span>
                   {item.distanceKm != null && (
                     <span className="dt-suggestion-dist">
-                      {item.distanceKm.toLocaleString("vi-VN")} km
+                      {formatDistanceKm(item.distanceKm)}
                     </span>
                   )}
                   <PreviewLink target={item.previewTarget} name={itemName} onPreview={onPreview} iconOnly />
@@ -351,7 +352,7 @@ function SuggestionMarkerItem({
                       <span className="dt-suggestion-name">{itemName}</span>
                       {item.distanceKm != null && (
                         <span className="dt-suggestion-dist">
-                          {item.distanceKm.toLocaleString("vi-VN")} km
+                          {formatDistanceKm(item.distanceKm)}
                         </span>
                       )}
                       <PreviewLink target={item.previewTarget} name={itemName} onPreview={onPreview} iconOnly />
@@ -383,7 +384,7 @@ function SuggestionMarkerItem({
                     <span className="dt-suggestion-name">{placeName}</span>
                     {place.distanceKm != null && (
                       <span className="dt-suggestion-dist">
-                        {place.distanceKm.toLocaleString("vi-VN")} km
+                        {formatDistanceKm(place.distanceKm)}
                       </span>
                     )}
                     <PreviewLink target={place.previewTarget} name={placeName} onPreview={onPreview} iconOnly />
@@ -710,7 +711,7 @@ export function DayTimeline({
                                 {meal.detail && <span className="dt-suggestion-dist">{cleanTravelerDisplay(meal.detail)}</span>}
                                 {meal.distanceKm != null && (
                                   <span className="dt-suggestion-dist">
-                                    {meal.distanceKm.toLocaleString("vi-VN")} km
+                                    {formatDistanceKm(meal.distanceKm)}
                                   </span>
                                 )}
                                 <PreviewLink

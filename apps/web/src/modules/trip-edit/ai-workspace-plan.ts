@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { AppError } from "@/server/http/app-error";
+import { formatDistanceMeters } from "../../lib/traveler-number-format";
 import { MAX_DURATION_DAYS } from "../trip-requirement/trip-requirement-contract";
 import { PreferenceExtractionError } from "../preference-extraction/preference-extraction-errors";
 import {
@@ -1169,7 +1170,7 @@ export function buildGroundedAdvice(input: {
       verifiedLegs.reduce((sum, leg) => sum + (leg.durationSeconds ?? 0), 0) / 60,
     );
     const totalMeters = verifiedLegs.reduce((sum, leg) => sum + (leg.distanceMeters ?? 0), 0);
-    const distPart = totalMeters > 0 ? `, ~${(totalMeters / 1000).toFixed(1)} km` : "";
+    const distPart = totalMeters > 0 ? `, ~${formatDistanceMeters(totalMeters, "vi")}` : "";
     lines.push(
       `Di chuyển nội bộ: đã đo ${verifiedLegs.length}/${relevantLegs.length} chặng (tổng ~${totalDriveMin} phút${distPart})${
         unknownLegs > 0 ? `; còn ${unknownLegs} chặng chưa đủ dữ liệu đường đi` : ""

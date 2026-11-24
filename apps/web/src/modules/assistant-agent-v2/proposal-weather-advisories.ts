@@ -1,4 +1,5 @@
 import "server-only";
+import { formatDecimalNumber } from "@/lib/traveler-number-format";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import { formatMinute } from "@/modules/trip-weather/sun-times";
 import { toTripWeatherRequest } from "@/modules/trip-weather/trip-weather-request";
@@ -103,7 +104,7 @@ function formatAdvisoryClause(item: ProposalWeatherAdvisoryItem): string {
   const when = formatAdvisoryWindow(item.fromTime, item.toTime);
   const kindAndMetric =
     item.kind === "FOG"
-      ? `cảnh báo sương mù (tầm nhìn ${(item.observed / 1000).toFixed(1)} km)`
+      ? `cảnh báo sương mù (tầm nhìn ${formatDecimalNumber(item.observed / 1000, "vi", 1)} km)`
       : item.kind === "RAIN"
         ? `cảnh báo mưa (${item.threshold < 10 ? `lượng mưa ${item.observed} mm/h` : `khả năng mưa ${item.observed}%`})`
         : item.kind === "WIND"

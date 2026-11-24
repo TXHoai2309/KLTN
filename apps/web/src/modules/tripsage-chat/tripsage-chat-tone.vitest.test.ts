@@ -446,10 +446,52 @@ describe("Ticket 03: tone rules & document source scoping", () => {
       to: "Cột cờ Lũng Cú",
       transport: "MOTORCYCLE",
       distanceKm: 25.6,
+      distanceLabel: "25,6 km",
       durationMinutes: 55,
       isEstimate: true,
       source: "hệ thống định tuyến đường bộ của ứng dụng",
     });
+
+    const enTools = createTripsageChatTools({
+      planning: {
+        candidates: async () => [dongVan, lungCu],
+        routes: {
+          route: async ({ from, to }) => ({
+            fromDestinationId: from.id,
+            toDestinationId: to.id,
+            status: "VERIFIED",
+            reason: null,
+            distanceMeters: 2250,
+            durationSeconds: 360,
+            provider: "STADIA_MAPS",
+          }),
+        },
+        now: () => planningNow,
+      },
+      latestUserText: "How far is it from Dong Van to Lung Cu?",
+      emitItinerary: () => {},
+      places: async () => ({
+        status: "RESULTS",
+        places: [
+          { placeId: "en-1", name: "Coffee M", latitude: dongVan.latitude + 0.000962, longitude: dongVan.longitude },
+          { placeId: "en-2", name: "Cafe Km", latitude: dongVan.latitude + 0.020235, longitude: dongVan.longitude },
+        ],
+      }),
+    });
+    const enRouteRes = await enTools.estimateRoute.execute!(
+      { fromDestinationId: "Phố cổ Đồng Văn", toDestinationId: "Cột cờ Lũng Cú", transport: "CAR" },
+      { toolCallId: "r2", messages: [], context: {} } as never,
+    );
+    expect(enRouteRes).toMatchObject({
+      ok: true,
+      distanceKm: 2.3,
+      distanceLabel: "2.3 km",
+    });
+    const enPlacesRes = await enTools.searchPlaces.execute!(
+      { query: "cafe", nearDestinationId: dongVan.id },
+      { toolCallId: "p-en", messages: [], context: {} } as never,
+    ) as { ok: boolean; places: { name: string; distanceLabel?: string }[] };
+    expect(enPlacesRes.places.map(p => p.distanceLabel)).toEqual(["107 m", "2.3 km"]);
 
     // 3. Điểm nhỏ: persona + lookupLocalKnowledge enforce doc-grounded ethnic total count and foreigner border permit rules
     expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Hà Giang có những dân tộc nào");

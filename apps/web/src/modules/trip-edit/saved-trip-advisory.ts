@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { cleanTravelerProse } from "../../lib/traveler-display-clean";
+import { formatDecimalNumber } from "../../lib/traveler-number-format";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
 import { isPreferenceExtractionError } from "../preference-extraction/preference-extraction-errors";
 import type { UncheckedItem } from "../trip-save/unchecked-checks";
@@ -383,7 +384,7 @@ export async function gatherWeatherAndSunDigest(input: {
         if (adv.kind === "RAIN") {
           weatherNotices.push(`Cảnh báo mưa tại ${label} (${when}): ${adv.threshold < 10 ? `${adv.observed} mm/h` : `${adv.observed}%`}`);
         } else if (adv.kind === "FOG") {
-          weatherNotices.push(`Cảnh báo sương mù tại ${label} (${when}): tầm nhìn ~${(adv.observed / 1000).toFixed(1)} km`);
+          weatherNotices.push(`Cảnh báo sương mù tại ${label} (${when}): tầm nhìn ~${formatDecimalNumber(adv.observed / 1000, "vi", 1)} km`);
         } else if (adv.kind === "WIND") {
           weatherNotices.push(`Cảnh báo gió mạnh tại ${label} (${when}): ${Math.round(adv.observed)} km/h`);
         }

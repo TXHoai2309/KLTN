@@ -1,5 +1,6 @@
 import type { Database } from "@KLTN/db";
 import { cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
+import { formatDistanceKm, formatDistanceMeters } from "../../lib/traveler-number-format";
 import {
   formatLocationSharedClockVi,
   isInTripLocationFresh,
@@ -108,9 +109,7 @@ function formatDurationVi(minutes: number): string {
 }
 
 function formatDistanceVi(distanceMeters: number): string {
-  if (distanceMeters < 1000) return `${Math.max(1, Math.round(distanceMeters))} m`;
-  const km = Math.round((distanceMeters / 1000) * 10) / 10;
-  return `${km} km`;
+  return formatDistanceMeters(distanceMeters, "vi");
 }
 
 function calendarDayDiff(fromYmd: string | null | undefined, toYmd: string | null | undefined): number | null {
@@ -604,7 +603,7 @@ export async function runOngoingLocationScenario(input: {
 
     const lines = searchResult.places.map(({ place, distKm }) => {
       const displayName = cleanPlaceDisplayName(place.name) || place.name;
-      const distLabel = formatDistanceVi(Math.round(distKm * 1000));
+      const distLabel = formatDistanceKm(distKm, "vi");
       const hourDetails: string[] = [];
       if (place.openingHours && place.openingHours.length > 0) {
         hourDetails.push(`giờ mở cửa ghi nhận: ${place.openingHours[0]}`);

@@ -2,6 +2,7 @@ import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { AppError } from "../../server/http/app-error";
 import { cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
+import { formatDistanceKm } from "../../lib/traveler-number-format";
 import { isUsablePlanningCandidate, scheduleSelection } from "../assistant-planning/planning-engine";
 import { selectPlannerDays } from "../trip-planner/planner-engine";
 import { planningSelectionSchema } from "../assistant-planning/planning-contract";
@@ -865,6 +866,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             to: toName,
             transport: mode,
             distanceKm: 0,
+            distanceLabel: formatDistanceKm(0, replyLang),
             durationMinutes: 0,
             durationLabel: formatRouteDuration(0, replyLang),
             isEstimate: true as const,
@@ -903,6 +905,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           to: toName,
           transport: mode,
           distanceKm,
+          ...(distanceKm !== null ? { distanceLabel: formatDistanceKm(distanceKm, replyLang) } : {}),
           durationMinutes,
           ...(durationMinutes !== null ? { durationLabel: formatRouteDuration(durationMinutes, replyLang) } : {}),
           provider: leg.provider,
@@ -1340,11 +1343,20 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       for (const p of outcome.places) { foundPlaces.set(p.placeId, p); if (isSchedulablePlaceId(p.placeId)) searchedPlaces.set(p.placeId, p); }
       // The model sees the id, name, and distance (when anchored) only; coordinates stay in the server registry.
       const slicedOutcome = isMedicalQuery ? outcome.places.slice(0, 3) : outcome.places;
-      const places = slicedOutcome.map(p => ({
-        placeId: p.placeId,
-        name: p.name,
-        ...(near ? { distanceKm: Math.round(haversine(near, p) * 10) / 10 } : {}),
-      }));
+      const replyLang = detectReplyLanguage(context.latestUserText);
+      const places = slicedOutcome.map(p => {
+        const rawKm = near ? haversine(near, p) : null;
+        return {
+          placeId: p.placeId,
+          name: p.name,
+          ...(rawKm !== null
+            ? {
+                distanceKm: Math.round(rawKm * 10) / 10,
+                distanceLabel: formatDistanceKm(rawKm, replyLang),
+              }
+            : {}),
+        };
+      });
       context.emitPlaces?.(places.map(p => ({ placeId: p.placeId, name: p.name, status: "UNCHECKED" as const })));
       return { ok: true as const, count: places.length,
         places: places.map(p => ({ ...p, ...(isSchedulablePlaceId(p.placeId) ? { scheduleId: `${EXTERNAL_PLACE_ID_PREFIX}${p.placeId}` } : {}) })),

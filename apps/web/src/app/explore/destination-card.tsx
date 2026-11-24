@@ -8,6 +8,7 @@ import { destinationDetailHref } from "@/modules/map/map-model";
 import DestinationCardImage from "@/components/destination-card-image";
 import FavoriteButton from "@/components/favorite-button";
 import { cleanCategoryDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
+import { formatDistanceKm } from "@/lib/traveler-number-format";
 import { resolveExploreDisplayArea } from "@/modules/destination/explore-filter-sort";
 
 export default function DestinationCard({
@@ -23,9 +24,7 @@ export default function DestinationCard({
   const displayArea = resolveExploreDisplayArea(destination);
   const displayCategory = cleanCategoryDisplayLabel(destination.category) || destination.category;
   const distanceLabel = typeof distanceKm === "number" && Number.isFinite(distanceKm)
-    ? distanceKm < 1
-      ? `${Math.round(distanceKm * 1000)} m`
-      : `${distanceKm.toFixed(1)} km`
+    ? formatDistanceKm(distanceKm, "vi")
     : null;
 
   return (
