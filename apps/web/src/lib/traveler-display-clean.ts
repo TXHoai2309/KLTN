@@ -5,6 +5,8 @@
  */
 
 const TEMP_PREFIX = /^(?:\s*\[\s*t[aạ]m\s*\][\s:\-–—]*)+/iu;
+const INLINE_TEMP_PREFIX =
+  /(?:^|(?<=[\s(\["'“‘:：\-–—*_>]))(?:\[\s*t[aạ]m\s*\][^\S\n]*[:\-–—]?[^\S\n]*)+/giu;
 
 const PLACEHOLDER_AREAS = new Set([
   "khu vuc ha giang",
@@ -99,7 +101,7 @@ function capitalizeAreaPrefixes(value: string): string {
 }
 
 /**
- * Strips leading internal "[Tạm]" / "[Tam]" prefixes, collapses whitespace, and normalizes
+ * Strips leading or inline internal "[Tạm]" / "[Tam]" prefixes, collapses whitespace, and normalizes
  * capitalization of known Hà Giang place names for display. Never alters stored DB values.
  */
 export function cleanTravelerDisplay(raw: string | null | undefined): string {
@@ -107,9 +109,25 @@ export function cleanTravelerDisplay(raw: string | null | undefined): string {
   const normalized = raw
     .normalize("NFC")
     .replace(TEMP_PREFIX, "")
+    .replace(INLINE_TEMP_PREFIX, "")
     .replace(/\s+/gu, " ")
     .trim();
   return capitalizeKnownPlaces(normalized);
+}
+
+/**
+ * Strips leading and inline "[Tam]" / "[Tạm]" prefixes from multi-line prose/replies
+ * while preserving line breaks and bulleted formatting.
+ */
+export function cleanTravelerProse(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw
+    .normalize("NFC")
+    .replace(TEMP_PREFIX, "")
+    .replace(INLINE_TEMP_PREFIX, "")
+    .replace(/[^\S\n]{2,}/gu, " ")
+    .replace(/^[^\S\n]+|[^\S\n]+$/gmu, "")
+    .trim();
 }
 
 /** Strips internal "[Tạm]" prefix, normalizes whitespace, and standardizes known place names. */

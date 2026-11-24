@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { AppError } from "@/server/http/app-error";
+import { cleanTravelerDisplay } from "../../lib/traveler-display-clean";
 import {
   EDIT_INTENT_CLARIFICATION_REASON_VALUES,
   type EditIntentClarificationReason,
@@ -113,7 +114,7 @@ export function createEditClarification(
       const visit = visitsById.get(visitId);
       return visit
         ? [{
-            label: `${visit.destinationName} · Ngày ${visit.dayIndex} · ${formatStartTime(visit.startMinute)}`,
+            label: `${cleanTravelerDisplay(visit.destinationName) || visit.destinationName} · Ngày ${visit.dayIndex} · ${formatStartTime(visit.startMinute)}`,
             resolution: { selectedVisitId: visit.visitId },
           }]
         : [];
@@ -135,7 +136,7 @@ export function createEditClarification(
       : [...context.eligibleDestinations];
     const mapped = (filteredDestinations.length > 0 ? filteredDestinations : context.eligibleDestinations).map(
       (destination) => ({
-        label: destination.name,
+        label: cleanTravelerDisplay(destination.name) || destination.name,
         resolution: { selectedDestinationId: destination.id },
       }),
     );

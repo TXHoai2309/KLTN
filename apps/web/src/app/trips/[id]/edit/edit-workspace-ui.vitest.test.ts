@@ -512,7 +512,8 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
 
     expect(html).toContain("Gợi ý chỉnh sửa từ tư vấn");
     expect(html).toContain("Phương án 1: Dời giờ tự động khớp thời gian di chuyển");
-    expect(html).toContain("Hợp lệ · PASS");
+    expect(html).toContain("Hợp lệ · Đạt kiểm tra");
+    expect(html).not.toContain("Hợp lệ · PASS");
     expect(html).toContain("Chỉnh Điểm đã ẩn · Mèo Vạc (Ngày 1): 10:00 → 10:30 (90 phút)");
     expect(html).toContain("Áp dụng phương án này vào bản nháp");
 
@@ -831,10 +832,59 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
       onDismissApplied: () => {},
     }));
 
-    expect(gpsHtml).toContain("Cần vị trí hiện tại (ONGOING)");
+    expect(gpsHtml).not.toContain("(ONGOING)");
+    expect(gpsHtml).not.toMatch(/\b(?:ONGOING|UPCOMING|COMPLETED|NEEDS_LOCATION|PASS|VIOLATION)\b/u);
+    expect(gpsHtml).toContain("Cần vị trí hiện tại");
     expect(gpsHtml).toContain("Tôi đang bị kẹt xe ở đây thì chiều nay đi tiếp những điểm nào kịp?");
     expect(gpsHtml).toContain("Dùng vị trí GPS hiện tại");
     expect(gpsHtml).toContain("Chọn vị trí thủ công trên bản đồ");
+
+    const cleanChatHtml = renderToStaticMarkup(createElement(AiEditBar, {
+      open: true,
+      onToggleOpen: () => {},
+      inputValue: "",
+      onInputChange: () => {},
+      disabled: false,
+      messages: [
+        { id: "m1", role: "user", text: "Điểm đầu ngày 2?" },
+        { id: "m2", role: "assistant", kind: "ADVISED", text: "Điểm đầu tiên ngày 2 là [Tam] Thị trấn Mèo Vạc…" },
+      ],
+      issues: [{ key: "v1", label: "[Tam] Thị trấn Mèo Vạc (Ngày 2): Cần xem lại giờ.", prompt: "Sửa giúp tôi" }],
+      state: {
+        kind: "ADVISED",
+        advice: "Có thể ghé [Tạm] Chợ Đồng Văn.",
+        suggestions: [
+          {
+            id: "sug-1",
+            title: "Ghé thêm [Tam] Chợ Đồng Văn",
+            summary: "Từ [Tạm] Thị trấn Mèo Vạc đi rất gần.",
+            candidate: { startDate: "2026-10-20", durationDays: 1, transport: "CAR", days: [] },
+            diff: { added: [], removed: [], updated: [], tripChanges: {} },
+            changedVisitIds: { added: [], updated: [], shifted: [], removedCount: 0 },
+            validation: {
+              timeReference: "2026-11-23T16:42:00.000Z",
+              canConfirm: true,
+              groups: {
+                openingHours: { status: "SATISFIED", findings: [] },
+                minimumDuration: { status: "SATISFIED", findings: [] },
+                travelTime: { status: "SATISFIED", findings: [] },
+                scheduleConflict: { status: "SATISFIED", findings: [] },
+              },
+            },
+            saveEligibility: "PASS",
+            diffSummaryLines: [],
+          },
+        ],
+      },
+      onSubmitPrompt: () => {},
+      onRetry: () => {},
+      onUndoAiStep: () => {},
+      onDismissApplied: () => {},
+    }));
+    expect(cleanChatHtml).not.toMatch(/\[\s*t[aạ]m\s*\]/iu);
+    expect(cleanChatHtml).not.toMatch(/\b(?:PASS|ONGOING|UPCOMING|COMPLETED|NEEDS_LOCATION)\b/u);
+    expect(cleanChatHtml).toContain("Thị trấn Mèo Vạc");
+    expect(cleanChatHtml).toContain("Chợ Đồng Văn");
 
     const manualFallbackHtml = renderToStaticMarkup(createElement(AiEditBar, {
       open: true,

@@ -3,6 +3,7 @@ import type { Database, Prisma } from "@KLTN/db";
 import { requireTraveler } from "@/server/auth/require-traveler";
 import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
+import { cleanTravelerDisplay } from "../../lib/traveler-display-clean";
 import { weekdays } from "../destination/destination-contract";
 import { findEligibleDestinationIds, visibleDestinationWhere } from "../destination/destination-eligibility";
 import { destinationMediaWhere, isDestinationMediaUsable } from "../destination/destination-media-eligibility";
@@ -282,11 +283,13 @@ export async function getTripForEdit(
       const ext = (visit as { externalPlace?: OwnedExternalPlace | null }).externalPlace;
       if (ext) {
         const view = externalPlaceView(ext, referenceNow, true);
-        destinationLabels[view.id] = view.name;
+        const cleanName = cleanTravelerDisplay(view.name) || view.name;
+        const cleanArea = view.area ? (cleanTravelerDisplay(view.area) || view.area) : view.area;
+        destinationLabels[view.id] = cleanName;
         placeDetails[view.id] = {
           id: view.id,
-          name: view.name,
-          area: view.area,
+          name: cleanName,
+          area: cleanArea,
           category: view.category,
           ...(view.latitude !== undefined ? { latitude: view.latitude } : {}),
           ...(view.longitude !== undefined ? { longitude: view.longitude } : {}),
@@ -300,8 +303,10 @@ export async function getTripForEdit(
       const dest = visit.destination;
       if (!dest) continue;
       const available = dest.visibility === "VISIBLE" && !dest.deletedAt;
+      const cleanName = available ? (cleanTravelerDisplay(dest.name) || dest.name) : "Điểm đến không còn khả dụng";
+      const cleanArea = dest.area ? (cleanTravelerDisplay(dest.area) || dest.area) : "";
       destinationLabels[dest.id] = available
-        ? `${dest.name} · ${dest.area}`
+        ? cleanArea ? `${cleanName} · ${cleanArea}` : cleanName
         : "Điểm đến không còn khả dụng";
       const mediaList = (dest as { media?: { url: string; alt: string; websiteRights: string; storageReference?: string | null }[] }).media;
       const image = Array.isArray(mediaList)
@@ -309,8 +314,8 @@ export async function getTripForEdit(
         : undefined;
       placeDetails[dest.id] = {
         id: dest.id,
-        name: available ? dest.name : "Điểm đến không còn khả dụng",
-        area: dest.area,
+        name: cleanName,
+        area: cleanArea,
         ...(typeof (dest as { category?: string }).category === "string" ? { category: (dest as { category?: string }).category } : {}),
         ...(typeof (dest as { latitude?: number }).latitude === "number" ? { latitude: (dest as { latitude?: number }).latitude } : {}),
         ...(typeof (dest as { longitude?: number }).longitude === "number" ? { longitude: (dest as { longitude?: number }).longitude } : {}),
@@ -318,7 +323,7 @@ export async function getTripForEdit(
         minimumDurationMinutes: (dest as { minimumDurationMinutes?: number | null }).minimumDurationMinutes ?? null,
         ...(typeof (dest as { isOutdoor?: boolean }).isOutdoor === "boolean" ? { isOutdoor: (dest as { isOutdoor?: boolean }).isOutdoor } : {}),
         availability: available ? "AVAILABLE" : "UNAVAILABLE",
-        ...(image && available ? { image: { url: image.url, alt: image.alt } } : {}),
+        ...(image && available ? { image: { url: image.url, alt: cleanTravelerDisplay(image.alt) || cleanName } } : {}),
         external: false,
       };
     }

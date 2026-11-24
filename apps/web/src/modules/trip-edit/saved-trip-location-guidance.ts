@@ -416,7 +416,7 @@ export async function runOngoingLocationScenario(input: {
     return {
       kind: "ADVISED",
       advice:
-        "Chuyến đi hiện đang ở trạng thái sắp tới (UPCOMING) nên không cần chia sẻ vị trí GPS hiện tại. Bạn có thể bổ sung Nơi xuất phát trên Timeline hoặc hỏi gợi ý điểm đến theo từng khu vực/ngày trong lịch.",
+        "Chuyến đi hiện đang ở trạng thái sắp tới nên không cần chia sẻ vị trí GPS hiện tại. Bạn có thể bổ sung Nơi xuất phát trên Timeline hoặc hỏi gợi ý điểm đến theo từng khu vực/ngày trong lịch.",
       suggestions: [],
     };
   }

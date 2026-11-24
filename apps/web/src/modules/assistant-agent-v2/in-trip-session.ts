@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { AppError } from "../../server/http/app-error";
 import { requireTraveler } from "../../server/auth/require-traveler";
+import { cleanTravelerDisplay } from "../../lib/traveler-display-clean";
 import { createQaJsonProvider } from "../ai/qa-json-provider";
 import { planningReply } from "../assistant-planning/planning-dialogue";
 import { normalizePlanningReply } from "../assistant-planning/planning-reply-normalization";
@@ -91,7 +92,16 @@ export async function startInTripV2Session(input: { tripId: string; headers: Hea
       clarification = null;
       const checked = await executeAssistantV2Action({ skill: "in-trip-assistance", context, action: "validate-in-trip-proposal", payload: { baseRevision: trip.baseRevision, candidate: result.candidate, ...(location ? { location } : {}), mandatoryEndpoint: result.mandatoryEndpoint } }, services);
       const affectedDays = result.candidate.days.filter((day, i) => JSON.stringify(day) !== JSON.stringify(trip.candidate.days[i])).map(day => day.dayIndex);
-      const labels = { ...Object.fromEntries((await boundaries.candidates()).filter(c => c.visibility === "VISIBLE").map(c => [c.id, c.name])), ...trip.destinationLabels };
+      const labels = {
+        ...Object.fromEntries(
+          (await boundaries.candidates())
+            .filter(c => c.visibility === "VISIBLE")
+            .map(c => [c.id, cleanTravelerDisplay(c.name) || c.name]),
+        ),
+        ...Object.fromEntries(
+          Object.entries(trip.destinationLabels).map(([id, name]) => [id, cleanTravelerDisplay(name) || name]),
+        ),
+      };
       pending = { baseRevision: trip.baseRevision, need, location: location ? structuredClone(location) : null, result, checked, labels, affectedDays, scopeDays };
       return response(trip, "AWAIT_CONFIRMATION", { status: "PROPOSED", affectedDays, labels, diff: result.diff, validation: checked.validation, requiresConfirmation: checked.validation.canConfirm });
     } catch (error) {
@@ -164,7 +174,8 @@ export async function startInTripV2Session(input: { tripId: string; headers: Hea
     if (unknown) return response(trip, "APPLY_UNKNOWN", { status: "UNKNOWN", code: "OPERATION_STATUS_UNKNOWN" });
     if (route.intent === "NEXT_VISIT") {
       const next = trip.candidate.days.flatMap(day => day.visits.map(v => ({ ...v, dayIndex: day.dayIndex }))).find(v => trip.remainingVisitIds.includes(v.visitId));
-      return response(trip, "NEXT_VISIT", { ...(next ? { nextVisit: { name: trip.destinationLabels[next.destinationId] ?? "Điểm đến không còn khả dụng", day: next.dayIndex } } : {}) });
+      const rawName = next ? trip.destinationLabels[next.destinationId] : undefined;
+      return response(trip, "NEXT_VISIT", { ...(next ? { nextVisit: { name: rawName ? (cleanTravelerDisplay(rawName) || rawName) : "Điểm đến không còn khả dụng", day: next.dayIndex } } : {}) });
     }
     pending = null; clarification = null; awaitingLocation = null;
     if (route.qa.usesReferent && !reference) return response(trip, "QA_CLARIFY");

@@ -31,7 +31,7 @@ describe("US36 Task290 replan clarification", () => {
     expect(createReplanClarification("AMBIGUOUS_DESTINATION", context)).toMatchObject({
       code: "AMBIGUOUS_DESTINATION",
       choices: [
-        { label: "Đèo Mã Pí Lèng", resolution: { selectedDestinationId: "destination-1" } },
+        { label: "Đèo Mã Pì Lèng", resolution: { selectedDestinationId: "destination-1" } },
         { label: "Sông Nho Quế", resolution: { selectedDestinationId: "destination-2" } },
       ],
     });

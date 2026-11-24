@@ -43,6 +43,7 @@ import { useUnsavedChanges } from "@/components/admin/use-unsaved-changes";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import TripJourneyEditor from "@/components/trip-origin/trip-journey-editor";
 import { getDestinationVisual } from "@/lib/destination-visuals";
+import { cleanTravelerDisplay, cleanTravelerProse } from "@/lib/traveler-display-clean";
 import { createIdempotencyKey } from "@/lib/mutation-client";
 import {
   appendTripEditChatMessagesClient,
@@ -221,7 +222,18 @@ export default function EditTripClient({
   const [liveTripStatus, setLiveTripStatus] = useState<TripStatus>(tripStatus);
   const [completedVisitIds, setCompletedVisitIds] = useState<string[]>(initialCompletedVisitIds);
   const completedVisitSet = useMemo(() => new Set(completedVisitIds), [completedVisitIds]);
-  const [placeDetailsState, setPlaceDetailsState] = useState<Record<string, EditPlaceDetail>>(placeDetails);
+  const [placeDetailsState, setPlaceDetailsState] = useState<Record<string, EditPlaceDetail>>(() =>
+    Object.fromEntries(
+      Object.entries(placeDetails).map(([id, detail]) => [
+        id,
+        {
+          ...detail,
+          name: cleanTravelerDisplay(detail.name) || detail.name,
+          ...(detail.area ? { area: cleanTravelerDisplay(detail.area) || detail.area } : {}),
+        },
+      ]),
+    ),
+  );
   const [drawerTarget, setDrawerTarget] = useState<DrawerTarget | null>(null);
   const [drawerOpener, setDrawerOpener] = useState<HTMLElement | null>(null);
   const [autoShiftEnabled, setAutoShiftEnabled] = useState(true);
@@ -264,7 +276,18 @@ export default function EditTripClient({
   const [aiOpen, setAiOpen] = useState(true);
   const [aiInput, setAiInput] = useState("");
   const [aiBarState, setAiBarState] = useState<AiBarUiState>({ kind: "IDLE" });
-  const [aiThread, setAiThread] = useState<AiConversationEntry[]>(() => initialAiThread);
+  const [aiThread, setAiThread] = useState<AiConversationEntry[]>(() =>
+    initialAiThread.map((entry) => ({
+      ...entry,
+      text: entry.role === "assistant" ? cleanTravelerProse(entry.text) || entry.text : entry.text,
+      ...(entry.correctionNote
+        ? { correctionNote: cleanTravelerProse(entry.correctionNote) || entry.correctionNote }
+        : {}),
+      ...(entry.statusNotice
+        ? { statusNotice: cleanTravelerProse(entry.statusNotice) || entry.statusNotice }
+        : {}),
+    })),
+  );
   const [sessionLocation, setSessionLocation] = useState<InTripLocation | null>(null);
   const aiTurnSeqRef = useRef(0);
   const aiAbortRef = useRef<AbortController | null>(null);
@@ -1001,11 +1024,11 @@ export default function EditTripClient({
   }
 
   function labelForDestination(destinationId: string): string {
-    return (
-      placeDetailsState[destinationId]?.name
-      ?? destinationLabels[destinationId]
-      ?? "Điểm đến không còn khả dụng"
-    );
+    const raw =
+      placeDetailsState[destinationId]?.name ??
+      destinationLabels[destinationId] ??
+      "Điểm đến không còn khả dụng";
+    return cleanTravelerDisplay(raw) || raw;
   }
 
   function applyOptionalAutoShift(nextCandidate: EditCandidate, dayIndex: number, startFromIndex: number): EditCandidate {
@@ -1330,15 +1353,17 @@ export default function EditTripClient({
       // Several findings on one stop (e.g. opening hours twice) become one line.
       const key = visit ? `visit:${visitId}` : `message:${finding.message}`;
       if (hints.has(key)) continue;
+      const visitName = visit ? cleanTravelerDisplay(visit.name) || visit.name : "";
+      const cleanMessage = cleanTravelerProse(finding.message) || finding.message;
       hints.set(
         key,
         visit
           ? {
               key,
-              label: `${visit.name} (Ngày ${visit.dayIndex}): ${finding.message}`,
-              prompt: `Sửa giúp tôi lỗi của ${visit.name} ở Ngày ${visit.dayIndex}`,
+              label: `${visitName} (Ngày ${visit.dayIndex}): ${cleanMessage}`,
+              prompt: `Sửa giúp tôi lỗi của ${visitName} ở Ngày ${visit.dayIndex}`,
             }
-          : { key, label: finding.message, prompt: `Sửa giúp tôi: ${finding.message}` },
+          : { key, label: cleanMessage, prompt: `Sửa giúp tôi: ${cleanMessage}` },
       );
     }
     return [...hints.values()];

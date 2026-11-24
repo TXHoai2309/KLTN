@@ -10,6 +10,7 @@ import {
 } from "ai";
 import { z } from "zod";
 
+import { cleanTravelerDisplay, cleanTravelerProse } from "../../lib/traveler-display-clean";
 import { isPreferenceExtractionError } from "../preference-extraction/preference-extraction-errors";
 import { stripInlineSourceLines } from "../tripsage-chat/assistant-conversation-contract";
 import type { EditIntentResult } from "./edit-intent-contract";
@@ -204,7 +205,7 @@ function serverContext(ctx: TripAssistantAgentContext): EditIntentPromptServerCo
         durationMinutes: visit.plannedDurationMinutes,
       })),
     })),
-    eligibleDestinations: ctx.catalog.map((d) => ({ id: d.id, name: d.name })),
+    eligibleDestinations: ctx.catalog.map((d) => ({ id: d.id, name: cleanTravelerDisplay(d.name) || d.name })),
   } as EditIntentPromptServerContext;
 }
 
@@ -237,8 +238,8 @@ export function searchCatalog(
     .sort((a, b) => b.score - a.score || a.dest.name.localeCompare(b.dest.name, "vi"));
   return scored.slice(0, MAX_SEARCH_RESULTS).map(({ dest }) => ({
     id: dest.id,
-    name: dest.name,
-    area: dest.area ?? null,
+    name: cleanTravelerDisplay(dest.name) || dest.name,
+    area: dest.area ? (cleanTravelerDisplay(dest.area) || dest.area) : null,
     category: dest.category ?? null,
     suggestedDurationMinutes: dest.suggestedDurationMinutes,
     minimumDurationMinutes: dest.minimumDurationMinutes ?? null,
@@ -805,7 +806,8 @@ function finalizeAgentOutcome(input: {
   knownIds: ReadonlySet<string>;
 }): { outcome: TripAssistantAgentOutcome; correction: boolean } {
   const { ctx, state, knownIds } = input;
-  const reply = state.knowledge?.citations?.length ? stripInlineSourceLines(input.reply) || input.reply : input.reply;
+  const rawReply = state.knowledge?.citations?.length ? stripInlineSourceLines(input.reply) || input.reply : input.reply;
+  const reply = cleanTravelerProse(rawReply) || rawReply;
   const { proposed, suggestionSims, guardStatus } = resolveAgentDecision(ctx, state);
   const rejection = groundedAdviceRejection(reply, { overallStatus: guardStatus }, knownIds);
   let correctionNote: string | undefined;

@@ -3,6 +3,7 @@ import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import type { Database, Prisma } from "@KLTN/db";
 
 import { AppError } from "@/server/http/app-error";
+import { cleanTravelerDisplay, cleanTravelerProse } from "../../lib/traveler-display-clean";
 import { visibleDestinationWhere } from "../destination/destination-eligibility";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
 import type { PlacesSearch } from "../tripsage-chat/tripsage-places";
@@ -366,6 +367,97 @@ async function readMissingDraftDestinations(
   }) as Promise<EligibleDestinationRow[]>;
 }
 
+function cleanDestDisplayName(raw: string): string {
+  return cleanTravelerDisplay(raw) || raw;
+}
+
+function sanitizeAdviceSuggestions(suggestions: AdviceSuggestionCard[] | undefined): AdviceSuggestionCard[] | undefined {
+  if (!suggestions) return undefined;
+  return suggestions.map((s) => ({
+    ...s,
+    title: cleanTravelerProse(s.title) || s.title,
+    summary: cleanTravelerProse(s.summary) || s.summary,
+    diffSummaryLines: s.diffSummaryLines.map((line) => cleanTravelerProse(line) || line),
+    ...(s.addedPlaceDetails
+      ? {
+          addedPlaceDetails: Object.fromEntries(
+            Object.entries(s.addedPlaceDetails).map(([id, detail]) => [
+              id,
+              { ...detail, name: cleanDestDisplayName(detail.name) },
+            ]),
+          ),
+        }
+      : {}),
+  }));
+}
+
+function sanitizeAiEditResult<T extends AiEditServiceResult>(result: T): T {
+  if (result.status === "NEEDS_LOCATION") {
+    return {
+      ...result,
+      prompt: cleanTravelerProse(result.prompt) || result.prompt,
+      aiSummary: cleanTravelerProse(result.aiSummary) || result.aiSummary,
+    };
+  }
+  if (result.status === "NEEDS_CLARIFICATION") {
+    return {
+      ...result,
+      clarification: {
+        ...result.clarification,
+        prompt: cleanTravelerProse(result.clarification.prompt) || result.clarification.prompt,
+        ...(result.clarification.choices
+          ? {
+              choices: result.clarification.choices.map((c) => ({
+                ...c,
+                label: cleanTravelerDisplay(c.label) || c.label,
+              })),
+            }
+          : {}),
+      },
+      ...(result.aiSummary ? { aiSummary: cleanTravelerProse(result.aiSummary) || result.aiSummary } : {}),
+    };
+  }
+  if (result.status === "ADVISED") {
+    const cleanAdvice = cleanTravelerProse(result.advice) || result.advice;
+    const cleanSummary = cleanTravelerProse(result.aiSummary) || result.aiSummary;
+    const cleanSuggestions = sanitizeAdviceSuggestions(result.suggestions);
+    return {
+      ...result,
+      advice: cleanAdvice,
+      aiSummary: cleanSummary,
+      ...(cleanSuggestions ? { suggestions: cleanSuggestions } : {}),
+      ...(result.knowledgeParts
+        ? {
+            knowledgeParts: result.knowledgeParts.map((part) => ({
+              ...part,
+              text: cleanTravelerProse(part.text) || part.text,
+            })),
+          }
+        : {}),
+      ...(result.correctionNote
+        ? { correctionNote: cleanTravelerProse(result.correctionNote) || result.correctionNote }
+        : {}),
+    };
+  }
+  return {
+    ...result,
+    ...(result.aiSummary ? { aiSummary: cleanTravelerProse(result.aiSummary) || result.aiSummary } : {}),
+    ...(result.correctionNote
+      ? { correctionNote: cleanTravelerProse(result.correctionNote) || result.correctionNote }
+      : {}),
+    ...(result.addedPlaceDetails
+      ? {
+          addedPlaceDetails: Object.fromEntries(
+            Object.entries(result.addedPlaceDetails).map(([id, detail]) => [
+              id,
+              { ...detail, name: cleanDestDisplayName(detail.name) },
+            ]),
+          ),
+        }
+      : {}),
+  };
+}
+
 function buildPlaceNameLookup(
   trip: AiEditLoadedTrip,
   destinations: readonly EligibleDestinationRow[],
@@ -373,20 +465,20 @@ function buildPlaceNameLookup(
 ): Map<string, string> {
   const names = new Map<string, string>();
   for (const dest of destinations) {
-    names.set(dest.id, dest.name);
+    names.set(dest.id, cleanDestDisplayName(dest.name));
   }
   for (const day of trip.days) {
     for (const visit of day.visits) {
       if (visit.externalPlace) {
         const view = externalPlaceView(visit.externalPlace, timeReference, true);
-        names.set(view.id, view.name);
+        names.set(view.id, cleanDestDisplayName(view.name));
         continue;
       }
       if (visit.destination) {
         const available = visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt;
         names.set(
           visit.destination.id,
-          available ? visit.destination.name : "Điểm đến không còn khả dụng",
+          available ? cleanDestDisplayName(visit.destination.name) : "Điểm đến không còn khả dụng",
         );
       }
     }
@@ -516,7 +608,7 @@ function buildClarificationContext(
           startMinute: visit.startMinute,
         })),
     ),
-    eligibleDestinations: destinations.map((d) => ({ id: d.id, name: d.name })),
+    eligibleDestinations: destinations.map((d) => ({ id: d.id, name: cleanDestDisplayName(d.name) })),
     dayIndexes: candidate.days.map((d) => d.dayIndex).sort((a, b) => a - b),
   };
 }
@@ -540,8 +632,8 @@ function buildAddedPlaceDetails(
     if (!dest) continue;
     details[dest.id] = {
       id: dest.id,
-      name: dest.name,
-      area: dest.area ?? "",
+      name: cleanDestDisplayName(dest.name),
+      area: dest.area ? (cleanTravelerDisplay(dest.area) || dest.area) : "",
       ...(typeof dest.category === "string" ? { category: dest.category } : {}),
       ...(typeof dest.latitude === "number" ? { latitude: dest.latitude } : {}),
       ...(typeof dest.longitude === "number" ? { longitude: dest.longitude } : {}),
@@ -812,7 +904,11 @@ async function prepareAiEditContext(
   const completedInfo = classifyOngoingCompletedVisits(savedShape, timeReference);
   const lockedVisitIds = new Set(completedInfo.completedVisitIds);
 
-  const eligibleDestinations = await readEligibleDestinations(dependencies.database);
+  const eligibleDestinations = (await readEligibleDestinations(dependencies.database)).map((d) => ({
+    ...d,
+    name: cleanDestDisplayName(d.name),
+    ...(d.area ? { area: cleanTravelerDisplay(d.area) || d.area } : {}),
+  }));
   const eligibleIds = new Set(eligibleDestinations.map((d) => d.id));
   const extraDraftCatalogIds = [
     ...new Set(
@@ -823,10 +919,13 @@ async function prepareAiEditContext(
       ),
     ),
   ];
-  const extraDraftCatalog = await readMissingDraftDestinations(
-    dependencies.database,
-    extraDraftCatalogIds,
-  );
+  const extraDraftCatalog = (
+    await readMissingDraftDestinations(dependencies.database, extraDraftCatalogIds)
+  ).map((d) => ({
+    ...d,
+    name: cleanDestDisplayName(d.name),
+    ...(d.area ? { area: cleanTravelerDisplay(d.area) || d.area } : {}),
+  }));
   const allCatalogDestinations = [...eligibleDestinations, ...extraDraftCatalog];
   const catalogById = new Map(allCatalogDestinations.map((d) => [d.id, d]));
 
@@ -906,12 +1005,14 @@ export async function createAiEditProposal(
     if (invocation) {
       const outcome = await runTripAssistantAgent(invocation.ctx);
       if (outcome) {
-        return mapAgentOutcomeToServiceResult(outcome, invocation.baselinePreview, invocation.catalogById);
+        return sanitizeAiEditResult(
+          mapAgentOutcomeToServiceResult(outcome, invocation.baselinePreview, invocation.catalogById),
+        );
       }
     }
   }
 
-  return executeAiEditFallback(prepared);
+  return sanitizeAiEditResult(await executeAiEditFallback(prepared));
 }
 
 /**
@@ -951,10 +1052,12 @@ export async function streamAiEditProposal(
           const outcome = await streamTripAssistantAgent(invocation.ctx, writer);
           if (signal?.aborted) return;
           if (outcome) {
-            const serviceResult = mapAgentOutcomeToServiceResult(
-              outcome,
-              invocation.baselinePreview,
-              invocation.catalogById,
+            const serviceResult = sanitizeAiEditResult(
+              mapAgentOutcomeToServiceResult(
+                outcome,
+                invocation.baselinePreview,
+                invocation.catalogById,
+              ),
             );
             if (outcome.correctionNote) {
               writer.write({
@@ -975,7 +1078,7 @@ export async function streamAiEditProposal(
       }
 
       if (signal?.aborted) return;
-      const fallbackResult = await executeAiEditFallback(prepared);
+      const fallbackResult = sanitizeAiEditResult(await executeAiEditFallback(prepared));
       if (signal?.aborted) return;
       writer.write({
         type: "data-trip-assistant-result",

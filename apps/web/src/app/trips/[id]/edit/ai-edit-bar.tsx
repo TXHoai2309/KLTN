@@ -25,6 +25,7 @@ import {
 import { useEffect, useMemo, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 
 import ManualLocationPicker from "@/components/in-trip/manual-location-picker";
+import { cleanTravelerDisplay, cleanTravelerProse } from "@/lib/traveler-display-clean";
 import { getLocationFlowMessage, type LocationFlowState } from "@/modules/in-trip/location-flow";
 import type { MapCoordinate } from "@/modules/map/map-model";
 
@@ -246,7 +247,7 @@ function CorrectionNoteLine({ note }: { note: string }) {
   return (
     <p className={styles.aiCorrectionNote} role="note">
       <AlertTriangle size={14} aria-hidden="true" />
-      <span>{note}</span>
+      <span>{cleanTravelerProse(note) || note}</span>
     </p>
   );
 }
@@ -279,7 +280,7 @@ function renderLabeledLine(text: string): ReactNode {
  * without parsing raw HTML or modifying factual values.
  */
 function FormattedAdvisoryProse({ text }: { text: string }) {
-  const normalized = text.replace(/\r\n/g, "\n").trim();
+  const normalized = (cleanTravelerProse(text) || text).replace(/\r\n/g, "\n").trim();
   if (!normalized) return null;
 
   // Insert visual breaks before known summary labels only when backend sent single-line joined prose.
@@ -445,7 +446,7 @@ function suggestionStatusLabel(suggestion: AdviceSuggestionCard): {
     return { label: "Cần xác nhận", isPass: false };
   }
   if (!canConfirm) return { label: "Cần rà lại trước khi lưu", isPass: false };
-  return { label: "Hợp lệ · PASS", isPass: true };
+  return { label: "Hợp lệ · Đạt kiểm tra", isPass: true };
 }
 
 export default function AiEditBar({
@@ -631,12 +632,12 @@ export default function AiEditBar({
                         <ul className={styles.aiIssueList}>
                           {issues.map((issue) => (
                             <li key={issue.key} className={styles.aiIssueItem}>
-                              <span>{issue.label}</span>
+                              <span>{cleanTravelerDisplay(issue.label) || issue.label}</span>
                               <button
                                 type="button"
                                 className={styles.aiIssueFixBtn}
                                 disabled={controlsDisabled}
-                                onClick={() => onSubmitPrompt(issue.prompt)}
+                                onClick={() => onSubmitPrompt(cleanTravelerDisplay(issue.prompt) || issue.prompt)}
                               >
                                 <Sparkles size={13} aria-hidden="true" />
                                 Sửa giúp tôi
@@ -740,7 +741,9 @@ export default function AiEditBar({
                         )}
                         {entry.role === "assistant" && entry.statusNotice && (
                           <div className={styles.aiInterruptedRow} role="status">
-                            <span className={styles.aiInterruptedText}>{entry.statusNotice}</span>
+                            <span className={styles.aiInterruptedText}>
+                              {cleanTravelerProse(entry.statusNotice) || entry.statusNotice}
+                            </span>
                             {entry.retryPrompt && (
                               <button
                                 type="button"
@@ -812,7 +815,9 @@ export default function AiEditBar({
                   (state.clarification.choices && state.clarification.choices.length > 0)) && (
                   <div className={styles.aiResultBox} role="status" aria-live="polite">
                     {!clarifyingAlreadyInMessages && (
-                      <p className={styles.aiResultTitle}>{state.clarification.prompt}</p>
+                      <p className={styles.aiResultTitle}>
+                        {cleanTravelerProse(state.clarification.prompt) || state.clarification.prompt}
+                      </p>
                     )}
                     {state.clarification.choices && state.clarification.choices.length > 0 && (
                       <div className={styles.aiChoiceList}>
@@ -824,7 +829,7 @@ export default function AiEditBar({
                             disabled={controlsDisabled}
                             onClick={() => onSubmitPrompt(state.prompt, choice.resolution)}
                           >
-                            {choice.label}
+                            {cleanTravelerDisplay(choice.label) || choice.label}
                           </button>
                         ))}
                       </div>
@@ -861,17 +866,23 @@ export default function AiEditBar({
                           return (
                             <article key={suggestion.id} className={styles.aiSuggestionCard}>
                               <div className={styles.aiSuggestionHeader}>
-                                <h4 className={styles.aiSuggestionTitle}>{suggestion.title}</h4>
+                                <h4 className={styles.aiSuggestionTitle}>
+                                  {cleanTravelerProse(suggestion.title) || suggestion.title}
+                                </h4>
                                 <span className={badge.isPass ? styles.aiSuggestionStatusPass : styles.aiSuggestionStatusWarn}>
                                   {badge.isPass && <CheckCircle2 size={12} aria-hidden="true" />}
                                   {badge.label}
                                 </span>
                               </div>
-                              <p className={styles.aiSuggestionSummary}>{suggestion.summary}</p>
+                              <p className={styles.aiSuggestionSummary}>
+                                {cleanTravelerProse(suggestion.summary) || suggestion.summary}
+                              </p>
                               {suggestion.diffSummaryLines.length > 0 && (
                                 <ul className={styles.aiSuggestionDiffList}>
                                   {suggestion.diffSummaryLines.map((line, index) => (
-                                    <li key={`${suggestion.id}-diff-${index}`}>{line}</li>
+                                    <li key={`${suggestion.id}-diff-${index}`}>
+                                      {cleanTravelerProse(line) || line}
+                                    </li>
                                   ))}
                                 </ul>
                               )}
@@ -899,11 +910,11 @@ export default function AiEditBar({
                 <div className={styles.aiLocationBox} role="status" aria-live="polite">
                   <div className={styles.aiTurnHeader}>
                     <span className={styles.aiTurnRole}>
-                      <Navigation size={14} aria-hidden="true" /> Cần vị trí hiện tại (ONGOING)
+                      <Navigation size={14} aria-hidden="true" /> Cần vị trí hiện tại
                     </span>
                     <span className={styles.aiTurnBadge}>Chỉ dùng 1 lần trong phiên</span>
                   </div>
-                  <p className={styles.aiTurnText}>{state.prompt}</p>
+                  <p className={styles.aiTurnText}>{cleanTravelerProse(state.prompt) || state.prompt}</p>
                   <p className={styles.fixedNote}>
                     Câu hỏi đang chờ: <strong>{state.pendingMessage}</strong>
                   </p>
@@ -961,7 +972,7 @@ export default function AiEditBar({
 
               {state.kind === "APPLIED" && (
                 <div className={styles.aiAppliedBanner} role="status" aria-live="polite">
-                  <span>{state.summary}</span>
+                  <span>{cleanTravelerProse(state.summary) || state.summary}</span>
                   <div className={styles.quickActionRow}>
                     {onOpenCanvas && (
                       <button

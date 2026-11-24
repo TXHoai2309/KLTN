@@ -7,6 +7,7 @@ import { ArrowLeft, CalendarDays, Clock3, MapPinned, Mountain, Sparkles } from "
 import { useId, useRef, useState } from "react";
 
 import ManualLocationPicker from "@/components/in-trip/manual-location-picker";
+import { cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { requestBrowserLocation } from "@/modules/in-trip/browser-location";
 import {
   createLocationFlowState,
@@ -97,9 +98,9 @@ function InTripVisitList({
                 <strong>{timeLabel(visit.startMinute)}</strong>
               </div>
               <div className={styles.visitContent}>
-                <h3>{visit.destinationName}</h3>
+                <h3>{cleanTravelerDisplay(visit.destinationName) || visit.destinationName}</h3>
                 <div className={styles.visitMeta}>
-                  {visit.area && <p><Mountain size={14} aria-hidden="true" />{visit.area}</p>}
+                  {visit.area && <p><Mountain size={14} aria-hidden="true" />{cleanTravelerDisplay(visit.area) || visit.area}</p>}
                   <p><CalendarDays size={14} aria-hidden="true" />Ngày {visit.dayIndex} · {inTripDateLabel(visit.localDate)}</p>
                   <p><Clock3 size={14} aria-hidden="true" />{visit.plannedDurationMinutes} phút · Thứ tự {visit.order}</p>
                 </div>
@@ -114,7 +115,9 @@ function InTripVisitList({
 }
 
 function proposalDestinationLabel(destinationId: string, labels: Record<string, string>): string {
-  return labels[destinationId] ?? `Điểm đến mới (${destinationId.slice(0, 8)})`;
+  const raw = labels[destinationId];
+  if (!raw) return "Điểm đến mới";
+  return cleanTravelerDisplay(raw) || raw;
 }
 
 function proposalVisitDescription(
@@ -580,7 +583,7 @@ export default function InTripAssistant({
                 )}
                 {assistantState.apply.status === "FAILED" && (
                   <p className={styles.proposalError} role="alert" aria-live="assertive">
-                    {assistantState.apply.message}{assistantState.apply.code ? ` (${assistantState.apply.code})` : ""}
+                    {assistantState.apply.message}
                   </p>
                 )}
                 {assistantState.apply.status === "UNKNOWN" && (

@@ -1,10 +1,12 @@
 import type { UIMessageChunk } from "ai";
 
+import { cleanTravelerProse } from "../../lib/traveler-display-clean";
 import type { PreviewEditResult } from "./trip-edit-service";
 
 const URL_PATTERN = /https?:\/\/[^\s<>)\]]+/giu;
 const HTML_TAG_PATTERN = /<\/?[a-z][^>]*>/giu;
 const INTERNAL_ID_PATTERN = /\b(?:ext:[a-z0-9:_-]+|dest-[a-z0-9_-]+|visit-[a-z0-9_-]+|sim-\d+|c[a-z0-9]{20,})\b/giu;
+const TEMP_PREFIX_PATTERN = /(?:\[\s*t[aạ]m\s*\][^\S\n]*[:\-–—]?[^\S\n]*)+/giu;
 const MAX_PENDING_CHARS = 2048;
 
 function escapeRegex(value: string): string {
@@ -25,6 +27,7 @@ function redactSegment(raw: string, knownIdsPattern: RegExp | null): { text: str
   text = text.replace(URL_PATTERN, "");
   text = text.replace(HTML_TAG_PATTERN, "");
   text = text.replace(INTERNAL_ID_PATTERN, "");
+  text = text.replace(TEMP_PREFIX_PATTERN, "");
   if (knownIdsPattern) {
     text = text.replace(knownIdsPattern, "");
   }
@@ -39,7 +42,7 @@ function redactSegment(raw: string, knownIdsPattern: RegExp | null): { text: str
 
 /**
  * Strips internal identifiers (visit/dest/ext/sim/cuid/known catalog IDs ≥ 12),
- * URLs, and HTML tags from model prose or tool labels before returning to the browser.
+ * "[Tam]"/"[Tạm]" prefixes, URLs, and HTML tags from model prose or tool labels before returning to the browser.
  */
 export function redactAssistantText(
   raw: string,
@@ -47,7 +50,7 @@ export function redactAssistantText(
 ): string {
   const knownIdsPattern = buildKnownIdsPattern(knownDestinationIds);
   const { text } = redactSegment(raw.normalize("NFC"), knownIdsPattern);
-  return text.replace(/[^\S\n]{2,}/gu, " ").trim();
+  return cleanTravelerProse(text);
 }
 
 /**
@@ -82,8 +85,18 @@ export function buildCorrectionNote(
 function findSafeSplitIndex(pending: string): number {
   const lastLt = pending.lastIndexOf("<");
   const lastGt = pending.lastIndexOf(">");
-  const searchLimit =
+  let searchLimit =
     lastLt > lastGt && pending.length - lastLt < MAX_PENDING_CHARS ? lastLt : pending.length;
+
+  const lastOpenBracket = pending.lastIndexOf("[");
+  const lastCloseBracket = pending.lastIndexOf("]");
+  if (
+    lastOpenBracket > lastCloseBracket &&
+    pending.length - lastOpenBracket < 24 &&
+    lastOpenBracket < searchLimit
+  ) {
+    searchLimit = lastOpenBracket;
+  }
 
   for (let idx = searchLimit - 1; idx >= 0; idx -= 1) {
     if (/\s/u.test(pending[idx]!)) {

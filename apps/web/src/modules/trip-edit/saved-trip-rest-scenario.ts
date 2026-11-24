@@ -749,7 +749,7 @@ export async function runRestAndCompoundScenario(input: {
   if (parsed.wantsDirectApply && nonDestructiveTrim) {
     return {
       kind: "APPLY_DIRECT",
-      analysisSummary: `Nếu ${restLabel}, lịch cũ sẽ bị kẹt (${shiftedTraps.trappedDescriptions.slice(0, 2).join("; ")}). AI đã lùi giờ kết hợp rút ngắn nhẹ thời lượng trong ngưỡng tối thiểu để toàn Ngày ${dayIndex} đạt PASS mà vẫn giữ đủ mọi điểm.`,
+      analysisSummary: `Nếu ${restLabel}, lịch cũ sẽ bị kẹt (${shiftedTraps.trappedDescriptions.slice(0, 2).join("; ")}). AI đã lùi giờ kết hợp rút ngắn nhẹ thời lượng trong ngưỡng tối thiểu để toàn Ngày ${dayIndex} đạt yêu cầu mà vẫn giữ đủ mọi điểm.`,
       suggestion: nonDestructiveTrim,
     };
   }

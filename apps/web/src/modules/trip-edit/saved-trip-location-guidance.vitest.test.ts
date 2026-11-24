@@ -2,6 +2,7 @@ import type { Database } from "@KLTN/db";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAiEditProposal } from "./ai-edit-service";
+import { createTextRedactionTransform, redactAssistantText } from "./trip-assistant-stream-redaction";
 import type { WorkspacePlanModelOutput } from "./ai-workspace-plan";
 import type { EditCandidate } from "./edit-candidate";
 
@@ -842,5 +843,133 @@ describe("Saved-trip assistant Ticket 06: Conditional ONGOING GPS & manual locat
     if (sightRes.status !== "ADVISED") return;
     expect(sightPlacesSpy).not.toHaveBeenCalled();
     expect(sightRes.advice).toContain("Chợ Đồng Văn");
+  });
+
+  it("Point 3: strips [Tam]/[Tạm] from model context, deterministic/streamed responses, and never exposes (UPCOMING)", async () => {
+    const { database, draft } = createLocationFixture();
+    const origFindFirst = (database as unknown as { trip: { findFirst: () => Promise<Record<string, unknown>> } }).trip.findFirst;
+    const origFindMany = (database as unknown as { destination: { findMany: (a?: unknown) => Promise<Record<string, unknown>[]> } }).destination.findMany;
+
+    const tamDb = {
+      user: { findUnique: async () => ({ id: "owner-1", role: "TRAVELER" }) },
+      trip: {
+        findFirst: async () => {
+          const trip = await origFindFirst() as { days: { visits: { destination: { name: string } }[] }[] };
+          trip.days[0]!.visits[1]!.destination.name = "[Tam] Thị trấn Mèo Vạc";
+          return trip;
+        },
+      },
+      destination: {
+        findMany: async (args?: unknown) => {
+          const rows = await origFindMany(args);
+          return rows.map((r) =>
+            r.id === "dest-next-1"
+              ? { ...r, name: "[Tam] Thị trấn Mèo Vạc" }
+              : r.id === "dest-nearby"
+                ? { ...r, name: "[Tạm] Chợ Đồng Văn" }
+                : r,
+          );
+        },
+      },
+    } as unknown as Database;
+
+    // 1. UPCOMING answer does not expose raw (UPCOMING) enum
+    const upcoming = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      { baseRevision: revision.toISOString(), message: "Gần chỗ tôi đang đứng có điểm nào ghé được không?", draft },
+      {
+        database: tamDb,
+        llm: { complete: async () => ({ rawText: JSON.stringify(locationPlan("LOCATION_GUIDANCE")), model: "step-1" }) },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 900, distanceMeters: 5000 }),
+      },
+      upcomingTime,
+    );
+    expect(upcoming.status).toBe("ADVISED");
+    if (upcoming.status === "ADVISED") {
+      expect(upcoming.advice).not.toMatch(/\b(?:UPCOMING|ONGOING|COMPLETED|NEEDS_LOCATION)\b/u);
+    }
+
+    // 2. Non-location LLM call receives cleaned names in prompt context & server filters any leaked [Tam]
+    const seenPrompts: string[] = [];
+    let callIdx = 0;
+    const llmClean = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      { baseRevision: revision.toISOString(), message: "Chiều nay đi có kịp không?", draft },
+      {
+        database: tamDb,
+        llm: {
+          complete: async (args: { user?: string; messages?: { content: string }[] }) => {
+            callIdx += 1;
+            seenPrompts.push(JSON.stringify(args));
+            if (callIdx === 1) {
+              return { rawText: JSON.stringify(locationPlan("TRAVEL_TIME")), model: "step-1" };
+            }
+            return {
+              rawText: JSON.stringify({
+                advice: "Điểm đầu tiên tiếp theo là [Tam] Thị trấn Mèo Vạc và có thể ghé [Tạm] Chợ Đồng Văn.",
+              }),
+              model: "step-2",
+            };
+          },
+        },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 900, distanceMeters: 5000 }),
+      },
+      ongoingAt1100Vn,
+    );
+    expect(seenPrompts.join("\n")).not.toMatch(/\[\s*t[aạ]m\s*\]/iu);
+    expect(llmClean.status).toBe("ADVISED");
+    if (llmClean.status === "ADVISED") {
+      expect(llmClean.advice).not.toMatch(/\[\s*t[aạ]m\s*\]/iu);
+      expect(llmClean.advice).toContain("Thị trấn Mèo Vạc");
+    }
+
+    // 3. Point 1 ETA reply strips [Tam] and redaction/stream transform strips split "[Ta" + "m]"
+    const etaClean = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?",
+        draft,
+        location: { source: "GPS", latitude: 23.18, longitude: 105.12, accuracyMeters: 10, capturedAt: ongoingAt1100Vn.toISOString() },
+      },
+      {
+        database: tamDb,
+        llm: { complete: async () => { throw new Error("not used"); } },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 1200, distanceMeters: 14_500 }),
+      },
+      ongoingAt1100Vn,
+    );
+    expect(etaClean.status).toBe("ADVISED");
+    if (etaClean.status === "ADVISED") {
+      expect(etaClean.advice).toContain("Thị trấn Mèo Vạc");
+      expect(etaClean.advice).not.toMatch(/\[\s*t[aạ]m\s*\]/iu);
+    }
+
+    expect(redactAssistantText("Điểm đầu tiên ngày 2 là [Tam] Thị trấn Mèo Vạc…")).toBe(
+      "Điểm đầu tiên ngày 2 là Thị trấn Mèo Vạc…",
+    );
+
+    const transform = createTextRedactionTransform(new Set());
+    const writer = transform.writable.getWriter();
+    const reader = transform.readable.getReader();
+    const chunksPromise = (async () => {
+      const out: string[] = [];
+      for (;;) {
+        const next = await reader.read();
+        if (next.done) break;
+        if (next.value.type === "text-delta") out.push(next.value.delta);
+      }
+      return out.join("");
+    })();
+    await writer.write({ type: "text-start", id: "t1" });
+    await writer.write({ type: "text-delta", id: "t1", delta: "Điểm đầu tiên ngày 2 là [Ta" });
+    await writer.write({ type: "text-delta", id: "t1", delta: "m] Thị trấn Mèo Vạc" });
+    await writer.write({ type: "text-end", id: "t1" });
+    await writer.close();
+    const streamed = await chunksPromise;
+    expect(streamed).toBe("Điểm đầu tiên ngày 2 là Thị trấn Mèo Vạc");
   });
 });

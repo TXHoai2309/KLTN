@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { cleanTravelerProse } from "../../lib/traveler-display-clean";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
 import { isPreferenceExtractionError } from "../preference-extraction/preference-extraction-errors";
 import type { UncheckedItem } from "../trip-save/unchecked-checks";
@@ -1043,18 +1044,18 @@ export async function composeGroundedAdviceWithFallback(input: {
     const parsed = composerOutputSchema.safeParse(parsedJson);
     if (!parsed.success) {
       log("FALLBACK", "SCHEMA_INVALID");
-      return input.fallbackText;
+      return cleanTravelerProse(input.fallbackText) || input.fallbackText;
     }
     const rejection = groundedAdviceRejection(parsed.data.advice, input.facts, input.knownDestinationIds);
     if (rejection) {
       log("FALLBACK", `FACT_GUARD:${rejection}`);
-      return input.fallbackText;
+      return cleanTravelerProse(input.fallbackText) || input.fallbackText;
     }
     log("MODEL", null);
-    return parsed.data.advice.normalize("NFC").trim();
+    return cleanTravelerProse(parsed.data.advice) || parsed.data.advice.normalize("NFC").trim();
   } catch (error) {
     log("FALLBACK", composerFailureReason(error));
-    return input.fallbackText;
+    return cleanTravelerProse(input.fallbackText) || input.fallbackText;
   } finally {
     if (timer) clearTimeout(timer);
     input.signal?.removeEventListener("abort", onAbort);

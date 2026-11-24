@@ -5,6 +5,7 @@ import {
   cleanOvernightAreaLabel,
   cleanPlaceDisplayName,
   cleanTravelerDisplay,
+  cleanTravelerProse,
   isGenericActivityPlaceName,
   resolveOvernightAreaLabel,
 } from "./traveler-display-clean";
@@ -125,5 +126,15 @@ describe("Ticket 04: traveler display cleanup helpers", () => {
     expect(isGenericActivityPlaceName("Điểm tham quan")).toBe(true);
     expect(isGenericActivityPlaceName("Chợ đêm Đồng Văn")).toBe(false);
     expect(isGenericActivityPlaceName("Khu vui chơi trẻ em Hoa Đá")).toBe(false);
+  });
+
+  it("Point 3: strips inline [Tam]/[Tạm] prefixes from prose while keeping newlines intact", () => {
+    expect(cleanTravelerProse("Điểm đầu tiên ngày 2 là [Tam] Thị trấn Mèo Vạc…")).toBe(
+      "Điểm đầu tiên ngày 2 là Thị trấn Mèo Vạc…",
+    );
+    expect(cleanTravelerProse("- **[Tạm] Núi Đôi Cô Tiên** (09:21)\n- [Tam] Thị trấn Mèo Vạc (08:00)")).toBe(
+      "- **Núi Đôi Cô Tiên** (09:21)\n- Thị trấn Mèo Vạc (08:00)",
+    );
+    expect(cleanTravelerDisplay("Điểm 1: [Tam] Chợ Đồng Văn")).toBe("Điểm 1: Chợ Đồng Văn");
   });
 });
