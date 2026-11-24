@@ -28,16 +28,16 @@ const SCENARIOS: Scenario[] = [
     citation: {
       source: "Sách Dư địa chí & Mùa hoa Cao nguyên đá",
       page: "Chương III, tr. 84",
-      verifiedText: "Hoa tam giác mạch chính vụ nở rực rỡ từ tuần thứ hai của tháng 10 đến hết tháng 11 tại thung lũng Sủng Là và chân đèo Mã Pí Lèng.",
+      verifiedText: "Hoa tam giác mạch chính vụ nở rực rỡ từ tuần thứ hai của tháng 10 đến hết tháng 11 tại thung lũng Sủng Là và chân đèo Mã Pì Lèng.",
     },
   },
   {
     id: "ma-pi-leng-pass",
-    chipLabel: "An toàn đèo Mã Pí Lèng",
-    topic: "Kinh nghiệm đèo Mã Pí Lèng",
-    question: "Đi xe máy qua đèo Mã Pí Lèng lần đầu cần lưu ý an toàn những gì?",
+    chipLabel: "An toàn đèo Mã Pì Lèng",
+    topic: "Kinh nghiệm đèo Mã Pì Lèng",
+    question: "Đi xe máy qua đèo Mã Pì Lèng lần đầu cần lưu ý an toàn những gì?",
     speaker: "Trợ lý Hà Giang Travel",
-    answer: "Đèo Mã Pí Lèng dài 20km uốn lượn bên vực sâu sông Nho Quế. Lần đầu đi bạn nên chọn xe số hoặc côn tay thay vì xe ga, kiểm tra kỹ hệ thống phanh trước và sau, duy trì số 2 hoặc 3 khi lên cũng như xuống dốc để hãm động cơ. Luôn bật đèn xe, bấm còi cảnh báo trước các khúc cua khuất và chỉ dừng ngắm cảnh tại điểm có hộ lan.",
+    answer: "Đèo Mã Pì Lèng dài 20km uốn lượn bên vực sâu sông Nho Quế. Lần đầu đi bạn nên chọn xe số hoặc côn tay thay vì xe ga, kiểm tra kỹ hệ thống phanh trước và sau, duy trì số 2 hoặc 3 khi lên cũng như xuống dốc để hãm động cơ. Luôn bật đèn xe, bấm còi cảnh báo trước các khúc cua khuất và chỉ dừng ngắm cảnh tại điểm có hộ lan.",
     citation: {
       source: "Cẩm nang An toàn Cung đường Phượt Vùng cao",
       page: "Mục 4.2 · Quy chuẩn đổ đèo",

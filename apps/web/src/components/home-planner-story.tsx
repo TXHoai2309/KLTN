@@ -20,14 +20,14 @@ const DAYS = [
   {
     day: "Ngày 2",
     index: "02",
-    shortTitle: "Lũng Cú & Mã Pí Lèng",
+    shortTitle: "Lũng Cú & Mã Pì Lèng",
     theme: "Kỳ vĩ · Trái tim Di sản UNESCO",
-    route: "Dinh họ Vương → Cột cờ Lũng Cú → Đèo Mã Pí Lèng",
+    route: "Dinh họ Vương → Cột cờ Lũng Cú → Đèo Mã Pì Lèng",
     distance: "120 km · ~4.5h lái xe",
     note: "Chạm mốc cực Bắc Tổ quốc, chinh phục hẻm Tu Sản kỳ vĩ và đón hoàng hôn rực rỡ bên dòng sông Nho Quế.",
     src: "/images/gallery/ha-giang-day2-lg.webp",
     alt: "Cánh đồng hoa tam giác mạch hồng dưới bầu trời hoàng hôn",
-    waypoints: ["Dinh Vua Mèo", "Cột cờ Lũng Cú", "Đèo Mã Pí Lèng", "Hẻm Tu Sản"],
+    waypoints: ["Dinh Vua Mèo", "Cột cờ Lũng Cú", "Đèo Mã Pì Lèng", "Hẻm Tu Sản"],
   },
   {
     day: "Ngày 3",

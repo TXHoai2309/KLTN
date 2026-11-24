@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cleanAreaDisplayLabel,
+  cleanDocumentSourceTitle,
   cleanOvernightAreaLabel,
   cleanPlaceDisplayName,
   cleanTravelerDisplay,
@@ -9,11 +10,24 @@ import {
 } from "./traveler-display-clean";
 
 describe("Ticket 04: traveler display cleanup helpers", () => {
-  it("strips [Tạm] prefix and normalizes spacing on place names", () => {
+  it("strips [Tạm] prefix and normalizes spacing and place capitalization on place names", () => {
     expect(cleanPlaceDisplayName("[Tạm] Núi Đôi Cô Tiên")).toBe("Núi Đôi Cô Tiên");
     expect(cleanPlaceDisplayName("[tạm]  Cột cờ Lũng Cú")).toBe("Cột cờ Lũng Cú");
-    expect(cleanPlaceDisplayName("[Tam] - Đèo Mã Pí Lèng")).toBe("Đèo Mã Pí Lèng");
+    expect(cleanPlaceDisplayName("[Tam] - Đèo Mã Pí Lèng")).toBe("Đèo Mã Pì Lèng");
+    expect(cleanPlaceDisplayName("Đèo Mã Pì Lèng")).toBe("Đèo Mã Pì Lèng");
     expect(cleanPlaceDisplayName("Phố cổ Đồng Văn")).toBe("Phố cổ Đồng Văn");
+    expect(cleanPlaceDisplayName("Đình Chiều Lầu Thi")).toBe("Đỉnh Chiêu Lầu Thi");
+  });
+
+  it("standardizes RAG document source titles via cleanDocumentSourceTitle (P6)", () => {
+    expect(cleanDocumentSourceTitle("Cột cờ lũng cú")).toBe("Cột cờ Lũng Cú");
+    expect(cleanDocumentSourceTitle("Ruộng bậc thang hoàng su phì")).toBe("Ruộng bậc thang Hoàng Su Phì");
+    expect(cleanDocumentSourceTitle("Cổng trời quản bạ")).toBe("Cổng trời Quản Bạ");
+    expect(cleanDocumentSourceTitle("Chợ tình khâu vai")).toBe("Chợ tình Khâu Vai");
+    expect(cleanDocumentSourceTitle("Di tích lịch sử căng bắc mê")).toBe("Di tích lịch sử Căng Bắc Mê");
+    expect(cleanDocumentSourceTitle("Dinh thự họ vương")).toBe("Dinh thự họ Vương");
+    expect(cleanDocumentSourceTitle("Đình Chiều Lầu Thi")).toBe("Đỉnh Chiêu Lầu Thi");
+    expect(cleanDocumentSourceTitle("Đèo Mã Pí Lèng")).toBe("Đèo Mã Pì Lèng");
   });
 
   it("strips [Tam]/[Tạm]/[tạm]/[ Tạm ] prefixes from stop descriptions while preserving real content", () => {

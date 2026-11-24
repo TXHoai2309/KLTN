@@ -342,7 +342,7 @@ export default function TripPersonalizationSheet({
             <textarea
               id="trip-sheet-note"
               className="trip-sheet-textarea"
-              placeholder="Ví dụ: có người dễ say xe nặng trên đèo Mã Pí Lèng, muốn ưu tiên nghỉ ngơi yên tĩnh..."
+              placeholder="Ví dụ: có người dễ say xe nặng trên đèo Mã Pì Lèng, muốn ưu tiên nghỉ ngơi yên tĩnh..."
               rows={3}
               maxLength={200}
               value={mobilityNote}

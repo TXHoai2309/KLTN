@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, ChevronLeft, ChevronRight, ExternalLink, MapPin, TriangleAlert } from "lucide-react";
 import type { PublicCulturePage } from "@/modules/culture/public-culture-list";
+import { cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { buildExploreReturnTo } from "@/modules/destination/destination-detail-navigation";
 import { destinationDetailHref } from "@/modules/map/map-model";
 import { culturePageHref } from "./public-section";
@@ -33,9 +34,9 @@ export default function CultureResults({ data, error }: { data?: PublicCulturePa
         </div> : <ul className="explore-cards explore-culture-cards">
           {data.items.map((item, index) => <li className="explore-culture-card" key={item.id} style={{ "--card-index": index } as React.CSSProperties}>
             <div className="explore-culture-art" aria-hidden="true"><BookOpen size={25} strokeWidth={1.6} /><span>TƯ LIỆU VĂN HÓA</span><i /><i /><i /></div>
-            <div className="explore-culture-card-body"><h3>{item.title}</h3><p className="explore-culture-excerpt">{item.excerpt}</p>
-              {(item.sourceTitle || item.sourceUrl) && <p className="explore-culture-source"><BookOpen aria-hidden="true" size={14} /><span>Nguồn:</span>{item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{item.sourceTitle || "Xem nguồn tham khảo"}<ExternalLink aria-hidden="true" size={13} /><span className="sr-only"> (mở tab mới)</span></a> : <span>{item.sourceTitle}</span>}</p>}
-              {item.relatedDestinations.length > 0 && <div className="explore-related"><h4>Địa danh liên quan</h4><ul>{item.relatedDestinations.map(destination => <li key={destination.id}><Link href={destinationDetailHref(destination.id, returnTo)}><MapPin aria-hidden="true" size={13} />{destination.name}</Link></li>)}</ul></div>}
+            <div className="explore-culture-card-body"><h3>{cleanPlaceDisplayName(item.title)}</h3><p className="explore-culture-excerpt">{cleanTravelerDisplay(item.excerpt)}</p>
+              {(item.sourceTitle || item.sourceUrl) && <p className="explore-culture-source"><BookOpen aria-hidden="true" size={14} /><span>Nguồn:</span>{item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{cleanDocumentSourceTitle(item.sourceTitle) || "Xem nguồn tham khảo"}<ExternalLink aria-hidden="true" size={13} /><span className="sr-only"> (mở tab mới)</span></a> : <span>{cleanDocumentSourceTitle(item.sourceTitle)}</span>}</p>}
+              {item.relatedDestinations.length > 0 && <div className="explore-related"><h4>Địa danh liên quan</h4><ul>{item.relatedDestinations.map(destination => <li key={destination.id}><Link href={destinationDetailHref(destination.id, returnTo)}><MapPin aria-hidden="true" size={13} />{cleanPlaceDisplayName(destination.name)}</Link></li>)}</ul></div>}
             </div>
           </li>)}
         </ul>}

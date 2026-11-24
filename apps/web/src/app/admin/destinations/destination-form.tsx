@@ -324,7 +324,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
     required = false,
   ) {
     const placeholders: Record<string, string> = {
-      name: "Ví dụ: Đèo Mã Pí Lèng, Cột cờ Lũng Cú...",
+      name: "Ví dụ: Đèo Mã Pì Lèng, Cột cờ Lũng Cú...",
       suggestedDurationMinutes: "Ví dụ: 120 (phút)",
       minimumDurationMinutes: "Ví dụ: 60 (phút)",
     };

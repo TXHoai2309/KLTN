@@ -7,8 +7,10 @@ import type { ExploreReturnHref } from "@/modules/destination/destination-detail
 import { destinationDetailHref } from "@/modules/map/map-model";
 import DestinationCardImage from "@/components/destination-card-image";
 import FavoriteButton from "@/components/favorite-button";
+import { cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 
 export default function DestinationCard({ destination, returnTo }: { destination: PublicLocation; returnTo?: ExploreReturnHref }) {
+  const displayName = cleanPlaceDisplayName(destination.name) || destination.name;
   return (
     <Card className="destination-card">
       <Link className="destination-card-link" href={destinationDetailHref(destination.id, returnTo)}>
@@ -23,7 +25,7 @@ export default function DestinationCard({ destination, returnTo }: { destination
           <div className="destination-card-meta-wrap">
             <span className="destination-card-meta">{destination.category}</span>
           </div>
-          <h3 title={destination.name}>{destination.name}</h3>
+          <h3 title={displayName}>{displayName}</h3>
           <span className="destination-card-action">
             <span>Xem chi tiết</span>
             <ArrowRight size={14} aria-hidden="true" />

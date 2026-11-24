@@ -5,6 +5,7 @@ import { db } from "@/services";
 import { shortDescription } from "@/modules/destination/short-description";
 import { AppError } from "@/server/http/app-error";
 import { resolveExploreReturnTo } from "@/modules/destination/destination-detail-navigation";
+import { cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { getPublicDestination } from "@/modules/destination/public-destination-service";
 import DestinationDetail, { DetailState } from "./destination-detail";
 import { readPublicEditorial } from "@/modules/destination-editorial/editorial-service";
@@ -21,10 +22,11 @@ export async function generateMetadata({
   const { id } = await params;
   try {
     const destination = await readPublicDestinationForPage(id);
-    const rawDesc = destination.profile?.shortDescription?.trim() || destination.description || "";
+    const displayTitle = cleanPlaceDisplayName(destination.name) || destination.name.trim();
+    const rawDesc = cleanTravelerDisplay(destination.profile?.shortDescription?.trim() || destination.description || "");
     const description = shortDescription(rawDesc, 155) || "Thông tin điểm đến và gợi ý tham quan tại Hà Giang.";
     return {
-      title: `${destination.name.trim()} | Hà Giang Travel Assistant`,
+      title: `${displayTitle} | Hà Giang Travel Assistant`,
       description,
     };
   } catch {

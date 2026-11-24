@@ -8,7 +8,7 @@ export interface BrandLogoProps extends SVGProps<SVGSVGElement> {
 
 /**
  * Bespoke brand emblem for Hà Giang Travel Assistant:
- * - Layered limestone mountain peaks (Cao nguyên đá Đồng Văn & Đèo Mã Pí Lèng)
+ * - Layered limestone mountain peaks (Cao nguyên đá Đồng Văn & Đèo Mã Pì Lèng)
  * - Meandering turquoise canyon river (Sông Nho Quế)
  * - Golden Northern guide star & AI sparkle (Cột cờ Lũng Cú & Trợ lý thông minh)
  */
@@ -41,7 +41,7 @@ export function BrandLogo({ size = 38, className = "", ...props }: BrandLogoProp
           <stop offset="100%" stopColor="#0b2418" />
         </linearGradient>
 
-        {/* Back mountain ridge (Mã Pí Lèng backdrop) */}
+        {/* Back mountain ridge (Mã Pì Lèng backdrop) */}
         <linearGradient id={peakBackId} x1="6" y1="18" x2="27" y2="36" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#43a074" />
           <stop offset="100%" stopColor="#1e523c" />

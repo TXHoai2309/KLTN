@@ -64,8 +64,8 @@ export function getDestinationVisual(name: string, area = ""): { src: string; al
   if (n.includes("quản bạ") || n.includes("quan ba") || n.includes("cổng trời") || n.includes("núi đôi")) {
     return { src: "/images/gallery/ha-giang-twin-mountain.webp", alt: "Núi đôi Quản Bạ" };
   }
-  if (n.includes("nho quế") || n.includes("nho que") || n.includes("mã pí lèng") || n.includes("ma pi leng") || n.includes("tu sản")) {
-    return { src: "/images/ha-giang-hero.webp", alt: "Đèo Mã Pí Lèng và sông Nho Quế" };
+  if (n.includes("nho quế") || n.includes("nho que") || n.includes("mã pí lèng") || n.includes("mã pì lèng") || n.includes("ma pi leng") || n.includes("tu sản")) {
+    return { src: "/images/ha-giang-hero.webp", alt: "Đèo Mã Pì Lèng và sông Nho Quế" };
   }
   if (n.includes("hạ thành") || n.includes("ha thanh") || n.includes("nặm đăm") || n.includes("nam dam")) {
     return { src: "/images/gallery/ha-giang-terraces-mist-huts.webp", alt: "Làng văn hóa du lịch cộng đồng" };

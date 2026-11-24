@@ -151,7 +151,7 @@ export default async function Home() {
             <ul key={copy} className="home-marquee-list" aria-hidden={copy === 1 ? "true" : undefined}>
               {[
                 "Cột cờ Lũng Cú",
-                "Đèo Mã Pí Lèng",
+                "Đèo Mã Pì Lèng",
                 "Hẻm Tu Sản",
                 "Sông Nho Quế",
                 "Ruộng bậc thang Hoàng Su Phì",

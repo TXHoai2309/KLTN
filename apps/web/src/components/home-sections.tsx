@@ -52,8 +52,8 @@ const days = [
   },
   {
     day: "Ngày 2",
-    title: "Lũng Cú và Mã Pí Lèng",
-    route: "Dinh họ Vương → Cột cờ Lũng Cú → Đèo Mã Pí Lèng",
+    title: "Lũng Cú và Mã Pì Lèng",
+    route: "Dinh họ Vương → Cột cờ Lũng Cú → Đèo Mã Pì Lèng",
     distance: "120 km · khoảng 4,5 giờ lái xe",
     src: "/images/gallery/ha-giang-day2-lg.webp",
     alt: "Cánh đồng hoa tam giác mạch hồng dưới bầu trời hoàng hôn",

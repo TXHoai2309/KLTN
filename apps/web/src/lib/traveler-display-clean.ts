@@ -27,12 +27,35 @@ const KNOWN_PLACE_NAMES: readonly [RegExp, string][] = [
   [/(?<=^|[^\p{L}\p{N}])b[aắ]c\s+m[eê](?=$|[^\p{L}\p{N}])/giu, "Bắc Mê"],
   [/(?<=^|[^\p{L}\p{N}])quang\s+b[iì]nh(?=$|[^\p{L}\p{N}])/giu, "Quang Bình"],
   [/(?<=^|[^\p{L}\p{N}])l[uũ]ng\s+c[uú](?=$|[^\p{L}\p{N}])/giu, "Lũng Cú"],
-  [/(?<=^|[^\p{L}\p{N}])m[aã]\s+p[iíì]\s+l[eè]ng(?=$|[^\p{L}\p{N}])/giu, "Mã Pí Lèng"],
+  [/(?<=^|[^\p{L}\p{N}])m[aã]\s+p[iíì]\s+l[eè]ng(?=$|[^\p{L}\p{N}])/giu, "Mã Pì Lèng"],
   [/(?<=^|[^\p{L}\p{N}])du\s+gi[aà](?=$|[^\p{L}\p{N}])/giu, "Du Già"],
   [/(?<=^|[^\p{L}\p{N}])l[oô]\s+l[oô]\s+ch[aả]i(?=$|[^\p{L}\p{N}])/giu, "Lô Lô Chải"],
   [/(?<=^|[^\p{L}\p{N}])nho\s+qu[eế](?=$|[^\p{L}\p{N}])/giu, "Nho Quế"],
   [/(?<=^|[^\p{L}\p{N}])s[uủ]ng\s+l[aà](?=$|[^\p{L}\p{N}])/giu, "Sủng Là"],
   [/(?<=^|[^\p{L}\p{N}])ph[oó]\s+b[aả]ng(?=$|[^\p{L}\p{N}])/giu, "Phó Bảng"],
+  [/(?<=^|[^\p{L}\p{N}])kh[aâ]u\s+vai(?=$|[^\p{L}\p{N}])/giu, "Khâu Vai"],
+  [/(?<=^|[^\p{L}\p{N}])c[aă]ng\s+b[aắ]c\s+m[eê](?=$|[^\p{L}\p{N}])/giu, "Căng Bắc Mê"],
+  [/(?<=^|[^\p{L}\p{N}])l[uù]ng\s+t[aá]m(?=$|[^\p{L}\p{N}])/giu, "Lùng Tám"],
+  [/(?<=^|[^\p{L}\p{N}])l[uù]ng\s+kh[uú]y(?=$|[^\p{L}\p{N}])/giu, "Lùng Khúy"],
+  [/(?<=^|[^\p{L}\p{N}])l[uũ]ng\s+c[aẩ]m(?=$|[^\p{L}\p{N}])/giu, "Lũng Cẩm"],
+  [/(?<=^|[^\p{L}\p{N}])n[aặ]m\s+đ[aă]m(?=$|[^\p{L}\p{N}])/giu, "Nặm Đăm"],
+  [/(?<=^|[^\p{L}\p{N}])h[aạ]\s+th[aà]nh(?=$|[^\p{L}\p{N}])/giu, "Hạ Thành"],
+  [/(?<=^|[^\p{L}\p{N}])p[aả]\s+vi\s+h[aạ](?=$|[^\p{L}\p{N}])/giu, "Pả Vi Hạ"],
+  [/(?<=^|[^\p{L}\p{N}])p[aả]\s+vi\s+th[uư][oợ]ng(?=$|[^\p{L}\p{N}])/giu, "Pả Vi Thượng"],
+  [/(?<=^|[^\p{L}\p{N}])p[aả]\s+vi(?=$|[^\p{L}\p{N}])/giu, "Pả Vi"],
+  [/(?<=^|[^\p{L}\p{N}])s[aà]\s+ph[iì]n(?=$|[^\p{L}\p{N}])/giu, "Sà Phìn"],
+  [/(?<=^|[^\p{L}\p{N}])h[oọ]\s+v[uư][oơ]ng(?=$|[^\p{L}\p{N}])/giu, "họ Vương"],
+  [/(?<=^|[^\p{L}\p{N}])nh[aà]\s+v[uư][oơ]ng(?=$|[^\p{L}\p{N}])/giu, "Nhà Vương"],
+  [/(?<=^|[^\p{L}\p{N}])vua\s+m[eè]o(?=$|[^\p{L}\p{N}])/giu, "Vua Mèo"],
+  [/(?<=^|[^\p{L}\p{N}])c[oô]\s+ti[eê]n(?=$|[^\p{L}\p{N}])/giu, "Cô Tiên"],
+  [/(?<=^|[^\p{L}\p{N}])tu\s+s[aả]n(?=$|[^\p{L}\p{N}])/giu, "Tu Sản"],
+  [/(?<=^|[^\p{L}\p{N}])b[aắ]c\s+sum(?=$|[^\p{L}\p{N}])/giu, "Bắc Sum"],
+  [/(?<=^|[^\p{L}\p{N}])th[aẩ]m\s+m[aã](?=$|[^\p{L}\p{N}])/giu, "Thẩm Mã"],
+  [/(?<=^|[^\p{L}\p{N}])đ[iìỉ]nh\s+chi[eêề]u\s+l[aầ]u\s+thi(?=$|[^\p{L}\p{N}])/giu, "Đỉnh Chiêu Lầu Thi"],
+  [/(?<=^|[^\p{L}\p{N}])chi[eêề]u\s+l[aầ]u\s+thi(?=$|[^\p{L}\p{N}])/giu, "Chiêu Lầu Thi"],
+];
+
+const AREA_PREFIX_NAMES: readonly [RegExp, string][] = [
   [/(?<=^|[^\p{L}\p{N}])th[iị]\s+tr[aấ]n(?=$|[^\p{L}\p{N}])/giu, "Thị trấn"],
   [/(?<=^|[^\p{L}\p{N}])khu\s+v[uự]c(?=$|[^\p{L}\p{N}])/giu, "Khu vực"],
 ];
@@ -59,7 +82,7 @@ function fold(value: string): string {
     .trim();
 }
 
-function capitalizeKnownPlaces(value: string): string {
+export function capitalizeKnownPlaces(value: string): string {
   let out = value;
   for (const [pattern, replacement] of KNOWN_PLACE_NAMES) {
     out = out.replace(pattern, replacement);
@@ -67,21 +90,35 @@ function capitalizeKnownPlaces(value: string): string {
   return out;
 }
 
+function capitalizeAreaPrefixes(value: string): string {
+  let out = value;
+  for (const [pattern, replacement] of AREA_PREFIX_NAMES) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
+
 /**
- * Strips leading internal "[Tạm]" / "[Tam]" prefixes and collapses whitespace for display.
- * Safe for both destination names and descriptions; never alters stored DB values.
+ * Strips leading internal "[Tạm]" / "[Tam]" prefixes, collapses whitespace, and normalizes
+ * capitalization of known Hà Giang place names for display. Never alters stored DB values.
  */
 export function cleanTravelerDisplay(raw: string | null | undefined): string {
   if (!raw) return "";
-  return raw
+  const normalized = raw
     .normalize("NFC")
     .replace(TEMP_PREFIX, "")
     .replace(/\s+/gu, " ")
     .trim();
+  return capitalizeKnownPlaces(normalized);
 }
 
-/** Strips internal "[Tạm]" prefix and collapses whitespace for display. */
+/** Strips internal "[Tạm]" prefix, normalizes whitespace, and standardizes known place names. */
 export function cleanPlaceDisplayName(raw: string): string {
+  return cleanTravelerDisplay(raw);
+}
+
+/** Normalizes capitalization and whitespace inside reviewed RAG/culture source titles for display. */
+export function cleanDocumentSourceTitle(raw: string | null | undefined): string {
   return cleanTravelerDisplay(raw);
 }
 
@@ -94,7 +131,7 @@ export function cleanAreaDisplayLabel(raw: string | null | undefined): string | 
   const cleaned = cleanPlaceDisplayName(raw);
   if (!cleaned) return null;
   if (PLACEHOLDER_AREAS.has(fold(cleaned))) return null;
-  return capitalizeKnownPlaces(cleaned);
+  return capitalizeAreaPrefixes(cleaned);
 }
 
 /** Cleans an overnight area name for headings ("Nghỉ đêm khu vực ..." / "Tối nay · nghỉ ở ..."). */
@@ -148,7 +185,7 @@ export const OVERNIGHT_TOWN_CENTERS: Readonly<Record<string, { latitude: number;
   "Bắc Mê": { latitude: 22.7536, longitude: 105.2877 },
 };
 
-const LANDMARK_PREFIX = /^(?:đèo|deo|sông|song|dinh\s+thự|dinh\s+thu|cột\s+cờ|cot\s+co|rừng\s+thông|rung\s+thong|thác|thac|hang|núi|nui|cổng\s+trời|cong\s+troi|hẻm|hem|bến\s+thuyền|ben\s+thuyen|hồ|ho\s+|cầu|cau\s+|chùa|chua|đền|den|nhà\s+của|nha\s+cua|mã\s+pí\s+lèng|ma\s+pi\s+leng|nho\s+quế|nho\s+que)\b/iu;
+const LANDMARK_PREFIX = /^(?:đèo|deo|sông|song|dinh\s+thự|dinh\s+thu|cột\s+cờ|cot\s+co|rừng\s+thông|rung\s+thong|thác|thac|hang|núi|nui|cổng\s+trời|cong\s+troi|hẻm|hem|bến\s+thuyền|ben\s+thuyen|hồ|ho\s+|cầu|cau\s+|chùa|chua|đền|den|nhà\s+của|nha\s+cua|mã\s+p[íì]\s+lèng|ma\s+pi\s+leng|nho\s+quế|nho\s+que)\b/iu;
 
 const PROVINCE_ONLY = new Set(["ha giang", "tinh ha giang", "tuyen quang", "tinh tuyen quang"]);
 

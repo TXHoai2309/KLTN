@@ -6,6 +6,7 @@ import { isV2Layout } from "@/modules/destination-editorial/editorial-contract";
 import { formatHeroLocation, renderFormattedEditorialText } from "./editorial-story";
 import EditorialPhoto from "./editorial-photo";
 import type { EditorialPageData } from "./editorial-renderer";
+import { cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { stripMarkdownHeading, editorialTitlePhrases } from "@/modules/destination-editorial/editorial-content";
 import { hasEditorialCoordinates, hasEditorialFacts } from "@/modules/destination-editorial/editorial-display-policy";
 import { editorialHeroPlan } from "@/modules/destination-editorial/editorial-hero";
@@ -59,8 +60,8 @@ export default function EditorialGenerativeRenderer({
   const renderNode = (node: EditorialNodeV2, index: number): React.ReactNode => {
     if (node.hidden) return null;
 
-    const cleanTitle = stripMarkdownHeading(node.title ?? "");
-    let cleanText = node.text ?? "";
+    const cleanTitle = cleanPlaceDisplayName(stripMarkdownHeading(node.title ?? ""));
+    let cleanText = cleanTravelerDisplay(node.text ?? "");
     if (cleanTitle && cleanText) {
       const normTitle = stripMarkdownHeading(cleanTitle).toLowerCase();
       const normText = stripMarkdownHeading(cleanText).toLowerCase();
@@ -77,7 +78,7 @@ export default function EditorialGenerativeRenderer({
     switch (node.type) {
       case "HERO": {
         const heroPhoto = node.mediaIds?.[0] ? findPhoto(node.mediaIds[0], node, true) : null;
-        const title = cleanTitle || data.name;
+        const title = cleanTitle || cleanPlaceDisplayName(data.name) || data.name;
         const phrases = editorialTitlePhrases(title);
         const locationText = formatHeroLocation(data.area, data.name);
         const heroImage = media.find(item => item.id === node.mediaIds?.[0]);
@@ -258,7 +259,7 @@ export default function EditorialGenerativeRenderer({
 
       case "QUOTE": {
         if (!cleanText) return null;
-        const sourceTitle = node.sourceIds?.map(id => sources.find(s => s.id === id)?.title).filter(Boolean).join(" · ") || "Từ hồ sơ điểm đến";
+        const sourceTitle = node.sourceIds?.map(id => { const t = sources.find(s => s.id === id)?.title; return t ? (cleanDocumentSourceTitle(t) || t) : ""; }).filter(Boolean).join(" · ") || "Từ hồ sơ điểm đến";
         return (
           <section key={node.id} className="emg-quote">
             <blockquote>{cleanText}</blockquote>
@@ -278,7 +279,7 @@ export default function EditorialGenerativeRenderer({
                   <strong>{entry.label}</strong>
                   <p>{entry.text}</p>
                   <span>
-                    {entry.sourceIds.map(id => sources.find(s => s.id === id)?.title).filter(Boolean).join(" · ")}
+                    {entry.sourceIds.map(id => { const t = sources.find(s => s.id === id)?.title; return t ? (cleanDocumentSourceTitle(t) || t) : ""; }).filter(Boolean).join(" · ")}
                   </span>
                 </li>
               ))}
@@ -335,17 +336,20 @@ export default function EditorialGenerativeRenderer({
           <section key={node.id} className="emg-sources">
             <h2>{cleanTitle || "Nguồn tham khảo"}</h2>
             <ul>
-              {allowed.map(source => (
-                <li key={source.id}>
-                  {source.url ? (
-                    <a href={source.url} target="_blank" rel="noopener noreferrer">
-                      {source.title}
-                    </a>
-                  ) : (
-                    source.title
-                  )}
-                </li>
-              ))}
+              {allowed.map(source => {
+                const sourceTitle = cleanDocumentSourceTitle(source.title) || source.title;
+                return (
+                  <li key={source.id}>
+                    {source.url ? (
+                      <a href={source.url} target="_blank" rel="noopener noreferrer">
+                        {sourceTitle}
+                      </a>
+                    ) : (
+                      sourceTitle
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         );

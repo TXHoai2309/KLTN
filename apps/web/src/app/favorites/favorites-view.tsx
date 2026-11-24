@@ -12,6 +12,7 @@ import { Skeleton } from "@KLTN/ui/components/skeleton";
 import { createIdempotencyKey } from "@/lib/mutation-client";
 import type { MutationOutcome } from "@/lib/mutation-contract";
 import DestinationCardImage from "@/components/destination-card-image";
+import { cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import { loadFavorites, removeFavoriteRequest, confirmedRemoval } from "@/modules/favorite/favorite-client";
 import type { FavoriteItem, FavoriteList } from "@/modules/favorite/favorite-contract";
 
@@ -44,9 +45,10 @@ export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Gr
     finally { inFlight.current=false; setPending(false); }
   }
 
+  const displayTitle = cleanPlaceDisplayName(item.title) || item.title;
   const cardImage = item.image ?? (group === "trips" ? {
     url: tripDefaultImages[item.trip?.durationDays ?? 3] || "/images/gallery/ha-giang-day1-lg.webp",
-    alt: item.title,
+    alt: displayTitle,
   } : null);
 
   return <Card className="favorite-card">
@@ -64,7 +66,7 @@ export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Gr
     )}
     <div className="favorite-card-body">
       {item.category && <p className="favorite-card-category">{item.category}</p>}
-      <h3>{item.title}</h3>
+      <h3>{displayTitle}</h3>
       <p className="favorite-card-desc">{item.availability === "UNAVAILABLE" ? "Không còn khả dụng" : `${group === "trips" ? "Hành trình" : group === "destinations" ? "Điểm đến" : "Nội dung văn hóa"} đã yêu thích. Mở để xem đối tượng gốc.`}</p>
       {group === "trips" && item.trip && <div className="favorite-trip-meta" aria-label="Thông tin chuyến đi">
         <p>{dateLabel(item.trip.startDate)} – {dateLabel(item.trip.endDate)}</p>
@@ -72,13 +74,13 @@ export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Gr
         <p className="favorite-trip-status">{tripStatusLabels[item.trip.status]}</p>
       </div>}
       <div className="favorite-actions">
-        {item.href && item.availability === "AVAILABLE" && <Link className="favorite-action favorite-action-detail" prefetch={false} href={item.href as Route} aria-label={`Mở chi tiết ${item.title}`}>Mở chi tiết</Link>}
-        <Button variant="outline" className="favorite-action" disabled={pending} onClick={()=>void remove()} aria-label={`${feedback ? "Thử lại bỏ" : "Bỏ"} yêu thích ${item.title}`}>
+        {item.href && item.availability === "AVAILABLE" && <Link className="favorite-action favorite-action-detail" prefetch={false} href={item.href as Route} aria-label={`Mở chi tiết ${displayTitle}`}>Mở chi tiết</Link>}
+        <Button variant="outline" className="favorite-action" disabled={pending} onClick={()=>void remove()} aria-label={`${feedback ? "Thử lại bỏ" : "Bỏ"} yêu thích ${displayTitle}`}>
           {group === "trips" && <Heart size={16} fill="currentColor" aria-hidden="true" />}{pending ? "Đang bỏ..." : feedback ? "Thử lại bỏ yêu thích" : "Bỏ yêu thích"}
         </Button>
       </div>
       {feedback && <p role="alert" className="favorite-feedback">{feedback}</p>}
-      {pending && <span className="sr-only" role="status">Đang bỏ yêu thích {item.title}</span>}
+      {pending && <span className="sr-only" role="status">Đang bỏ yêu thích {displayTitle}</span>}
     </div>
   </Card>;
 }

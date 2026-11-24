@@ -1,3 +1,4 @@
+import { cleanDocumentSourceTitle } from "@/lib/traveler-display-clean";
 import type { TimelineSuggestion } from "./tripsage-timeline";
 
 export interface KnowledgeSnippet {
@@ -89,13 +90,14 @@ export function buildGroundedPreferenceLabels(input: {
             || (areaFold.length >= 4 && docFold.includes(areaFold) && /\b(?:cong troi|deo|dinh|chieu lau thi|quan ba|ma pi leng|dong van|lung cu)\b/u.test(nameFold));
         });
         if (matchedDoc || (combinedCloudText.includes(nameFold) && nameFold.length >= 4)) {
+          const cleanTitle = cleanDocumentSourceTitle((matchedDoc ?? cloudDocs[0]!).title) || (matchedDoc ?? cloudDocs[0]!).title;
           out.push({
             kind: "CLOUD_HUNTING",
             slotId: `d${stop.day}-visit-${stop.order}`,
             stopId: stop.id,
             badge: "Săn mây",
-            detail: `Gợi ý đi sáng sớm (${timeHint}) theo tài liệu "${(matchedDoc ?? cloudDocs[0]!).title}"`,
-            sourceTitle: (matchedDoc ?? cloudDocs[0]!).title,
+            detail: `Gợi ý đi sáng sớm (${timeHint}) theo tài liệu "${cleanTitle}"`,
+            sourceTitle: cleanTitle,
           });
           if (out.filter((x) => x.kind === "CLOUD_HUNTING").length >= 2) break;
         }
@@ -109,7 +111,8 @@ export function buildGroundedPreferenceLabels(input: {
       const docFold = fold(`${doc.title} ${doc.content}`);
       for (const dish of KNOWN_DISHES) {
         if (dish.pattern.test(docFold) && !matchedDishes.some((d) => d.label === dish.label)) {
-          matchedDishes.push({ label: dish.label, sourceTitle: doc.title });
+          const cleanTitle = cleanDocumentSourceTitle(doc.title) || doc.title;
+          matchedDishes.push({ label: dish.label, sourceTitle: cleanTitle });
         }
       }
     }

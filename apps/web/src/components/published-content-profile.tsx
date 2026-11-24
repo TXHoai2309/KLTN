@@ -1,4 +1,5 @@
 import { editorialValue } from "@/modules/destination-editorial/editorial-display-policy";
+import { cleanDocumentSourceTitle, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { mvpFeatures } from "@/lib/mvp-features";
 import PublishedMediaImage from "./published-media-image";
 import { resolveCategoryLabel } from "@/modules/culture/culture-categories";
@@ -118,7 +119,7 @@ export default function PublishedContentProfile({
                   {getFactIcon(label)}
                   <span>{label}</span>
                 </dt>
-                <dd>{value}</dd>
+                <dd>{label === "Tên gọi khác" || label === "Mô tả ngắn" || label === "Lưu ý tham quan" || label === "Thời điểm phù hợp" ? cleanTravelerDisplay(value) : value}</dd>
               </div>
             );
           })}
@@ -186,20 +187,23 @@ export default function PublishedContentProfile({
             Nguồn tham khảo bổ sung
           </h3>
           <ul className="profile-sources-list">
-            {p.sources.map((s, i) => (
-              <li key={i}>
-                {s.url ? (
-                  <a href={s.url} target="_blank" rel="noopener noreferrer">
-                    {s.title}
-                  </a>
-                ) : (
-                  s.title
-                )}
-                {s.publisher && " · " + s.publisher}
-                {s.author && " · " + s.author}
-                {s.publishedOn && " · " + s.publishedOn}
-              </li>
-            ))}
+            {p.sources.map((s, i) => {
+              const sourceTitle = cleanDocumentSourceTitle(s.title) || s.title;
+              return (
+                <li key={i}>
+                  {s.url ? (
+                    <a href={s.url} target="_blank" rel="noopener noreferrer">
+                      {sourceTitle}
+                    </a>
+                  ) : (
+                    sourceTitle
+                  )}
+                  {s.publisher && " · " + s.publisher}
+                  {s.author && " · " + s.author}
+                  {s.publishedOn && " · " + s.publishedOn}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -97,7 +97,7 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     const html = renderToStaticMarkup(createElement(DayTimeline, { day: minimalDay, variant: "compact" }));
     expect(html).toContain('data-variant="compact"');
     expect(html).toContain("--tv-day-color:var(--tv-day-2)");
-    expect(html).toContain("Đèo Mã Pí Lèng");
+    expect(html).toContain("Đèo Mã Pì Lèng");
     expect(html).not.toContain("Xem nhanh");
     expect(html).not.toContain("Gần đây:");
   });

@@ -1,4 +1,5 @@
 import type { QaAnswerPart } from "../../modules/ai/qa-contract";
+import { cleanDocumentSourceTitle } from "@/lib/traveler-display-clean";
 import { citationSourceHref, type IndexedCitation } from "./assistant-citation-utils";
 import { ArrowUpRight } from "lucide-react";
 
@@ -14,7 +15,8 @@ export function AssistantCitations({ part, index }: {
   return <span className="assistant-citations" aria-label="Nguồn tham khảo">
     {entries.map(({citation,number}) => {
       const href = citationSourceHref(citation.sourceUrl);
-      return href ? <a className="assistant-citation-ref" key={number} href={href} target="_blank" rel="noopener noreferrer" aria-label={`Mở nguồn ${number}: ${citation.title} (tab mới)`}>[{number}]</a> : null;
+      const displayTitle = cleanDocumentSourceTitle(citation.title) || citation.title;
+      return href ? <a className="assistant-citation-ref" key={number} href={href} target="_blank" rel="noopener noreferrer" aria-label={`Mở nguồn ${number}: ${displayTitle} (tab mới)`}>[{number}]</a> : null;
     })}
   </span>;
 }
@@ -27,9 +29,10 @@ export function AssistantSourceList({index,sourcePrefix}:{index:ReadonlyMap<stri
     <ol className="assistant-source-list">{entries.map(({citation,number})=>{
       const href=citationSourceHref(citation.sourceUrl);
       if (!href) return null;
+      const displayTitle = cleanDocumentSourceTitle(citation.title) || citation.title;
       return <li key={number} id={`${sourcePrefix}-source-${number}`} tabIndex={-1}>
         <span className="assistant-source-number">[{number}]</span><div>
-          <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Mở nguồn ${number}: ${citation.title} (tab mới)`}>{citation.title} <ArrowUpRight size={12} aria-hidden="true" /></a><span className="assistant-source-domain">{new URL(href).hostname}</span>
+          <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Mở nguồn ${number}: ${displayTitle} (tab mới)`}>{displayTitle} <ArrowUpRight size={12} aria-hidden="true" /></a><span className="assistant-source-domain">{new URL(href).hostname}</span>
         </div>
       </li>;
     })}</ol>

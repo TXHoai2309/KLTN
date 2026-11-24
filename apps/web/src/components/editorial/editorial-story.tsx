@@ -1,5 +1,6 @@
 import React from "react";
 import DestinationDetailIframeMap from "@/components/map/destination-detail-iframe-map";
+import { cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { editorialTitlePhrases, normalizeEditorialText, stripMarkdownHeading } from "@/modules/destination-editorial/editorial-content";
 import type { EditorialBlock, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import type { EditorialPageData } from "./editorial-renderer";
@@ -36,14 +37,14 @@ export function renderFormattedEditorialText(text: string): React.ReactNode {
       </ul>
     );
   }
-  const cleanLine = text.replace(/^#{1,6}\s+/, "").trim();
+  const cleanLine = cleanTravelerDisplay(text.replace(/^#{1,6}\s+/, "").trim());
   return renderInlineMarkdown(cleanLine);
 }
 
 type StoryProps = { block: EditorialBlock; children?: React.ReactNode };
 export function EditorialProse({ block }: { block: Pick<EditorialBlock, "title" | "text" | "emphasis"> }) {
   if (!block.title && !block.text.trim()) return null;
-  const cleanTitle = stripMarkdownHeading(block.title);
+  const cleanTitle = cleanPlaceDisplayName(stripMarkdownHeading(block.title));
   const paragraphs = block.text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   return (
     <div className={`emg-prose ${block.emphasis === "FEATURED" ? "emg-prose-featured" : ""}`}>
@@ -138,5 +139,5 @@ export function MapSection({ block, data }: StoryProps & { data: EditorialPageDa
 export function SourceAttribution({ block, sources }: StoryProps & { sources: ResolvedEditorial["sources"] }) {
   const allowed = sources.filter(s => block.sourceIds.includes(s.id) && editorialValue(s.title));
   if (!allowed.length) return null;
-  return <section className="emg-sources"><h2>Nguồn tham khảo</h2><ul>{allowed.map(source => <li key={source.id}>{source.url ? <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a> : source.title}</li>)}</ul></section>;
+  return <section className="emg-sources"><h2>Nguồn tham khảo</h2><ul>{allowed.map(source => { const title = cleanDocumentSourceTitle(source.title) || source.title; return <li key={source.id}>{source.url ? <a href={source.url} target="_blank" rel="noopener noreferrer">{title}</a> : title}</li>; })}</ul></section>;
 }

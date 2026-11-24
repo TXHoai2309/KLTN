@@ -21,6 +21,7 @@ import {
   Tag,
 } from "lucide-react";
 import { DestinationAiFab } from "@/components/destination-ai-fab";
+import { cleanDocumentSourceTitle, cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts, hasEditorialDuration } from "@/modules/destination-editorial/editorial-display-policy";
 import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
 
@@ -138,8 +139,8 @@ export default function DestinationDetail({
           </div>
         </div>
 
-        <h1>{d.name}</h1>
-        <p className="public-detail-description">{d.description}</p>
+        <h1>{cleanPlaceDisplayName(d.name) || d.name}</h1>
+        <p className="public-detail-description">{cleanTravelerDisplay(d.description)}</p>
       </header>
 
       <div className="public-detail-grid">
@@ -187,24 +188,27 @@ export default function DestinationDetail({
               </div>
             ) : (
               <div className="public-culture-list">
-                {d.relatedCulture.map((item) => (
-                  <article key={item.id} className="public-culture-card">
-                    <h3>{item.title}</h3>
-                    <p>{item.excerpt}</p>
-                    {(item.sourceTitle || item.sourceUrl) && (
-                      <p className="public-detail-muted">
-                        Nguồn:{" "}
-                        {item.sourceUrl ? (
-                          <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
-                            {item.sourceTitle || item.sourceUrl}
-                          </a>
-                        ) : (
-                          item.sourceTitle
-                        )}
-                      </p>
-                    )}
-                  </article>
-                ))}
+                {d.relatedCulture.map((item) => {
+                  const sourceTitle = cleanDocumentSourceTitle(item.sourceTitle) || item.sourceTitle;
+                  return (
+                    <article key={item.id} className="public-culture-card">
+                      <h3>{cleanPlaceDisplayName(item.title) || item.title}</h3>
+                      <p>{cleanTravelerDisplay(item.excerpt)}</p>
+                      {(sourceTitle || item.sourceUrl) && (
+                        <p className="public-detail-muted">
+                          Nguồn:{" "}
+                          {item.sourceUrl ? (
+                            <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+                              {sourceTitle || item.sourceUrl}
+                            </a>
+                          ) : (
+                            sourceTitle
+                          )}
+                        </p>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>
