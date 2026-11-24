@@ -75,13 +75,13 @@
 .brand-logo-mark {
   display: block;
   border-radius: 11px;
-  box-shadow: 0 3px 10px -1px rgba(20, 62, 43, 0.2), 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .site-brand:hover .brand-logo-mark {
-  transform: translateY(-1.5px) scale(1.03);
-  box-shadow: 0 6px 16px -2px rgba(20, 62, 43, 0.28), 0 2px 5px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: none;
 }
 
 .site-brand-copy {
@@ -93,19 +93,20 @@
 }
 
 .site-brand-copy strong {
-  font-family: var(--font-be-vietnam), -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16.5px;
-  font-weight: 750;
+  font-family: var(--tv-font-ui, var(--font-be-vietnam), sans-serif);
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: -0.02em;
-  color: var(--foreground);
+  color: var(--tv-ink, var(--foreground));
 }
 
-.site-brand-copy span {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #237456;
-  text-transform: uppercase;
+.site-brand-copy span,
+.site-brand-sub {
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--tv-ink-2, var(--muted-foreground));
+  text-transform: none;
 }
 
 /* ==========================================================================

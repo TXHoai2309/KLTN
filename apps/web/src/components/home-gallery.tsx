@@ -79,7 +79,6 @@ export default function HomeGallery() {
   return (
     <section className="home-gallery-section" aria-labelledby="home-gallery-title">
       <div className="home-section-heading" data-home-reveal>
-        <p className="home-eyebrow home-eyebrow-coral">NHỮNG KHUNG HÌNH HÀ GIANG</p>
         <h2 id="home-gallery-title">Vùng đất của đá, mây và sắc hoa</h2>
         <p>Từ ruộng bậc thang Hoàng Su Phì đến cao nguyên đá Đồng Văn, mỗi mùa Hà Giang lại khoác một màu áo khác.</p>
       </div>

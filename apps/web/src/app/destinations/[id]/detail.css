@@ -572,11 +572,11 @@
   align-items: center;
   gap: 8px;
   font-size: 12.5px;
-  font-weight: 700;
-  color: var(--detail-green);
+  font-weight: 500;
+  color: var(--tv-ink-2, var(--detail-muted));
   margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .public-detail-fact-row dd {
@@ -604,11 +604,11 @@
 }
 
 .public-detail-coord-box dt {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--detail-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tv-ink-2, var(--detail-muted));
+  text-transform: none;
+  letter-spacing: 0;
   margin-bottom: 4px;
 }
 
@@ -917,3 +917,83 @@
 .weather-hourly th, .weather-hourly td { padding: 0.375rem 0.5rem; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border, rgba(127, 127, 127, 0.25)); }
 .weather-hourly th[scope="row"], .weather-hourly thead th:first-child { text-align: left; }
 .public-detail-weather-editorial { width: min(100%, 1040px); margin: 2rem auto; padding-inline: 16px; box-sizing: border-box; }
+
+/* ==========================================================================
+   P5 — TRAVELER UI SYSTEM (--tv-*) TOKEN ALIGNMENT
+   ========================================================================== */
+.public-detail,
+.dark .public-detail {
+  --detail-ink: var(--tv-ink);
+  --detail-muted: var(--tv-ink-2);
+  --detail-green: var(--tv-accent);
+  --detail-green-dark: var(--tv-accent-hover);
+  --detail-green-light: var(--tv-accent-tint);
+  --detail-line: var(--tv-line);
+  --detail-surface: var(--tv-surface);
+  --detail-tint: var(--tv-sunken);
+  --detail-radius: var(--tv-radius-card);
+  --detail-card-shadow: none;
+  --detail-hero-shadow: none;
+  background: var(--tv-ground);
+  color: var(--tv-ink);
+  font-family: var(--tv-font-ui);
+}
+
+.public-detail h1 {
+  font-family: var(--tv-font-title);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.public-detail h2 {
+  font-family: var(--tv-font-title);
+  font-weight: 600;
+}
+
+.public-detail-hero {
+  background: var(--tv-surface);
+  box-shadow: none;
+}
+
+.public-detail-hero::before {
+  display: none;
+}
+
+.public-detail-back,
+.public-detail-top-actions .favorite-button {
+  min-height: 34px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--tv-radius-control, 8px);
+  font-family: var(--tv-font-ui);
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.public-detail-plan-cta,
+.public-detail-state button {
+  min-height: 34px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--tv-radius-control, 8px);
+  background: var(--tv-accent);
+  color: var(--tv-on-accent);
+  font-family: var(--tv-font-ui);
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.public-detail-plan-cta:hover,
+.public-detail-state button:hover:not(:disabled) {
+  background: var(--tv-accent-hover);
+  transform: none;
+  box-shadow: none;
+}
+
+.public-detail-card,
+.public-detail-summary,
+.public-detail-state {
+  box-shadow: none;
+}

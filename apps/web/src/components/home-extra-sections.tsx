@@ -83,7 +83,6 @@ export function HomeFaqSection() {
   return (
     <section className="home-faq-section" aria-labelledby="home-faq-title">
       <div className="home-section-heading" data-home-reveal>
-        <p className="home-eyebrow">CÂU HỎI THƯỜNG GẶP</p>
         <h2 id="home-faq-title">Trước khi lên đường</h2>
       </div>
       <div className="home-faq-list" data-home-reveal>

@@ -245,7 +245,6 @@ export default function HomeStepsScroll() {
         <div className="home-steps-center-inner">
           {/* Tiêu đề section */}
           <div className="home-section-heading home-steps-scroll-heading">
-            <p className="home-eyebrow">QUY TRÌNH ĐƠN GIẢN</p>
             <h2 id="home-steps-title">Bắt đầu chuyến đi của bạn chỉ với vài bước</h2>
             <p>Ba bước liền mạch để chuẩn bị chu đáo cho hành trình chinh phục vùng đất địa đầu Tổ quốc.</p>
           </div>

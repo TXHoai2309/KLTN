@@ -98,35 +98,35 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 4px 13px;
+  padding: 4px 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--explore-accent) 12%, transparent);
-  color: var(--explore-accent);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: .12em;
+  background: var(--tv-accent-tint, color-mix(in srgb, var(--explore-accent) 12%, transparent));
+  color: var(--tv-accent, var(--explore-accent));
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
   line-height: 1.5;
   margin-bottom: 12px;
-  border: 1px solid color-mix(in srgb, var(--explore-accent) 24%, transparent);
+  border: 1px solid var(--tv-line);
 }
 
 .explore-section-eyebrow {
   margin-bottom: 6px;
-  color: var(--explore-accent);
-  font-size: 11.5px;
-  font-weight: 750;
-  letter-spacing: .11em;
+  color: var(--tv-ink-2, var(--explore-muted));
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
   line-height: 1.5;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .explore-intro h1 {
   margin-bottom: 8px;
-  color: var(--explore-ink);
-  font-family: var(--font-explore-heading), serif;
-  font-size: clamp(28px, 3.2vw, 42px);
-  font-weight: 700;
-  letter-spacing: -.03em;
+  color: var(--tv-ink, var(--explore-ink));
+  font-family: var(--tv-font-title);
+  font-size: clamp(28px, 3.2vw, 40px);
+  font-weight: 600;
+  letter-spacing: -.02em;
   line-height: 1.2;
 }
 
@@ -1257,4 +1257,74 @@
     flex: 0 0 auto;
     white-space: nowrap;
   }
+}
+
+/* ==========================================================================
+   P5 — TRAVELER UI SYSTEM (--tv-*) TOKEN ALIGNMENT
+   ========================================================================== */
+.explore-shell,
+.explore-page {
+  --background: var(--tv-ground);
+  --foreground: var(--tv-ink);
+  --card: var(--tv-surface);
+  --card-foreground: var(--tv-ink);
+  --muted: var(--tv-sunken);
+  --muted-foreground: var(--tv-ink-2);
+  --border: var(--tv-line);
+  --explore-ink: var(--tv-ink);
+  --explore-muted: var(--tv-ink-2);
+  --explore-green: var(--tv-accent);
+  --explore-green-deep: var(--tv-accent-hover);
+  --explore-soft: var(--tv-accent-tint);
+  --explore-border: var(--tv-line);
+  font-family: var(--tv-font-ui);
+}
+
+.explore-page :is(h1, h2, .destination-card h3, .explore-culture-card-body h3) {
+  font-family: var(--tv-font-title);
+}
+
+.explore-intro {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  box-shadow: none;
+}
+
+.dark .explore-intro {
+  background: var(--tv-surface);
+  border-color: var(--tv-line);
+  box-shadow: none;
+}
+
+.explore-page :is(.destination-search-fields, .explore-view-switch, .explore-view-switch button[aria-pressed="true"], .explore-content-tabs a, .destination-card, .explore-culture-card, .explore-map-workspace) {
+  box-shadow: none;
+}
+
+.explore-page .destination-search-submit {
+  min-height: 34px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--tv-radius-control, 8px);
+  background: var(--tv-accent);
+  color: var(--tv-on-accent);
+  font-family: var(--tv-font-ui);
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.explore-page .destination-search-submit:hover {
+  background: var(--tv-accent-hover);
+}
+
+.explore-view-switch button {
+  min-height: 32px;
+  font-family: var(--tv-font-ui);
+  font-weight: 500;
+}
+
+.explore-view-switch button[aria-pressed="true"] {
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  font-weight: 500;
 }

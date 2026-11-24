@@ -187,7 +187,7 @@ export default function Header() {
           </span>
           <span className="site-brand-copy">
             <strong>Hà Giang</strong>
-            <span>Travel Assistant</span>
+            <span className="site-brand-sub">travel assistant</span>
           </span>
         </Link>
 

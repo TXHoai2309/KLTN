@@ -63,9 +63,6 @@ export default async function Home() {
         />
 
         <div className="home-hero-copy">
-          <p className="home-eyebrow home-hero-enter home-delay-0">
-            HÀ GIANG <span>·</span> TRAVEL ASSISTANT
-          </p>
           <h1 id="home-title" className="home-hero-title home-hero-enter home-delay-1">
             Nơi đá nở hoa,
             <span>nơi mây ôm trọn núi.</span>
@@ -175,7 +172,6 @@ export default async function Home() {
         {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN */}
         <section className="home-steps-section" aria-labelledby="home-steps-title">
           <div className="home-section-heading" data-home-reveal>
-            <p className="home-eyebrow">QUY TRÌNH ĐƠN GIẢN</p>
             <h2 id="home-steps-title">Bắt đầu chuyến đi của bạn chỉ với vài bước</h2>
             <p>Ba bước liền mạch để chuẩn bị chu đáo cho hành trình chinh phục vùng đất địa đầu Tổ quốc.</p>
           </div>
@@ -299,7 +295,7 @@ export default async function Home() {
                 <BrandLogo size={38} />
                 <div className="home-footer-brand-text">
                   <strong>Hà Giang</strong>
-                  <span>Travel Assistant</span>
+                  <span>travel assistant</span>
                 </div>
               </Link>
               <p className="home-footer-desc">

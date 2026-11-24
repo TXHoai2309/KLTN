@@ -484,10 +484,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   color: #6a4c9c;
   margin-bottom: 8px;
 }
@@ -540,11 +540,11 @@
 }
 
 .home-page .home-terminal-prompts-hint {
-  font-size: 11px;
-  font-weight: 750;
-  color: var(--home-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tv-ink-2, var(--home-muted));
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .home-page .home-terminal-chips-group {
@@ -837,10 +837,10 @@
 }
 
 .home-page .home-planner-card-day {
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 12.5px;
+  font-weight: 500;
   color: #d45435;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .home-page .home-planner-card-theme {
@@ -1337,11 +1337,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--home-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--tv-ink-2, var(--home-muted));
 }
 
 .home-page .home-step-visual-icon-glow {

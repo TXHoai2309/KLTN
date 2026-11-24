@@ -5,7 +5,7 @@
 .emg h2 { font-size: clamp(1.35rem, 2.4vw, 2rem); line-height: 1.3; margin-bottom: 20px; text-wrap: balance; }
 .emg > section, .emg > header { margin-bottom: clamp(32px, 6vw, 84px); }
 .emg-title { padding: clamp(24px, 5vw, 64px); }
-.emg-kicker { text-transform: uppercase; letter-spacing: .11em; font-size: .75rem; line-height: 1.6; margin-bottom: 20px !important; }
+.emg-kicker { font-size: .875rem; line-height: 1.5; margin-bottom: 16px !important; }
 .emg-location { display: block; margin-top: 20px; color: var(--emg-muted); font-size: .85rem; }
 .emg-deck { margin-top: 24px !important; font-size: 1.2rem; line-height: 1.8; }
 .emg-prose { max-width: 720px; margin-inline: auto; font-size: clamp(1rem, 1.2vw, 1.125rem); line-height: 1.95; white-space: pre-wrap; }
@@ -55,7 +55,7 @@
 .emg h2 { font-size: clamp(1.55rem, 3.4cqi, 2.65rem); line-height: 1.25; margin-bottom: 24px; }
 .emg > section, .emg > header { margin-bottom: var(--emg-space); }
 .emg-title { padding: var(--emg-gutter); }
-.emg-kicker { font-size: .68rem; line-height: 1.7; letter-spacing: .16em; color: var(--emg-accent); margin-bottom: 28px !important; font-weight: 600; }
+.emg-kicker { font-size: .85rem; line-height: 1.5; letter-spacing: 0; text-transform: none; color: var(--tv-ink-2, var(--emg-muted)); margin-bottom: 16px !important; font-weight: 500; }
 .emg-location { font-size: .8rem; line-height: 1.8; margin-top: 24px; }
 .emg-deck { font-size: clamp(1rem, 1.7cqi, 1.25rem); line-height: 1.8; max-width: 48ch; }
 .emg-prose { max-width: 64ch; font-size: clamp(1rem, 1.5cqi, 1.0625rem); line-height: 1.75; white-space: normal; }
@@ -150,7 +150,7 @@
 
 /* Final polish: cinematic lead { margin-bottom: clamp(28px, 4cqi, 54px); }
 .emg-title[data-title-length="long"] h1 { font-size: clamp(2.1rem, 5.1cqi, 5rem); }
-.emg-kicker { letter-spacing: .18em; }
+.emg-kicker { letter-spacing: 0; }
 .emg-intro .emg-prose { max-width: 54ch; }
 .emg.emg-type-literary .emg-intro .emg-prose { font-size: clamp(1.18rem, 2.1cqi, 1.55rem); }
 .emg-nature_showcase .emg-intro { padding-block: 8px 12px; }
@@ -164,7 +164,7 @@
 .emg-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; background: transparent; padding-block: clamp(26px, 3.5cqi, 42px); }
 .emg-facts > div { min-width: 0; padding-inline: clamp(14px, 2.8cqi, 32px); border-left: 1px solid var(--emg-line); }
 .emg-facts > div:first-child { padding-left: 0; border-left: 0; }
-.emg-facts span { margin-bottom: 10px; color: var(--emg-accent); font-size: .67rem; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; }
+.emg-facts span { margin-bottom: 8px; color: var(--tv-ink-2, var(--emg-muted)); font-size: .78rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .emg-facts strong { display: block; font-family: var(--emg-display); font-size: clamp(1rem, 1.5cqi, 1.25rem); font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
 
 .emg-map h2 { margin-bottom: 22px; }
@@ -203,7 +203,7 @@
 .emg .emg-hero h1 { font-size: var(--emg-hero-title-size); max-width: 22ch; line-height: 1.12; letter-spacing: var(--emg-tracking); margin: 0; text-wrap: balance; overflow-wrap: normal; }
 .emg .emg-hero .emg-title[data-title-length="long"] h1 { font-size: calc(var(--emg-hero-title-size) * .82); max-width: 28ch; }
 .emg .emg-hero h1 span { white-space: normal; }
-.emg .emg-hero .emg-kicker { margin: 0 0 clamp(16px, 2cqi, 26px) !important; font-size: .67rem; line-height: 1.7; letter-spacing: .14em; }
+.emg .emg-hero .emg-kicker { margin: 0 0 14px !important; font-size: .85rem; line-height: 1.5; letter-spacing: 0; }
 .emg .emg-hero .emg-deck { margin: 20px 0 0 !important; max-width: 45ch; font-size: clamp(1rem, 1.7cqi, 1.2rem); line-height: 1.65; }
 .emg .emg-hero .emg-location { margin-top: 18px; font-size: .75rem; line-height: 1.8; }
 .emg-hero-visual { min-width: 0; }
@@ -415,4 +415,36 @@
   .emg-body-shell {
     width: calc(100% - 2 * var(--emg-gutter));
   }
+}
+
+/* P5: Traveler UI --tv-* token baseline for editorial shell */
+.emg {
+  --emg-ink: var(--tv-ink);
+  --emg-muted: var(--tv-ink-2);
+  --emg-line: var(--tv-line);
+  --emg-paper: var(--tv-surface);
+  --emg-tint: var(--tv-sunken);
+  --emg-accent: var(--tv-accent);
+  --emg-display: var(--tv-font-title);
+  font-family: var(--tv-font-ui);
+  background: var(--tv-ground);
+}
+
+.dark .emg {
+  --emg-ink: var(--tv-ink);
+  --emg-muted: var(--tv-ink-2);
+  --emg-line: var(--tv-line);
+  --emg-paper: var(--tv-surface);
+  --emg-tint: var(--tv-sunken);
+  --emg-accent: var(--tv-accent);
+  background: var(--tv-ground);
+}
+
+.emg h1,
+.emg h2 {
+  font-family: var(--tv-font-title);
+}
+
+.emg-toc-card {
+  box-shadow: none;
 }
