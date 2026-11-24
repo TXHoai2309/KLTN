@@ -88,20 +88,20 @@
 }
 
 .public-detail-top-actions .favorite-button[aria-pressed="true"] {
-  background: #fff1f2;
-  border-color: #fecdd3;
-  color: #e11d48;
+  background: var(--tv-danger-bg);
+  border-color: color-mix(in srgb, var(--tv-danger) 38%, var(--tv-line));
+  color: var(--tv-danger);
 }
 
 .public-detail-top-actions .favorite-button[aria-pressed="true"]:hover {
-  background: #ffe4e6;
-  border-color: #fda4af;
-  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.15);
+  background: color-mix(in srgb, var(--tv-danger) 14%, var(--tv-danger-bg));
+  border-color: color-mix(in srgb, var(--tv-danger) 55%, var(--tv-line));
+  box-shadow: none;
 }
 
 .public-detail-top-actions .favorite-button[aria-pressed="true"] svg {
-  color: #e11d48;
-  fill: #e11d48;
+  color: var(--tv-danger);
+  fill: var(--tv-danger);
   animation: heart-pop 0.35s cubic-bezier(0.17, 0.89, 0.32, 1.49);
 }
 
