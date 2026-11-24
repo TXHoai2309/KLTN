@@ -23,6 +23,7 @@ import {
   type AdvisoryCitation,
   type AdvisoryKnowledgePart,
   type AiChatHistoryTurn,
+  type VerifiedWorkspacePlan,
   type WorkspacePromptJourneyContext,
 } from "./ai-workspace-plan";
 import {
@@ -577,6 +578,7 @@ type PreparedAiEditContext = {
   allCatalogDestinations: EligibleDestinationRow[];
   catalogById: Map<string, EligibleDestinationRow>;
   placeNames: Map<string, string>;
+  externalPlaceCoords: Map<string, { latitude: number; longitude: number }>;
   clarificationData: EditClarificationContext;
   parsedSavedJourney: ReturnType<typeof savedJourneySchema.safeParse>;
   currentJourney: TripJourney | null;
@@ -606,8 +608,7 @@ async function buildAgentInvocation(
   // GPS-dependent in-trip turns keep the dedicated location flow.
   if (
     tripStatus === "ONGOING" &&
-    (request.location ||
-      parseLocationDependentRequest({ message: request.message, mode: "ADVISED", topic: "GENERAL" }).needsCurrentLocation)
+    parseLocationDependentRequest({ message: request.message, mode: "ADVISED", topic: "GENERAL" }).needsCurrentLocation
   ) {
     return null;
   }
@@ -777,6 +778,13 @@ async function prepareAiEditContext(
   const ownedExternalIds = new Set(
     ownedExternalPlaces.map((ext) => externalPlaceDestinationId(ext.providerPlaceId)),
   );
+  const externalPlaceCoords = new Map<string, { latitude: number; longitude: number }>();
+  for (const ext of ownedExternalPlaces) {
+    const view = externalPlaceView(ext, timeReference, true);
+    if (typeof view.latitude === "number" && typeof view.longitude === "number") {
+      externalPlaceCoords.set(view.id, { latitude: view.latitude, longitude: view.longitude });
+    }
+  }
 
   let baseCandidate: EditCandidate;
   if (request.draft) {
@@ -869,6 +877,7 @@ async function prepareAiEditContext(
     allCatalogDestinations,
     catalogById,
     placeNames,
+    externalPlaceCoords,
     clarificationData,
     parsedSavedJourney,
     currentJourney,
@@ -998,6 +1007,7 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
     allCatalogDestinations,
     catalogById,
     placeNames,
+    externalPlaceCoords,
     clarificationData,
     parsedSavedJourney,
     currentJourney,
@@ -1006,27 +1016,66 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
     timeReference,
   } = prepared;
 
-  const recognizedPlan = await recognizeWorkspaceEditPlan(
-    {
-      message: request.message,
-      itinerary: baseCandidate.days.map((day) => ({
-        dayIndex: day.dayIndex,
-        visits: day.visits.map((visit) => ({
-          visitId: visit.visitId,
-          destinationName: placeNames.get(visit.destinationId) ?? "Điểm đến không còn khả dụng",
-          startTime: formatStartTime(visit.startMinute),
-          durationMinutes: visit.plannedDurationMinutes,
-        })),
-      })),
-      eligibleDestinations: eligibleDestinations.map((destination) => ({
-        id: destination.id,
-        name: destination.name,
-      })),
-      ...(request.history && request.history.length > 0 ? { history: request.history } : {}),
-      journeyState,
-    },
-    { llm: dependencies.llm },
-  );
+  const liveTripStatus = effectiveTripStatus(
+    found.startDate.toISOString().slice(0, 10),
+    found.durationDays,
+    vietnamDateOf(timeReference),
+    savedShape.manuallyCompletedAt ?? null,
+  ).status;
+
+  const preLocationParsed = !isTripFrameEditRequest(request.message)
+    ? parseLocationDependentRequest({
+        message: request.message,
+        mode: "ADVISED",
+        topic: "GENERAL",
+      })
+    : { needsCurrentLocation: false, intentMode: "TRAFFIC_RECOVER" as const };
+
+  if (preLocationParsed.needsCurrentLocation && liveTripStatus === "ONGOING" && !request.location) {
+    const prompt =
+      "Yêu cầu này cần biết vị trí bạn đang đứng để tính chính xác quãng đường và thời gian tới các điểm còn lại. Bạn hãy chia sẻ GPS một lần hoặc chọn vị trí thủ công trên bản đồ.";
+    return {
+      status: "NEEDS_LOCATION",
+      prompt,
+      pendingMessage: request.message,
+      aiSummary: prompt,
+    };
+  }
+
+  const bypassEditPlanRecognition =
+    preLocationParsed.needsCurrentLocation &&
+    preLocationParsed.intentMode === "NEXT_VISIT_ETA";
+
+  const recognizedPlan: VerifiedWorkspacePlan = bypassEditPlanRecognition
+    ? {
+        mode: "ADVISED",
+        operations: [],
+        adviceFocus: { dayIndex: null, topic: "LOCATION_GUIDANCE" },
+        candidateVisitIds: [],
+        candidateDestinationIds: [],
+        clarificationReason: null,
+      }
+    : await recognizeWorkspaceEditPlan(
+        {
+          message: request.message,
+          itinerary: baseCandidate.days.map((day) => ({
+            dayIndex: day.dayIndex,
+            visits: day.visits.map((visit) => ({
+              visitId: visit.visitId,
+              destinationName: placeNames.get(visit.destinationId) ?? "Điểm đến không còn khả dụng",
+              startTime: formatStartTime(visit.startMinute),
+              durationMinutes: visit.plannedDurationMinutes,
+            })),
+          })),
+          eligibleDestinations: eligibleDestinations.map((destination) => ({
+            id: destination.id,
+            name: destination.name,
+          })),
+          ...(request.history && request.history.length > 0 ? { history: request.history } : {}),
+          journeyState,
+        },
+        { llm: dependencies.llm },
+      );
 
   const safeGetRoute: TripEditRouteProvider = async (input) => {
     try {
@@ -1051,13 +1100,6 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
   const publicEligibleDestinations = eligibleDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
   const publicCatalogDestinations = allCatalogDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
   const publicCatalogById = new Map(publicCatalogDestinations.map((d) => [d.id, d]));
-
-  const liveTripStatus = effectiveTripStatus(
-    found.startDate.toISOString().slice(0, 10),
-    found.durationDays,
-    vietnamDateOf(timeReference),
-    savedShape.manuallyCompletedAt ?? null,
-  ).status;
 
   const unavailableStops = collectUnavailableDraftStops(baseCandidate, publicCatalogById, found);
   const locationParsed = !isTripFrameEditRequest(request.message)
@@ -1189,6 +1231,7 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
         savedShape,
         placeNames,
         placeDetailsById,
+        externalPlaceCoords,
         eligibleDestinations: publicEligibleDestinations,
         allCatalogDestinations: publicCatalogDestinations,
         lockedVisitIds,

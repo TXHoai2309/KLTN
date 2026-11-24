@@ -392,4 +392,319 @@ describe("Saved-trip assistant Ticket 06: Conditional ONGOING GPS & manual locat
     expect(card.candidate.days[0]!.visits[0]!.startMinute).toBe(480);
     expect(card.candidate.days[0]!.visits.some((v) => v.destinationId === "dest-nearby")).toBe(true);
   });
+
+  it("Point 1: at 23:42 Day 1 with location, answers Day 2 first stop with distance, travel time, recommended departure, and zero edits", async () => {
+    const openFull = [
+      {
+        dayOfWeek: "MONDAY" as const,
+        status: "OPEN" as const,
+        intervals: [{ opensAtMinute: 360, closesAtMinute: 1200 }],
+      },
+      {
+        dayOfWeek: "TUESDAY" as const,
+        status: "OPEN" as const,
+        intervals: [{ opensAtMinute: 360, closesAtMinute: 1200 }],
+      },
+    ];
+    const catalog = [
+      {
+        id: "dest-d1-end",
+        name: "Phố cổ Đồng Văn",
+        area: "Đồng Văn",
+        category: "HERITAGE",
+        latitude: 23.2782612,
+        longitude: 105.361378,
+        suggestedDurationMinutes: 120,
+        minimumDurationMinutes: 30,
+        isOutdoor: false,
+        visibility: "VISIBLE",
+        deletedAt: null,
+        openingDays: openFull,
+      },
+      {
+        id: "dest-d2-1",
+        name: "Thị trấn Mèo Vạc",
+        area: "Mèo Vạc",
+        category: "SCENIC",
+        latitude: 23.163832,
+        longitude: 105.409104,
+        suggestedDurationMinutes: 60,
+        minimumDurationMinutes: 30,
+        isOutdoor: false,
+        visibility: "VISIBLE",
+        deletedAt: null,
+        openingDays: openFull,
+      },
+      {
+        id: "dest-d2-2",
+        name: "Sông Nho Quế",
+        area: "Mèo Vạc",
+        category: "SCENIC",
+        latitude: 23.1907068,
+        longitude: 105.4694776,
+        suggestedDurationMinutes: 180,
+        minimumDurationMinutes: 60,
+        isOutdoor: true,
+        visibility: "VISIBLE",
+        deletedAt: null,
+        openingDays: openFull,
+      },
+    ];
+    const twoDayTrip = {
+      id: "trip-p1",
+      userId: "owner-1",
+      startDate: new Date("2026-11-23T00:00:00.000Z"),
+      durationDays: 2,
+      transport: "MOTORCYCLE" as const,
+      updatedAt: revision,
+      manuallyCompletedAt: null,
+      journeySnapshot: null,
+      days: [
+        {
+          dayIndex: 1,
+          visits: [
+            {
+              id: "v-d1-last",
+              order: 1,
+              startMinute: 935,
+              plannedDurationMinutes: 90,
+              externalPlace: null,
+              destination: {
+                id: "dest-d1-end",
+                name: "Phố cổ Đồng Văn",
+                area: "Đồng Văn",
+                visibility: "VISIBLE",
+                deletedAt: null,
+              },
+            },
+          ],
+        },
+        {
+          dayIndex: 2,
+          visits: [
+            {
+              id: "v-d2-1",
+              order: 1,
+              startMinute: 480, // 08:00 next morning
+              plannedDurationMinutes: 60,
+              externalPlace: null,
+              destination: {
+                id: "dest-d2-1",
+                name: "Thị trấn Mèo Vạc",
+                area: "Mèo Vạc",
+                visibility: "VISIBLE",
+                deletedAt: null,
+              },
+            },
+            {
+              id: "v-d2-2",
+              order: 2,
+              startMinute: 571,
+              plannedDurationMinutes: 180,
+              externalPlace: null,
+              destination: {
+                id: "dest-d2-2",
+                name: "Sông Nho Quế",
+                area: "Mèo Vạc",
+                visibility: "VISIBLE",
+                deletedAt: null,
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const draft: EditCandidate = {
+      startDate: "2026-11-23",
+      durationDays: 2,
+      transport: "MOTORCYCLE",
+      days: twoDayTrip.days.map((d) => ({
+        dayIndex: d.dayIndex,
+        visits: d.visits.map((v) => ({
+          visitId: v.id,
+          destinationId: v.destination.id,
+          startMinute: v.startMinute,
+          plannedDurationMinutes: v.plannedDurationMinutes,
+          order: v.order,
+        })),
+      })),
+    };
+    const database = {
+      user: { findUnique: async () => ({ id: "owner-1", role: "TRAVELER" }) },
+      trip: { findFirst: async () => twoDayTrip },
+      destination: {
+        findMany: async (args?: { where?: { id?: { in?: string[] } } }) => {
+          const ids = args?.where?.id?.in;
+          return ids ? catalog.filter((d) => ids.includes(d.id)) : catalog;
+        },
+      },
+    } as unknown as Database;
+
+    // 23:42 Asia/Ho_Chi_Minh on 2026-11-23 (Day 1) = 16:42 UTC
+    const day1At2342Vn = new Date("2026-11-23T16:42:00.000Z");
+
+    // Step 1: Ask without location -> asks for location without entering edit flow or calling LLM
+    const llmSpy = vi.fn(async () => ({
+      rawText: JSON.stringify({
+        mode: "APPLY_BATCH",
+        operations: [{ intentType: "REMOVE_VISIT", targetVisitIds: ["v-d2-1"], destinationId: null, dayIndex: 2, position: null, startTime: null, durationMinutes: null, shiftFollowing: false }],
+        originClocks: { departureTime: null, returnDeadlineTime: null, returnDepartureTime: null, rescheduleDayOne: false },
+        adviceFocus: { dayIndex: null, topic: "GENERAL" },
+        candidateVisitIds: [],
+        candidateDestinationIds: [],
+        affected: { visitIds: [], dayIndexes: [] },
+        clarificationReason: null,
+      }),
+      model: "step-1",
+    }));
+
+    const needsLoc = await createAiEditProposal(
+      "trip-p1",
+      "owner-1",
+      { baseRevision: revision.toISOString(), message: "Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?", draft },
+      { database, llm: { complete: llmSpy }, getRoute: async () => ({ kind: "unavailable" }) },
+      day1At2342Vn,
+    );
+    expect(needsLoc.status).toBe("NEEDS_LOCATION");
+
+    // Step 2: Provide GPS at Đồng Văn -> answers Day 2 stop 1 with routing km, minutes, departure time, and zero edits
+    const routeSpy = vi.fn(async () => ({
+      kind: "ok" as const,
+      durationSeconds: 3000, // 50m -> 08:00 - 50m = 07:10
+      distanceMeters: 22_000, // 22 km
+    }));
+    const etaRes = await createAiEditProposal(
+      "trip-p1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?",
+        draft,
+        location: {
+          source: "GPS",
+          latitude: 23.2785,
+          longitude: 105.3625,
+          accuracyMeters: 15,
+          capturedAt: day1At2342Vn.toISOString(),
+        },
+      },
+      { database, llm: { complete: llmSpy }, getRoute: routeSpy },
+      day1At2342Vn,
+    );
+    expect(etaRes.status).toBe("ADVISED");
+    if (etaRes.status !== "ADVISED") return;
+    expect(etaRes.suggestions ?? []).toHaveLength(0);
+    expect(etaRes.advice).toContain("Thị trấn Mèo Vạc");
+    expect(etaRes.advice).toContain("08:00");
+    expect(etaRes.advice).toContain("22 km");
+    expect(etaRes.advice).toContain("50 phút");
+    expect(etaRes.advice).toContain("xe máy");
+    expect(etaRes.advice).toContain("07:10");
+    expect(etaRes.advice).toContain("theo vị trí bạn vừa chia sẻ");
+    expect(etaRes.advice).not.toContain("Toàn bộ các lượt tham quan trong Ngày 1 đã qua giờ");
+    expect(routeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: { latitude: 23.2785, longitude: 105.3625 },
+        destination: { latitude: 23.163832, longitude: 105.409104 },
+        vehicle: "MOTORCYCLE",
+      }),
+    );
+
+    // Step 3: Manual location at Mèo Vạc + "…bao xa?"
+    const manualRes = await createAiEditProposal(
+      "trip-p1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Từ chỗ mình đang đứng đi tới điểm tiếp theo bao xa?",
+        draft,
+        location: {
+          source: "MANUAL",
+          latitude: 23.157,
+          longitude: 105.405,
+          accuracyMeters: null,
+          capturedAt: day1At2342Vn.toISOString(),
+        },
+      },
+      {
+        database,
+        llm: { complete: llmSpy },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 600, distanceMeters: 2100 }),
+      },
+      day1At2342Vn,
+    );
+    expect(manualRes.status).toBe("ADVISED");
+    if (manualRes.status !== "ADVISED") return;
+    expect(manualRes.suggestions ?? []).toHaveLength(0);
+    expect(manualRes.advice).toContain("Thị trấn Mèo Vạc");
+    expect(manualRes.advice).toContain("2.1 km");
+    expect(manualRes.advice).toContain("10 phút");
+    expect(manualRes.advice).toContain("07:50");
+    expect(manualRes.advice).toContain("theo vị trí bạn vừa chia sẻ");
+
+    // Step 4: Routing unavailable -> honest explanation, zero fabricated numbers
+    const unavailRes = await createAiEditProposal(
+      "trip-p1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?",
+        draft,
+        location: {
+          source: "GPS",
+          latitude: 23.2785,
+          longitude: 105.3625,
+          accuracyMeters: 15,
+          capturedAt: day1At2342Vn.toISOString(),
+        },
+      },
+      { database, llm: { complete: llmSpy }, getRoute: async () => ({ kind: "unavailable" }) },
+      day1At2342Vn,
+    );
+    expect(unavailRes.status).toBe("ADVISED");
+    if (unavailRes.status !== "ADVISED") return;
+    expect(unavailRes.suggestions ?? []).toHaveLength(0);
+    expect(unavailRes.advice).toContain("Thị trấn Mèo Vạc");
+    expect(unavailRes.advice).toContain("08:00");
+    expect(unavailRes.advice).toContain("theo vị trí bạn vừa chia sẻ");
+    expect(unavailRes.advice).toMatch(/chưa.*định tuyến|không.*định tuyến/iu);
+    expect(unavailRes.advice).not.toMatch(/\b20 phút\b|\b07:10\b|\b\d+\s*km\b/iu);
+  });
+
+  it("Point 1: mid-Day-1 at 11:00 with location answers the next upcoming visit in Day 1", async () => {
+    const { database, draft } = createLocationFixture();
+    const midDayRes = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      {
+        baseRevision: revision.toISOString(),
+        message: "Từ chỗ mình đang đứng đi tới điểm tiếp theo mất bao lâu?",
+        draft,
+        location: {
+          source: "GPS",
+          latitude: 23.18,
+          longitude: 105.12,
+          accuracyMeters: 12,
+          capturedAt: ongoingAt1100Vn.toISOString(),
+        },
+      },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("Must not enter LLM edit flow"); } },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 1200, distanceMeters: 14_500 }), // 20m -> leave before 11:10
+      },
+      ongoingAt1100Vn,
+    );
+
+    expect(midDayRes.status).toBe("ADVISED");
+    if (midDayRes.status !== "ADVISED") return;
+    expect(midDayRes.suggestions ?? []).toHaveLength(0);
+    expect(midDayRes.advice).toContain("Dinh Vua Mèo");
+    expect(midDayRes.advice).toContain("11:30");
+    expect(midDayRes.advice).toContain("14.5 km");
+    expect(midDayRes.advice).toContain("20 phút");
+    expect(midDayRes.advice).toContain("ô tô");
+    expect(midDayRes.advice).toContain("11:10");
+    expect(midDayRes.advice).toContain("theo vị trí bạn vừa chia sẻ");
+  });
 });

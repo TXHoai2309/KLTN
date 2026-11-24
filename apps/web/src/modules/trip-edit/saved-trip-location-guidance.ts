@@ -36,7 +36,7 @@ import type {
 
 export type ParsedLocationRequest = {
   needsCurrentLocation: boolean;
-  intentMode: "NEARBY_OPTIONS" | "TRAFFIC_RECOVER";
+  intentMode: "NEARBY_OPTIONS" | "NEXT_VISIT_ETA" | "TRAFFIC_RECOVER";
 };
 
 export type OngoingLocationOutcome =
@@ -92,27 +92,140 @@ function toAddedPlaceDetail(dest: AdvisoryCatalogDestination): EditPlaceDetail {
   };
 }
 
+function formatDurationVi(minutes: number): string {
+  if (minutes < 60) return `${minutes} phút`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return rem === 0 ? `${hours} giờ` : `${hours} giờ ${rem} phút`;
+}
+
+function formatDistanceVi(distanceMeters: number): string {
+  if (distanceMeters < 1000) return `${Math.max(1, Math.round(distanceMeters))} m`;
+  const km = Math.round((distanceMeters / 1000) * 10) / 10;
+  return `${km} km`;
+}
+
+function calendarDayDiff(fromYmd: string | null | undefined, toYmd: string | null | undefined): number | null {
+  if (!fromYmd || !toYmd) return null;
+  const fromMs = Date.parse(`${fromYmd}T00:00:00Z`);
+  const toMs = Date.parse(`${toYmd}T00:00:00Z`);
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) return null;
+  return Math.round((toMs - fromMs) / 86_400_000);
+}
+
+function periodOfDayVi(minute: number): string {
+  if (minute < 720) return "sáng";
+  if (minute < 840) return "trưa";
+  if (minute < 1080) return "chiều";
+  return "tối";
+}
+
+function formatScheduledNextTimeVi(
+  localDate: string | null,
+  todayVn: string,
+  dayIndex: number,
+  startMinute: number,
+): string {
+  const clock = minuteClockLabel(startMinute);
+  const diff = calendarDayDiff(todayVn, localDate);
+  const period = periodOfDayVi(startMinute);
+  if (diff === 0) return `hôm nay ${clock} (Ngày ${dayIndex})`;
+  if (diff === 1) return `${period} mai ${clock} (Ngày ${dayIndex})`;
+  if (localDate) return `Ngày ${dayIndex} (${localDate.split("-").reverse().join("/")}) lúc ${clock}`;
+  return `Ngày ${dayIndex} lúc ${clock}`;
+}
+
+type ChronologicalVisit = {
+  dayIndex: number;
+  localDate: string | null;
+  visit: EditCandidate["days"][number]["visits"][number];
+};
+
+function findChronologicalNextVisit(input: {
+  baseCandidate: EditCandidate;
+  lockedVisitIds: ReadonlySet<string>;
+  todayVn: string;
+  nowMin: number;
+}): { upcoming: ChronologicalVisit | null; inProgress: ChronologicalVisit | null } {
+  const sortedDays = [...input.baseCandidate.days].sort((a, b) => a.dayIndex - b.dayIndex);
+  let upcoming: ChronologicalVisit | null = null;
+  let inProgress: ChronologicalVisit | null = null;
+
+  for (const day of sortedDays) {
+    const localDate = tripDayDate(input.baseCandidate.startDate, day.dayIndex);
+    const sortedVisits = [...day.visits].sort(
+      (a, b) => a.startMinute - b.startMinute || a.order - b.order,
+    );
+    for (const visit of sortedVisits) {
+      if (input.lockedVisitIds.has(visit.visitId)) continue;
+      const entry: ChronologicalVisit = { dayIndex: day.dayIndex, localDate, visit };
+      if (!localDate) {
+        if (!upcoming) upcoming = entry;
+        continue;
+      }
+      if (localDate > input.todayVn || (localDate === input.todayVn && visit.startMinute > input.nowMin)) {
+        if (!upcoming) upcoming = entry;
+      } else if (
+        localDate === input.todayVn &&
+        visit.startMinute <= input.nowMin &&
+        visit.startMinute + visit.plannedDurationMinutes > input.nowMin &&
+        !inProgress
+      ) {
+        inProgress = entry;
+      }
+    }
+  }
+
+  return { upcoming, inProgress };
+}
+
 export function parseLocationDependentRequest(input: {
   message: string;
   mode: string;
   topic: AdviceTopic;
 }): ParsedLocationRequest {
-  if (input.mode === "APPLY_BATCH" || input.mode === "CHANGE_ORIGIN_CLOCKS") {
+  const folded = foldVi(input.message);
+
+  const hasNextVisitTarget = /\b(?:diem|luot|cho|chang)\s+(?:tiep\s+theo|ke\s+tiep)\b/u.test(folded);
+  const hasEtaOrDistanceAsk =
+    /(?:\b(?:mat|het)\s+bao\s+lau\b|\bbao\s+lau\b|\bbao\s+xa\b|\bcach\s+bao\s+xa\b|\bmay\s+phut\b|\bmay\s+(?:km|cay\s+so)\b|\bbao\s+nhieu\s+(?:km|phut|gio)\b|\b(?:may\s+gio|luc\s+nao|khi\s+nao)\s+(?:nen|can|phai)?\s*(?:xuat\s+phat|di|khoi\s+hanh)\b|\bxuat\s+phat\s+(?:luc\s+nao|may\s+gio|truoc\s+may\s+gio)\b|\bdi\s+truoc\s+may\s+gio\b|\bco\s+kip\b)/u.test(
+      folded,
+    );
+  const hasEditOrRecoveryCue =
+    /\b(?:ket\s+xe|tac\s+duong|doi\s+lich|sua\s+lich|chinh\s+lich|bo\s+bot|xoa\b|them\b|chen\b|doi\s+sang|day\s+gio|lui\s+gio|rut\s+ngan|xep\s+lai|sap\s+xep\s+lai|chieu\s+nay\s+di\s+tiep\s+nhung\s+diem\s+nao|di\s+nhung\s+diem\s+nao\s+kip)\b/u.test(
+      folded,
+    );
+  const isNextVisitEtaQuery = hasNextVisitTarget && hasEtaOrDistanceAsk && !hasEditOrRecoveryCue;
+
+  if (
+    !isNextVisitEtaQuery &&
+    (input.mode === "APPLY_BATCH" || input.mode === "CHANGE_ORIGIN_CLOCKS")
+  ) {
     return { needsCurrentLocation: false, intentMode: "TRAFFIC_RECOVER" };
   }
 
-  const folded = foldVi(input.message);
   const explicitLocationPattern =
-    /(?:\bcho\s+(?:toi|minh)\s+dang\s+dung\b|\bvi\s+tri\s+hien\s+tai\b|\bvi\s+tri\s+cua\s+(?:toi|minh)\b|\bquanh\s+cho\s+(?:toi|minh)\b|\bgan\s+cho\s+(?:toi|minh)\b|\bgan\s+(?:day|minh)\s+co\s+diem\b|\bdang\s+(?:bi\s+)?(?:ket\s+xe|tac\s+duong)\s+(?:o|tai)\s+day\b|\bket\s+xe\s+o\s+day\b|\btu\s+(?:cho\s+(?:toi|minh)|vi\s+tri\s+nay|day)\s+(?:den|di|toi)\b|\bo\s+day\s+thi\s+(?:chieu|bay\s+gio|hom\s+nay)\b)/u;
+    /(?:\bcho\s+(?:toi|minh|em|anh|chi)\s+(?:dang\s+)?dung\b|\bvi\s+tri\s+hien\s+tai\b|\bvi\s+tri\s+cua\s+(?:toi|minh|em)\b|\bvi\s+tri\s+(?:vua|moi)\s+chia\s+se\b|\bquanh\s+(?:cho\s+(?:toi|minh|em)|day)\b|\bgan\s+cho\s+(?:toi|minh|em)\b|\bgan\s+(?:day|minh)\s+co\s+diem\b|\bdang\s+(?:bi\s+)?(?:ket\s+xe|tac\s+duong)\s+(?:o|tai)\s+day\b|\bket\s+xe\s+o\s+day\b|\b(?:tu|cach)\s+(?:cho\s+(?:toi|minh|em)|vi\s+tri\s+(?:nay|hien\s+tai)|day)\s+(?:den|di|toi|la)?\b|\bo\s+day\s+thi\s+(?:chieu|bay\s+gio|hom\s+nay)\b)/u;
+
+  const implicitNextVisitLocationAsk =
+    isNextVisitEtaQuery &&
+    /(?:\b(?:tu|cho|vi\s+tri|day)\b|\b(?:di\s+)?(?:toi|den)\s+(?:diem|luot)\s+(?:tiep\s+theo|ke\s+tiep)\b)/u.test(
+      folded,
+    );
 
   const needsCurrentLocation =
-    input.topic === "LOCATION_GUIDANCE" || explicitLocationPattern.test(folded);
+    input.topic === "LOCATION_GUIDANCE" ||
+    explicitLocationPattern.test(folded) ||
+    implicitNextVisitLocationAsk;
 
-  const intentMode: ParsedLocationRequest["intentMode"] =
-    /\b(?:gan\s+cho|quanh\s+cho|gan\s+day|gan\s+minh|ghe\s+duoc\s+khong|diem\s+nao\s+gan)\b/u.test(
-      folded,
-    )
-      ? "NEARBY_OPTIONS"
+  const isNearbyOptions = /\b(?:gan\s+cho|quanh\s+cho|gan\s+day|quanh\s+day|gan\s+minh|ghe\s+duoc\s+khong|diem\s+nao\s+gan)\b/u.test(
+    folded,
+  );
+
+  const intentMode: ParsedLocationRequest["intentMode"] = isNearbyOptions
+    ? "NEARBY_OPTIONS"
+    : isNextVisitEtaQuery
+      ? "NEXT_VISIT_ETA"
       : "TRAFFIC_RECOVER";
 
   return { needsCurrentLocation, intentMode };
@@ -127,6 +240,7 @@ export async function runOngoingLocationScenario(input: {
   savedShape: SavedTripForEdit & { manuallyCompletedAt?: Date | null };
   placeNames: ReadonlyMap<string, string>;
   placeDetailsById: ReadonlyMap<string, { isOutdoor?: boolean; availability?: string; external?: boolean }>;
+  externalPlaceCoords?: ReadonlyMap<string, { latitude: number; longitude: number }>;
   eligibleDestinations: readonly AdvisoryCatalogDestination[];
   allCatalogDestinations: readonly AdvisoryCatalogDestination[];
   lockedVisitIds: ReadonlySet<string>;
@@ -185,6 +299,105 @@ export async function runOngoingLocationScenario(input: {
   const catalogById = new Map(input.allCatalogDestinations.map((d) => [d.id, d]));
   const todayVn = vietnamDateOf(input.timeReference);
   const nowMin = vietnamClockMinute(input.timeReference);
+
+  if (parsed.intentMode === "NEXT_VISIT_ETA") {
+    const { upcoming, inProgress } = findChronologicalNextVisit({
+      baseCandidate: input.baseCandidate,
+      lockedVisitIds: input.lockedVisitIds,
+      todayVn,
+      nowMin,
+    });
+    const targetEntry = upcoming ?? inProgress;
+    if (!targetEntry) {
+      return {
+        kind: "ADVISED",
+        advice:
+          "Theo vị trí bạn vừa chia sẻ, hành trình hiện không còn lượt tham quan nào sắp tới; các lượt trong lịch đều đã qua giờ.",
+        suggestions: [],
+      };
+    }
+
+    const targetVisit = targetEntry.visit;
+    const targetName = input.placeNames.get(targetVisit.destinationId) ?? "điểm tiếp theo";
+    const targetDest = catalogById.get(targetVisit.destinationId);
+    const targetExt = input.externalPlaceCoords?.get(targetVisit.destinationId);
+    const targetLat =
+      targetDest && typeof targetDest.latitude === "number"
+        ? targetDest.latitude
+        : targetExt?.latitude;
+    const targetLon =
+      targetDest && typeof targetDest.longitude === "number"
+        ? targetDest.longitude
+        : targetExt?.longitude;
+
+    const whenLabel = formatScheduledNextTimeVi(
+      targetEntry.localDate,
+      todayVn,
+      targetEntry.dayIndex,
+      targetVisit.startMinute,
+    );
+    const vehicleLabel = input.baseCandidate.transport === "CAR" ? "ô tô" : "xe máy";
+    const isInProgressOnly = !upcoming && Boolean(inProgress);
+
+    if (typeof targetLat !== "number" || typeof targetLon !== "number") {
+      return {
+        kind: "ADVISED",
+        advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Hiện điểm này chưa có đủ tọa độ để định tuyến theo vị trí bạn vừa chia sẻ bằng ${vehicleLabel}, nên chưa tính được quãng đường, thời gian di chuyển hay giờ xuất phát.`,
+        suggestions: [],
+      };
+    }
+
+    const route = await input.getRoute({
+      origin: {
+        latitude: input.location.latitude,
+        longitude: input.location.longitude,
+      },
+      destination: {
+        latitude: targetLat,
+        longitude: targetLon,
+      },
+      vehicle: input.baseCandidate.transport,
+    });
+
+    if (route.kind !== "ok" || typeof route.durationSeconds !== "number") {
+      return {
+        kind: "ADVISED",
+        advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Hiện hệ thống chưa định tuyến được lộ trình bằng ${vehicleLabel} theo vị trí bạn vừa chia sẻ tới điểm này nên chưa có số đo quãng đường, thời gian di chuyển và giờ xuất phát chính xác.`,
+        suggestions: [],
+      };
+    }
+
+    const driveMinutes = Math.max(1, Math.ceil(route.durationSeconds / 60));
+    const distancePart =
+      typeof route.distanceMeters === "number" &&
+      Number.isFinite(route.distanceMeters) &&
+      route.distanceMeters >= 0
+        ? `khoảng ${formatDistanceVi(route.distanceMeters)}, `
+        : "";
+    const durationPart = `${vehicleLabel} chừng ${formatDurationVi(driveMinutes)}`;
+
+    const dayDiff = calendarDayDiff(todayVn, targetEntry.localDate);
+    let leaveAdvice: string;
+    if (isInProgressOnly || (dayDiff === 0 && targetVisit.startMinute - driveMinutes <= nowMin)) {
+      const arrivalMin = nowMin + driveMinutes;
+      const arrivalText =
+        arrivalMin < 1440
+          ? minuteClockLabel(arrivalMin)
+          : `${minuteClockLabel(arrivalMin % 1440)} ngày hôm sau`;
+      leaveAdvice = `bạn nên xuất phát ngay (nếu đi lúc ${minuteClockLabel(nowMin)} dự kiến tới khoảng ${arrivalText})`;
+    } else if (targetVisit.startMinute - driveMinutes >= 0) {
+      leaveAdvice = `nên đi trước ${minuteClockLabel(targetVisit.startMinute - driveMinutes)}`;
+    } else {
+      leaveAdvice = `nên xuất phát từ tối hôm trước (khoảng ${minuteClockLabel(1440 + targetVisit.startMinute - driveMinutes)})`;
+    }
+
+    return {
+      kind: "ADVISED",
+      advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Từ chỗ bạn tới điểm này (theo vị trí bạn vừa chia sẻ) ${distancePart}${durationPart}, ${leaveAdvice}.`,
+      suggestions: [],
+    };
+  }
+
   const todayObj =
     (input.baseCandidate.startDate
       ? input.baseCandidate.days.find(
@@ -345,6 +558,26 @@ export async function runOngoingLocationScenario(input: {
 
   // TRAFFIC_RECOVER: compute route from current GPS/manual coordinates to remaining unlocked visits today
   if (unlockedToday.length === 0) {
+    const { upcoming } = findChronologicalNextVisit({
+      baseCandidate: input.baseCandidate,
+      lockedVisitIds: input.lockedVisitIds,
+      todayVn,
+      nowMin,
+    });
+    if (upcoming) {
+      const nextName = input.placeNames.get(upcoming.visit.destinationId) ?? "điểm tiếp theo";
+      const whenLabel = formatScheduledNextTimeVi(
+        upcoming.localDate,
+        todayVn,
+        upcoming.dayIndex,
+        upcoming.visit.startMinute,
+      );
+      return {
+        kind: "ADVISED",
+        advice: `Các lượt trong Ngày ${todayObj.dayIndex} đã qua giờ và được giữ cố định. Theo vị trí bạn vừa chia sẻ, lượt sắp tới tiếp theo là ${nextName}, ${whenLabel}; bạn có thể hỏi khoảng cách hoặc thời gian di chuyển tới điểm này.`,
+        suggestions: [],
+      };
+    }
     return {
       kind: "ADVISED",
       advice: `Toàn bộ các lượt tham quan trong Ngày ${todayObj.dayIndex} đã qua giờ và được khóa cố định. Bạn có thể hỏi gợi ý điểm gần vị trí hiện tại hoặc xem lịch Ngày kế tiếp.`,
