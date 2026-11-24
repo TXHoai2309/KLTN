@@ -5,6 +5,7 @@ import type { Database, Prisma } from "@KLTN/db";
 import { AppError } from "@/server/http/app-error";
 import { visibleDestinationWhere } from "../destination/destination-eligibility";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
+import type { PlacesSearch } from "../tripsage-chat/tripsage-places";
 import { externalPlaceView } from "../trip-read/external-place-cache";
 import { savedJourneySchema } from "../trip-origin/journey-saved-contract";
 import { assertJourneyBeforeDeparture } from "../trip-origin/journey-cutoff";
@@ -204,6 +205,8 @@ export type AiEditServiceDependencies = {
   database: Database;
   llm: StructuredLlmClient;
   getRoute: TripEditRouteProvider;
+  /** Injectable Places search adapter for nearby food/service inquiries while ONGOING. */
+  places?: PlacesSearch;
   /** Injectable forecast config for weather-grounded advisory without hitting live Open-Meteo in tests. */
   forecast?: ForecastOptions;
   /** Injectable local-knowledge RAG lookup for deterministic unit/HTTP tests. */
@@ -1044,7 +1047,8 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
 
   const bypassEditPlanRecognition =
     preLocationParsed.needsCurrentLocation &&
-    preLocationParsed.intentMode === "NEXT_VISIT_ETA";
+    (preLocationParsed.intentMode === "NEXT_VISIT_ETA" ||
+      preLocationParsed.intentMode === "NEARBY_SERVICES");
 
   const recognizedPlan: VerifiedWorkspacePlan = bypassEditPlanRecognition
     ? {
@@ -1238,6 +1242,7 @@ async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<A
         baselinePreview: validationPreview,
         runPreview,
         getRoute: safeGetRoute,
+        places: dependencies.places,
         createVisitId: dependencies.createVisitId ?? randomUUID,
         database: dependencies.database,
         llm: dependencies.llm,

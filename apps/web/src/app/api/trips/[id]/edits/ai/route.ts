@@ -4,6 +4,7 @@ import {
   resolveTripAssistantModel,
 } from "@/modules/trip-edit/trip-assistant-openai";
 import { createTripEditRouteProvider } from "@/modules/trip-edit/trip-edit-routes";
+import { tripsagePlacesRuntime } from "@/modules/tripsage-chat/tripsage-chat-runtime";
 import { applicationSettings } from "@/modules/runtime-config/runtime-config-service";
 import { authorizationDependencies } from "@/server/authorization/server";
 import { db } from "@/services";
@@ -27,5 +28,12 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return aiEditResponse(request, id, { ...dependencies, service: { ...dependencies.service, getRoute: createTripEditRouteProvider() } });
+  return aiEditResponse(request, id, {
+    ...dependencies,
+    service: {
+      ...dependencies.service,
+      getRoute: createTripEditRouteProvider(),
+      places: tripsagePlacesRuntime(),
+    },
+  });
 }

@@ -707,4 +707,140 @@ describe("Saved-trip assistant Ticket 06: Conditional ONGOING GPS & manual locat
     expect(midDayRes.advice).toContain("11:10");
     expect(midDayRes.advice).toContain("theo vị trí bạn vừa chia sẻ");
   });
+
+  it("Point 2: searches Google Places around current location for food/services (with radius expansion, honest hours, no edits) and keeps catalog for sightseeing", async () => {
+    const { database, draft } = createLocationFixture();
+    // 23:44 Asia/Ho_Chi_Minh on 2026-10-20 = 16:44 UTC
+    const lateAt2344Vn = new Date("2026-10-20T16:44:00.000Z");
+    const userLoc = {
+      source: "GPS" as const,
+      latitude: 23.2785,
+      longitude: 105.3625,
+      accuracyMeters: 15,
+      capturedAt: lateAt2344Vn.toISOString(),
+    };
+
+    // 1. Without location yet: nearby service query ("cây xăng" / "quán ăn") prompts NEEDS_LOCATION
+    const needsLoc = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      { baseRevision: revision.toISOString(), message: "Quanh đây có cây xăng nào không?", draft },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("Must not enter edit LLM"); } },
+        getRoute: async () => ({ kind: "unavailable" }),
+      },
+      lateAt2344Vn,
+    );
+    expect(needsLoc.status).toBe("NEEDS_LOCATION");
+
+    // 2. Late-night food query with mock Places returning NO_RESULTS at 3km, RESULTS at 5km (no openingHours field -> no fabricated "mở muộn")
+    const placesSpy = vi.fn(async (_query: string, _signal?: AbortSignal, near?: { latitude: number; longitude: number; radiusKm: number }) => {
+      if ((near?.radiusKm ?? 0) <= 3) return { status: "NO_RESULTS" as const };
+      return {
+        status: "RESULTS" as const,
+        places: [
+          { placeId: "ChIJ-late-2", name: "Quán Phở Đêm Phố Cổ", latitude: 23.285, longitude: 105.37, types: ["restaurant"] },
+          { placeId: "ChIJ-late-1", name: "Cơm Lam Đồng Văn", latitude: 23.2795, longitude: 105.363, types: ["restaurant"] },
+          { placeId: "ChIJ-hotel-skip", name: "Khách sạn Cao Nguyên", latitude: 23.2787, longitude: 105.3626, types: ["lodging", "hotel"] },
+        ],
+      };
+    });
+
+    const foodRes = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      { baseRevision: revision.toISOString(), message: "Quanh chỗ mình đang đứng có quán ăn nào mở muộn không?", draft, location: userLoc },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("Must not enter edit LLM"); } },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 300, distanceMeters: 1000 }),
+        places: placesSpy,
+      },
+      lateAt2344Vn,
+    );
+    expect(foodRes.status).toBe("ADVISED");
+    if (foodRes.status !== "ADVISED") return;
+    expect(foodRes.suggestions ?? []).toHaveLength(0);
+    expect(placesSpy).toHaveBeenCalledTimes(2);
+    expect(placesSpy.mock.calls[0]?.[2]?.radiusKm).toBe(3);
+    expect(placesSpy.mock.calls[1]?.[2]?.radiusKm).toBeGreaterThan(3);
+    expect(foodRes.advice).toContain("Cơm Lam Đồng Văn");
+    expect(foodRes.advice).toContain("Quán Phở Đêm Phố Cổ");
+    expect(foodRes.advice).not.toContain("Khách sạn Cao Nguyên");
+    expect(foodRes.advice).toContain("từ Google Maps, chưa kiểm tra; giờ mở cửa thực tế có thể khác");
+    expect(foodRes.advice).toMatch(/chưa có.*giờ mở cửa|không có.*giờ mở cửa/iu);
+    expect(foodRes.advice).not.toContain("mở muộn");
+    expect(foodRes.advice).not.toContain("chưa có điểm công khai mới nào phù hợp trước cuối ngày");
+
+    // 3. When Places includes openingHours/openNow, it uses that verified field
+    const cafeRes = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      { baseRevision: revision.toISOString(), message: "Gần đây có quán cà phê nào không?", draft, location: userLoc },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("Must not enter edit LLM"); } },
+        getRoute: async () => ({ kind: "unavailable" }),
+        places: async () => ({
+          status: "RESULTS" as const,
+          places: [
+            {
+              placeId: "ChIJ-cafe-1",
+              name: "Cà Phê Phố Cổ",
+              latitude: 23.279,
+              longitude: 105.363,
+              types: ["cafe"],
+              openNow: true,
+              openingHours: ["Thứ Hai: 07:00–22:30"],
+            },
+          ],
+        }),
+      },
+      ongoingAt1100Vn,
+    );
+    expect(cafeRes.status).toBe("ADVISED");
+    if (cafeRes.status !== "ADVISED") return;
+    expect(cafeRes.advice).toContain("Cà Phê Phố Cổ");
+    expect(cafeRes.advice).toContain("07:00–22:30");
+
+    // 4. Places UNAVAILABLE -> honest notice, no fabricated businesses
+    const errRes = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      { baseRevision: revision.toISOString(), message: "Quanh chỗ mình đang đứng có nhà thuốc nào không?", draft, location: userLoc },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => { throw new Error("Must not enter edit LLM"); } },
+        getRoute: async () => ({ kind: "unavailable" }),
+        places: async () => ({ status: "UNAVAILABLE" as const }),
+      },
+      ongoingAt1100Vn,
+    );
+    expect(errRes.status).toBe("ADVISED");
+    if (errRes.status !== "ADVISED") return;
+    expect(errRes.suggestions ?? []).toHaveLength(0);
+    expect(errRes.advice).toMatch(/chưa.*tra cứu|tạm thời.*không.*tra cứu|chưa sẵn sàng/iu);
+    expect(errRes.advice).not.toContain("Cơm Lam Đồng Văn");
+
+    // 5. Sightseeing nearby query still queries DB catalog, not Places
+    const sightPlacesSpy = vi.fn(async () => ({ status: "NO_RESULTS" as const }));
+    const sightRes = await createAiEditProposal(
+      "trip-loc-1",
+      "owner-1",
+      { baseRevision: revision.toISOString(), message: "Gần chỗ tôi đang đứng có điểm tham quan nào ghé được không?", draft, location: { ...userLoc, capturedAt: ongoingAt1100Vn.toISOString() } },
+      {
+        database: database as unknown as Database,
+        llm: { complete: async () => ({ rawText: JSON.stringify(locationPlan("LOCATION_GUIDANCE")), model: "step-1" }) },
+        getRoute: async () => ({ kind: "ok", durationSeconds: 600, distanceMeters: 3000 }),
+        places: sightPlacesSpy,
+        createVisitId: () => "visit-sight-1",
+      },
+      ongoingAt1100Vn,
+    );
+    expect(sightRes.status).toBe("ADVISED");
+    if (sightRes.status !== "ADVISED") return;
+    expect(sightPlacesSpy).not.toHaveBeenCalled();
+    expect(sightRes.advice).toContain("Chợ Đồng Văn");
+  });
 });

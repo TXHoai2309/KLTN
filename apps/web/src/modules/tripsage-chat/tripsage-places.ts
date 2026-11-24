@@ -19,7 +19,15 @@ const AREA = { low: { latitude: 22.3, longitude: 104.3 }, high: { latitude: 23.4
 
 export const inPlacesArea = (latitude: number, longitude: number) => latitude >= AREA.low.latitude && latitude <= AREA.high.latitude && longitude >= AREA.low.longitude && longitude <= AREA.high.longitude;
 
-export type ExternalPlaceSuggestion = { placeId: string; name: string; latitude: number; longitude: number; types?: readonly string[] };
+export type ExternalPlaceSuggestion = {
+  placeId: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  types?: readonly string[];
+  openNow?: boolean;
+  openingHours?: readonly string[];
+};
 export type PlacesOutcome = { status: "RESULTS"; places: ExternalPlaceSuggestion[] } | { status: "NO_RESULTS" } | { status: "UNAVAILABLE" };
 /** `near`: restrict the search to a small box around a KLTN destination (coordinates from the database, never the model). */
 export type PlacesNear = { latitude: number; longitude: number; radiusKm: number };
@@ -39,6 +47,14 @@ const responseSchema = z.object({ places: z.array(z.object({
   displayName: z.object({ text: z.string().max(1000) }).optional(),
   location: z.object({ latitude: z.number(), longitude: z.number() }),
   types: z.array(z.string().max(80)).max(30).optional(),
+  currentOpeningHours: z.object({
+    openNow: z.boolean().optional(),
+    weekdayDescriptions: z.array(z.string().max(120)).max(7).optional(),
+  }).optional(),
+  regularOpeningHours: z.object({
+    openNow: z.boolean().optional(),
+    weekdayDescriptions: z.array(z.string().max(120)).max(7).optional(),
+  }).optional(),
 })).max(20).optional() });
 
 /** Untrusted text: no control characters, collapsed whitespace, short. */
@@ -87,12 +103,16 @@ export function createGooglePlacesSearch(deps: { apiKey: () => string | undefine
           if (!inArea || vietnamCoverageAt({ latitude, longitude }) !== "SUPPORTED") continue;
           const name = cleanPlaceName(place.displayName?.text ?? "");
           if (name && !places.some(p => p.placeId === place.id)) {
+            const hoursSource = place.currentOpeningHours ?? place.regularOpeningHours;
+            const openingHours = hoursSource?.weekdayDescriptions?.map(cleanPlaceName).filter(Boolean);
             places.push({
               placeId: place.id,
               name,
               latitude,
               longitude,
               ...(place.types?.length ? { types: place.types } : {}),
+              ...(typeof hoursSource?.openNow === "boolean" ? { openNow: hoursSource.openNow } : {}),
+              ...(openingHours && openingHours.length > 0 ? { openingHours } : {}),
             });
           }
         }

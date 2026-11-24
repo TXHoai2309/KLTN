@@ -1,12 +1,16 @@
 import type { Database } from "@KLTN/db";
+import { cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
 import type { InTripLocation } from "../in-trip/in-trip-location";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
+import { haversine } from "../trip-planner/planner-geography";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 import type { TripStatus } from "../trip-read/trip-status";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { tripDayDate } from "../trip-validation/trip-proposal-contract";
 import type { ForecastOptions } from "../trip-weather/forecast";
 import { computeSunTimes, formatMinute } from "../trip-weather/sun-times";
+import { isLodgingPlace } from "../tripsage-chat/tripsage-activities";
+import type { ExternalPlaceSuggestion, PlacesSearch } from "../tripsage-chat/tripsage-places";
 import type { AdviceTopic } from "./ai-workspace-plan";
 import {
   addVisit,
@@ -36,7 +40,7 @@ import type {
 
 export type ParsedLocationRequest = {
   needsCurrentLocation: boolean;
-  intentMode: "NEARBY_OPTIONS" | "NEXT_VISIT_ETA" | "TRAFFIC_RECOVER";
+  intentMode: "NEARBY_OPTIONS" | "NEARBY_SERVICES" | "NEXT_VISIT_ETA" | "TRAFFIC_RECOVER";
 };
 
 export type OngoingLocationOutcome =
@@ -179,12 +183,143 @@ function findChronologicalNextVisit(input: {
   return { upcoming, inProgress };
 }
 
+type NearbyServiceCategory = {
+  query: string;
+  label: string;
+  allowLodging: boolean;
+};
+
+const SERVICE_CATEGORY_RULES: readonly {
+  pattern: RegExp;
+  query: string;
+  label: string;
+  allowLodging?: boolean;
+}[] = [
+  {
+    pattern: /\b(?:cay\s+xang|tram\s+xang|do\s+xang)\b/u,
+    query: "cây xăng",
+    label: "cây xăng",
+  },
+  {
+    pattern: /\b(?:sua\s+xe|tiem\s+sua\s+xe|va\s+xe|va\s+lop|gara|cuu\s+ho\s+xe)\b/u,
+    query: "sửa xe",
+    label: "tiệm sửa xe",
+  },
+  {
+    pattern: /\b(?:atm|rut\s+tien|ngan\s+hang)\b/u,
+    query: "ATM ngân hàng",
+    label: "cây ATM / ngân hàng",
+  },
+  {
+    pattern: /\b(?:nha\s+thuoc|hieu\s+thuoc|quay\s+thuoc|tiem\s+thuoc)\b/u,
+    query: "nhà thuốc",
+    label: "nhà thuốc",
+  },
+  {
+    pattern: /\b(?:co\s+so\s+y\s+te|benh\s+vien|phong\s+kham|tram\s+y\s+te|trung\s+tam\s+y\s+te|cap\s+cuu|y\s+te)\b/u,
+    query: "bệnh viện phòng khám cơ sở y tế",
+    label: "cơ sở y tế",
+  },
+  {
+    pattern: /\b(?:cho\s+nghi|nha\s+nghi|khach\s+san|homestay|hotel|hostel|resort|cho\s+ngu|thue\s+phong)\b/u,
+    query: "khách sạn nhà nghỉ homestay",
+    label: "chỗ nghỉ",
+    allowLodging: true,
+  },
+  {
+    pattern: /\b(?:ca\s+phe|cafe|coffee|tra\s+sua|quan\s+nuoc|tra\s+chanh)\b/u,
+    query: "quán cà phê",
+    label: "quán cà phê",
+  },
+  {
+    pattern: /\b(?:quan\s+an|nha\s+hang|an\s+uong|an\s+dem|an\s+khuya|an\s+toi|an\s+trua|an\s+sang|tiem\s+an|do\s+an|quan\s+(?:pho|bun|com|lau))\b/u,
+    query: "quán ăn",
+    label: "quán ăn",
+  },
+];
+
+function classifyNearbyServiceQuery(folded: string): NearbyServiceCategory | null {
+  const isScheduleMutation = /\b(?:them|chen|bo\s+sung|dua)\b.{0,30}\b(?:vao\s+lich|vao\s+hanh\s+trinh|vao\s+ngay)\b/u.test(
+    folded,
+  );
+  if (isScheduleMutation) return null;
+
+  for (const rule of SERVICE_CATEGORY_RULES) {
+    if (rule.pattern.test(folded)) {
+      return {
+        query: rule.query,
+        label: rule.label,
+        allowLodging: Boolean(rule.allowLodging),
+      };
+    }
+  }
+  return null;
+}
+
+const NEARBY_SERVICE_RADII_KM = [3, 5, 10] as const;
+const MAX_NEARBY_SERVICES = 5;
+
+async function searchNearbyServicesFromPlaces(input: {
+  places: PlacesSearch | undefined;
+  category: NearbyServiceCategory;
+  location: InTripLocation;
+  signal?: AbortSignal;
+}): Promise<
+  | { status: "RESULTS"; places: { place: ExternalPlaceSuggestion; distKm: number }[]; radiusKm: number }
+  | { status: "NO_RESULTS" }
+  | { status: "UNAVAILABLE" }
+> {
+  if (!input.places) return { status: "UNAVAILABLE" };
+
+  for (const radiusKm of NEARBY_SERVICE_RADII_KM) {
+    let outcome;
+    try {
+      outcome = await input.places(
+        input.category.query,
+        input.signal,
+        {
+          latitude: input.location.latitude,
+          longitude: input.location.longitude,
+          radiusKm,
+        },
+      );
+    } catch {
+      return { status: "UNAVAILABLE" };
+    }
+    if (outcome.status === "UNAVAILABLE") {
+      return { status: "UNAVAILABLE" };
+    }
+    if (outcome.status === "NO_RESULTS") {
+      continue;
+    }
+
+    const filtered = outcome.places
+      .filter((place) => input.category.allowLodging || !isLodgingPlace(place))
+      .map((place) => ({
+        place,
+        distKm: haversine(
+          { latitude: input.location.latitude, longitude: input.location.longitude },
+          { latitude: place.latitude, longitude: place.longitude },
+        ),
+      }))
+      .sort((a, b) => a.distKm - b.distKm)
+      .slice(0, MAX_NEARBY_SERVICES);
+
+    if (filtered.length > 0) {
+      return { status: "RESULTS", places: filtered, radiusKm };
+    }
+  }
+
+  return { status: "NO_RESULTS" };
+}
+
 export function parseLocationDependentRequest(input: {
   message: string;
   mode: string;
   topic: AdviceTopic;
 }): ParsedLocationRequest {
   const folded = foldVi(input.message);
+  const serviceCategory = classifyNearbyServiceQuery(folded);
 
   const hasNextVisitTarget = /\b(?:diem|luot|cho|chang)\s+(?:tiep\s+theo|ke\s+tiep)\b/u.test(folded);
   const hasEtaOrDistanceAsk =
@@ -197,15 +332,23 @@ export function parseLocationDependentRequest(input: {
     );
   const isNextVisitEtaQuery = hasNextVisitTarget && hasEtaOrDistanceAsk && !hasEditOrRecoveryCue;
 
+  const isServiceAsk = Boolean(
+    serviceCategory &&
+      /\b(?:quanh\s+(?:day|minh|cho)|gan\s+(?:day|minh|cho)|o\s+day|quanh\s+vi\s+tri|gan\s+vi\s+tri)\b/u.test(
+        folded,
+      ),
+  );
+
   if (
     !isNextVisitEtaQuery &&
+    !isServiceAsk &&
     (input.mode === "APPLY_BATCH" || input.mode === "CHANGE_ORIGIN_CLOCKS")
   ) {
     return { needsCurrentLocation: false, intentMode: "TRAFFIC_RECOVER" };
   }
 
   const explicitLocationPattern =
-    /(?:\bcho\s+(?:toi|minh|em|anh|chi)\s+(?:dang\s+)?dung\b|\bvi\s+tri\s+hien\s+tai\b|\bvi\s+tri\s+cua\s+(?:toi|minh|em)\b|\bvi\s+tri\s+(?:vua|moi)\s+chia\s+se\b|\bquanh\s+(?:cho\s+(?:toi|minh|em)|day)\b|\bgan\s+cho\s+(?:toi|minh|em)\b|\bgan\s+(?:day|minh)\s+co\s+diem\b|\bdang\s+(?:bi\s+)?(?:ket\s+xe|tac\s+duong)\s+(?:o|tai)\s+day\b|\bket\s+xe\s+o\s+day\b|\b(?:tu|cach)\s+(?:cho\s+(?:toi|minh|em)|vi\s+tri\s+(?:nay|hien\s+tai)|day)\s+(?:den|di|toi|la)?\b|\bo\s+day\s+thi\s+(?:chieu|bay\s+gio|hom\s+nay)\b)/u;
+    /(?:\bcho\s+(?:toi|minh|em|anh|chi)\s+(?:dang\s+)?dung\b|\bvi\s+tri\s+hien\s+tai\b|\bvi\s+tri\s+cua\s+(?:toi|minh|em)\b|\bvi\s+tri\s+(?:vua|moi)\s+chia\s+se\b|\bquanh\s+(?:cho\s+(?:toi|minh|em)|day|minh)\b|\bgan\s+cho\s+(?:toi|minh|em)\b|\bgan\s+(?:day|minh)\s+(?:co|nao)\b|\bdang\s+(?:bi\s+)?(?:ket\s+xe|tac\s+duong)\s+(?:o|tai)\s+day\b|\bket\s+xe\s+o\s+day\b|\b(?:tu|cach)\s+(?:cho\s+(?:toi|minh|em)|vi\s+tri\s+(?:nay|hien\s+tai)|day)\s+(?:den|di|toi|la)?\b|\bo\s+day\s+thi\s+(?:chieu|bay\s+gio|hom\s+nay)\b)/u;
 
   const implicitNextVisitLocationAsk =
     isNextVisitEtaQuery &&
@@ -218,15 +361,17 @@ export function parseLocationDependentRequest(input: {
     explicitLocationPattern.test(folded) ||
     implicitNextVisitLocationAsk;
 
-  const isNearbyOptions = /\b(?:gan\s+cho|quanh\s+cho|gan\s+day|quanh\s+day|gan\s+minh|ghe\s+duoc\s+khong|diem\s+nao\s+gan)\b/u.test(
+  const isNearbyOptions = /\b(?:gan\s+cho|quanh\s+cho|gan\s+day|quanh\s+day|gan\s+minh|quanh\s+minh|ghe\s+duoc\s+khong|diem\s+nao\s+gan|diem\s+tham\s+quan)\b/u.test(
     folded,
   );
 
-  const intentMode: ParsedLocationRequest["intentMode"] = isNearbyOptions
-    ? "NEARBY_OPTIONS"
-    : isNextVisitEtaQuery
-      ? "NEXT_VISIT_ETA"
-      : "TRAFFIC_RECOVER";
+  const intentMode: ParsedLocationRequest["intentMode"] = isServiceAsk
+    ? "NEARBY_SERVICES"
+    : isNearbyOptions
+      ? "NEARBY_OPTIONS"
+      : isNextVisitEtaQuery
+        ? "NEXT_VISIT_ETA"
+        : "TRAFFIC_RECOVER";
 
   return { needsCurrentLocation, intentMode };
 }
@@ -247,6 +392,8 @@ export async function runOngoingLocationScenario(input: {
   baselinePreview: PreviewEditResult;
   runPreview: RunPreviewFn;
   getRoute: TripEditRouteProvider;
+  places?: PlacesSearch;
+  signal?: AbortSignal;
   createVisitId: () => string;
   database: Pick<Database, "destination">;
   llm: StructuredLlmClient;
@@ -394,6 +541,64 @@ export async function runOngoingLocationScenario(input: {
     return {
       kind: "ADVISED",
       advice: `Điểm tiếp theo là ${targetName}, ${whenLabel}. Từ chỗ bạn tới điểm này (theo vị trí bạn vừa chia sẻ) ${distancePart}${durationPart}, ${leaveAdvice}.`,
+      suggestions: [],
+    };
+  }
+
+  if (parsed.intentMode === "NEARBY_SERVICES") {
+    const category = classifyNearbyServiceQuery(foldVi(input.message)) ?? {
+      query: "quán ăn",
+      label: "dịch vụ",
+      allowLodging: true,
+    };
+    const searchResult = await searchNearbyServicesFromPlaces({
+      places: input.places,
+      category,
+      location: input.location,
+      signal: input.signal,
+    });
+
+    if (searchResult.status !== "RESULTS") {
+      if (searchResult.status === "UNAVAILABLE") {
+        return {
+          kind: "ADVISED",
+          advice: `Theo vị trí bạn vừa chia sẻ, hiện hệ thống chưa tra cứu được danh sách ${category.label} quanh đây từ Google Maps (dịch vụ tìm địa điểm tạm thời chưa sẵn sàng). Mình chưa thể nêu tên điểm hay giờ mở cửa cụ thể; bạn hãy thử lại sau hoặc tra trực tiếp trên Google Maps.`,
+          suggestions: [],
+        };
+      }
+      return {
+        kind: "ADVISED",
+        advice: `Theo vị trí bạn vừa chia sẻ, trong bán kính tới ${NEARBY_SERVICE_RADII_KM[NEARBY_SERVICE_RADII_KM.length - 1]} km chưa thấy ${category.label} phù hợp trên dữ liệu từ Google Maps, chưa kiểm tra; giờ mở cửa thực tế có thể khác.`,
+        suggestions: [],
+      };
+    }
+
+    const hasAnyOpeningHours = searchResult.places.some(
+      ({ place }) => typeof place.openNow === "boolean" || (place.openingHours?.length ?? 0) > 0,
+    );
+
+    const lines = searchResult.places.map(({ place, distKm }) => {
+      const displayName = cleanPlaceDisplayName(place.name) || place.name;
+      const distLabel = formatDistanceVi(Math.round(distKm * 1000));
+      const hourDetails: string[] = [];
+      if (place.openingHours && place.openingHours.length > 0) {
+        hourDetails.push(`giờ mở cửa ghi nhận: ${place.openingHours[0]}`);
+      } else if (typeof place.openNow === "boolean") {
+        hourDetails.push(place.openNow ? "trạng thái hiện tại: đang mở" : "trạng thái hiện tại: đang đóng");
+      }
+      return `- ${displayName} (cách ~${distLabel}${hourDetails.length > 0 ? `, ${hourDetails.join(", ")}` : ""})`;
+    });
+
+    const missingHoursNote = hasAnyOpeningHours
+      ? ""
+      : " Dữ liệu trả về hiện chưa có giờ mở cửa cụ thể nên chưa xác nhận được quán còn mở hay không.";
+
+    return {
+      kind: "ADVISED",
+      advice: `Theo vị trí bạn vừa chia sẻ (quanh bán kính ${searchResult.radiusKm} km, gợi ý từ Google Maps, chưa kiểm tra; giờ mở cửa thực tế có thể khác), có một số ${category.label} gần bạn:\n${lines.join("\n")}\n${missingHoursNote} Đây chỉ là gợi ý tham khảo, chưa thêm vào lịch trình; nếu muốn đưa điểm nào vào lịch, bạn có thể gửi yêu cầu chỉnh sửa lịch để kiểm tra và xác nhận riêng.`.replace(
+        /\n\s+/gu,
+        "\n",
+      ),
       suggestions: [],
     };
   }
