@@ -42,6 +42,32 @@ function foldSimple(value: string): string {
  * Hides generic placeholders like "khu vực hà giang"; infers from existing `address` or
  * very close town-center proximity without fabricating an ungrounded area.
  */
+function normalizeExploreAreaCandidate(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  const cleaned = cleanPlaceDisplayName(trimmed);
+  if (!cleaned) return null;
+  const rawFolded = foldSimple(cleaned).trim();
+  if (
+    /^(?:tp\.?\s*|th[aà]nh\s+ph[oố]\s+|ph[uư][oờ]ng\s+)ha\s+giang(?:\s+\d+)?$/u.test(rawFolded) ||
+    /^ha\s+giang\s+\d+$/u.test(rawFolded)
+  ) {
+    return "TP Hà Giang";
+  }
+  const stripped = cleaned
+    .replace(/^(?:ph[uư][oờ]ng|x[aã]|th[iị]\s+tr[aấ]n|huy[eệ]n|th[aà]nh\s+ph[oố]|tp\.?)\s+/iu, "")
+    .trim();
+  const candidate = stripped || cleaned;
+  const folded = foldSimple(candidate).trim();
+  if (!folded || PROVINCE_BLACKLIST.has(folded)) return null;
+  if (/^ha\s+giang\s+\d+$/u.test(folded)) return "TP Hà Giang";
+  if (/^\d+[a-z]?$/iu.test(folded)) return null;
+  if (/^(?:so|duong|ngo|ngach|hem|lo|to|doi|thon|xom|khu|km|ql|dt|tl)\s*\.?\s*\d+[a-z]?$/iu.test(folded)) return null;
+  if (/^(?:km\s*\d+|ql\s*\d+[a-z]?|dt\s*\d+[a-z]?|tl\s*\d+[a-z]?)$/iu.test(folded)) return null;
+  if (/^(?:khu\s+vuc\s+ha\s+giang|viet\s+nam|tuyen\s+quang|ha\s+giang|cao\s+bang|lao\s+cai)$/iu.test(folded)) return null;
+  return cleanAreaDisplayLabel(candidate) || candidate;
+}
+
 export function resolveExploreDisplayArea(input: {
   area?: string | null;
   address?: string | null;
@@ -49,29 +75,48 @@ export function resolveExploreDisplayArea(input: {
   longitude?: number | null;
   inferredArea?: string | null;
 }): string | null {
-  if (input.inferredArea) {
-    const cleanInferred = cleanAreaDisplayLabel(input.inferredArea);
-    if (cleanInferred) return cleanInferred;
+  const explicit = cleanAreaDisplayLabel(input.area);
+  if (explicit) {
+    const normalizedExplicit = normalizeExploreAreaCandidate(explicit);
+    if (normalizedExplicit) return normalizedExplicit;
   }
 
-  const explicit = cleanAreaDisplayLabel(input.area);
-  if (explicit) return explicit;
+  if (input.inferredArea) {
+    const cleanInferred = cleanAreaDisplayLabel(input.inferredArea);
+    if (cleanInferred) {
+      const normalizedInferred = normalizeExploreAreaCandidate(cleanInferred);
+      if (normalizedInferred) return normalizedInferred;
+    }
+  }
 
   if (input.address) {
+    const adminMatches = input.address.matchAll(
+      /(?:^|[,\-(]\s*)(?:x[aã]|th[iị]\s+tr[aấ]n|ph[uư][oờ]ng)\s+([^,()\-–;]+?)(?=[,()\-–;]|$)/giu,
+    );
+    for (const match of adminMatches) {
+      const normalized = normalizeExploreAreaCandidate(match[0].replace(/^[,\-(\s]+/, ""));
+      if (normalized) return normalized;
+    }
+
     const explicitCommune = COMMUNE_PATTERN.exec(input.address)?.[1]?.trim();
-    if (explicitCommune && !PROVINCE_BLACKLIST.has(foldSimple(explicitCommune))) {
-      const cleaned = cleanPlaceDisplayName(explicitCommune);
-      if (cleaned) return cleaned;
+    if (explicitCommune) {
+      const normalized = normalizeExploreAreaCandidate(explicitCommune);
+      if (normalized) return normalized;
     }
 
     const commune = extractAdminCommuneOrTown(input.address);
-    if (commune) return commune;
+    if (commune) {
+      const normalized = normalizeExploreAreaCandidate(commune);
+      if (normalized) return normalized;
+    }
 
     const districtMatch = DISTRICT_PATTERN.exec(input.address);
     if (districtMatch?.[1]) {
       const district = cleanPlaceDisplayName(districtMatch[1]);
-      if (district && !PROVINCE_BLACKLIST.has(foldSimple(district))) {
-        return /^h[aà]\s+giang$/iu.test(foldSimple(district)) ? "TP Hà Giang" : district;
+      if (district) {
+        if (/^h[aà]\s+giang(?:\s+\d+)?$/iu.test(foldSimple(district))) return "TP Hà Giang";
+        const normalized = normalizeExploreAreaCandidate(district);
+        if (normalized) return normalized;
       }
     }
   }

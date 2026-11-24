@@ -123,3 +123,48 @@ describe("P4: Explore area hiding, inference, filters & sorting", () => {
     ).toEqual(["d-dv", "d-qb", "d-hsp"]);
   });
 });
+
+describe("Lỗi 3: resolveExploreDisplayArea region normalization and priority", () => {
+  it("normalizes numbered administrative units like Hà Giang 1 and Hà Giang 2 to TP Hà Giang", () => {
+    expect(resolveExploreDisplayArea({ address: "phường Hà Giang 1, Tuyên Quang" })).toBe("TP Hà Giang");
+    expect(resolveExploreDisplayArea({ address: "phường Hà Giang 2, tỉnh Tuyên Quang" })).toBe("TP Hà Giang");
+    expect(
+      resolveExploreDisplayArea({ address: "thôn Hạ Thành, phường Hà Giang 1, Tuyên Quang" }),
+    ).toBe("TP Hà Giang");
+    expect(
+      resolveExploreDisplayArea({ area: "khu vực hà giang", inferredArea: "Hà Giang 1" }),
+    ).toBe("TP Hà Giang");
+  });
+
+  it("extracts real commune/town names like Lũng Cú and Đồng Văn", () => {
+    expect(
+      resolveExploreDisplayArea({ address: "xã Lũng Cú, huyện Đồng Văn, tỉnh Hà Giang" }),
+    ).toBe("Lũng Cú");
+    expect(
+      resolveExploreDisplayArea({ address: "thị trấn Đồng Văn, huyện Đồng Văn, tỉnh Hà Giang" }),
+    ).toBe("Đồng Văn");
+  });
+
+  it("prioritizes real DB area over inferredArea and address, but skips generic placeholder", () => {
+    expect(
+      resolveExploreDisplayArea({
+        area: "Mèo Vạc",
+        inferredArea: "Hà Giang 1",
+        address: "phường Hà Giang 1, Tuyên Quang",
+      }),
+    ).toBe("Mèo Vạc");
+    expect(
+      resolveExploreDisplayArea({
+        area: "khu vực hà giang",
+        address: "phường Hà Giang 1, Tuyên Quang",
+      }),
+    ).toBe("TP Hà Giang");
+  });
+
+  it("ignores meaningless numeric/road/admin fragments and never fabricates an area", () => {
+    expect(resolveExploreDisplayArea({ address: "Đường 1, Phường 2, Tỉnh Tuyên Quang" })).toBeNull();
+    expect(resolveExploreDisplayArea({ address: "Thôn 3, Tổ 5, Tỉnh Hà Giang" })).toBeNull();
+    expect(resolveExploreDisplayArea({ area: "khu vực hà giang", address: "KM 12, QL4C, Hà Giang" })).toBeNull();
+    expect(resolveExploreDisplayArea({ area: "", address: null, latitude: 23.2, longitude: 105.3 })).toBeNull();
+  });
+});
