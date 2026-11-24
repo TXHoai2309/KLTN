@@ -82,6 +82,10 @@ _Avoid_: Free-text itinerary, AI-written schedule.
 Lời khuyên do trợ lý thêm vào một khoảng trong timeline, như ăn ở đâu hay mẹo đi lại. Gợi ý không phải là lượt tham quan, không được kiểm tra ràng buộc và không làm đổi mốc giờ.
 _Avoid_: Scheduled visit, verified stop.
 
+**Suggestion marker (mốc gợi ý)**:
+Mốc hiển thị ở tầng trình bày ngay trong `DayTimeline` (chấm rỗng viền màu ngày, đoạn trục nét đứt, giờ ước tính có dấu `~` và nhãn nhỏ `gợi ý`) cho chiều rảnh, nhận phòng hoặc ăn tối gần chỗ nghỉ, cùng dòng gợi ý gọn ngay dưới điểm dừng cho `Gần đây có thể ghé`. Chỉ tính ở tầng hiển thị để sắp thứ tự; không phải lượt tham quan, không ghi vào lịch đã kiểm tra, không đổi mốc giờ, không qua Constraint Validator và không ảnh hưởng chi phí.
+_Avoid_: Scheduled visit, verified stop.
+
 **Nearby activity suggestion (gợi ý vui chơi quanh đây)**:
 Một địa điểm vui chơi hoặc tham quan gần một điểm dừng, hoặc một nơi đi chơi buổi tối gần chỗ nghỉ, hệ thống tự tìm cho mỗi chặng của hành trình. Là dữ liệu bản đồ chưa kiểm tra, được giữ cùng chuyến đi đã lưu để người đi biết; không phải là lượt tham quan, không chiếm giờ trong timeline và không ảnh hưởng kết quả kiểm tra hay chi phí.
 _Avoid_: Scheduled visit, verified stop, destination.

@@ -120,11 +120,17 @@ Bỏ Inter khỏi ba màn hình này. Không thêm font thứ ba.
 ### 3.3 Thẻ điểm dừng (DayTimeline)
 
 - Thẻ nền `--tv-surface`, bo 12px, đệm 12px, không viền, không bóng. Thẻ đặt trên nền `--tv-ground`.
-- **Biến thể `full`:** ảnh 4:3 rộng 168px bên trái. Bên phải gồm: tên điểm (serif, `--tv-text-xl`); dòng xám "08:12–09:12 · 60 phút"; thứ tự "Điểm dừng 1" dạng chữ xám 12px (không dùng chip); thời tiết.
+- **Biến thể `full`:** ảnh 4:3 rộng 168px bên trái. Bên phải gồm: tên điểm (serif, `--tv-text-xl`); dòng xám "08:12–09:12 · 60 phút"; thứ tự "Điểm dừng 1" dạng chữ xám 12px (không dùng chip); link `"Xem nhanh"` dạng chữ 13px `--tv-accent` không viền; thời tiết.
 - **Biến thể `compact`:** ảnh vuông 64px; tên điểm dùng font giao diện 15px / 600. Dưới 480px, ảnh nằm trên tên (16:9).
+- **Container hẹp (`@container` trên `.dt-day`):** khi bề rộng container <= 560px (như cột timeline bên cạnh bản đồ ở màn hình 1440px), `.dt-day-meta` xuống dòng 2 để không bóp dọc tiêu đề ngày; <= 480px xếp giờ inline phía trên thẻ (thẻ dùng ảnh 112px); dưới 768px viewport ảnh chuyển 16:9 lên trên.
 - Trục thời gian bên trái: giờ 13px / 500 tabular, đường dọc 2px màu ngày ở độ mờ 40%.
 - Bỏ dòng địa chỉ khi không có địa chỉ thật, ví dụ "khu vực hà giang".
-- Vùng "Gần đây có thể ghé" và "Tối nay": nền `--tv-sunken`, bo 8px, đệm 8px 10px. Mỗi mục một dòng, gồm tên, khoảng cách bằng chữ xám và link "Xem nhanh".
+- **Mốc gợi ý & gợi ý đi kèm (A3 / A4):**
+  - Mọi khối gợi ý (`Gần đây có thể ghé`, `Thời gian trống`, `Nhận phòng`, `Ăn tối`) hiển thị trên nền `--tv-surface` (không dùng ô `--tv-sunken` đặt trực tiếp trên `--tv-ground`); tên địa điểm `14px / 500 --tv-ink`, khoảng cách `13px --tv-ink-2`.
+  - Nhãn nguồn `"Từ Google Maps · Chưa kiểm tra · Không nằm trong lịch"` gom thành **một icon thông tin 14px** (`--tv-ink-3`) có tooltip và `aria-label` ở tiêu đề nhóm, không lặp lại theo từng dòng.
+  - Nút xem nhanh ở dòng gợi ý là icon con mắt `16px` (`aria-label="Xem nhanh <tên>"`); nút `"Chọn"` chỗ nghỉ là nút phụ cỡ `sm` (`28px`).
+  - **Gần đây có thể ghé** đặt thành một dòng gọn ngay dưới thẻ điểm dừng gắn với nó (`Gần đây: <tên> · <km> 👁`); nếu > 1 mục thì hiện mục đầu kèm nút `"+N"` (mặc định thu gọn).
+  - **Thời gian trống** (`~HH:MM · Thời gian trống · có thể ghé`), **Nhận phòng** (`~HH:MM · Nhận phòng · <khu vực>`) và **Ăn tối** (`~19:00 · Ăn tối gần chỗ nghỉ`) hiển thị thành các **Mốc gợi ý** trong trục thời gian (ngày cuối không có Nhận phòng / Ăn tối): chấm rỗng trên trục (viền `2px` màu ngày, ruột trắng), đoạn nối nét đứt, giờ có dấu `~` (`--tv-ink-2`) kèm nhãn nhỏ `"gợi ý"`. Mobile đặt mốc gợi ý vào cột nội dung (cột 2). Các mốc này tính ở tầng hiển thị, không chiếm giờ chính thức, không qua Constraint Validator và không đổi chi phí.
 
 ### 3.4 Thẻ tóm tắt bản lịch (trong chat)
 
@@ -174,23 +180,35 @@ Dùng khi trợ lý lập lịch lâu.
 
 ### 4.1 Trợ lý AI
 
-**Desktop từ 1200px trở lên, khi đã có lịch:** thanh bên 240px, cột chat 440–480px, panel lịch chiếm phần còn lại và dính.
-- Panel gồm: tiêu đề viết từ dữ liệu, dòng xám, nút chính "Lưu chuyến", tab ngày, rồi `DayTimeline full` và bản đồ đặt cạnh nhau. Khi panel hẹp hơn 760px, bản đồ chuyển thành tab.
+**Desktop từ 1200px trở lên, khi đã có lịch (A1 / A2):**
+- **Thanh lịch sử:** tự thu gọn thành dải icon `48px` bên trái (nút mở thanh bên, nút `+`, nút tìm); người dùng mở/thu lại được thành thanh `240px` và ghi nhớ qua `localStorage`.
+- **Panel lịch 3 trạng thái** (nút chuyển icon ở đầu panel, animation width `200ms` hoặc chuyển ngay khi `prefers-reduced-motion`, ghi nhớ `localStorage`, giữ nguyên bản đồ không mount lại để tránh gọi lặp `/api/maps/config`):
+  - **Thu gọn:** panel thu thành dải `56px` bên phải (tên chuyến dọc / icon lịch + nút mở lại), chat chiếm phần còn lại (`max-width: 760px` căn giữa). Bấm `"Xem lịch trình"` trên thẻ tóm tắt khi đang thu sẽ mở về `"Chia đôi"`.
+  - **Chia đôi (mặc định):** chat chiếm ~`45%` (tối thiểu `420px`), panel lịch chiếm ~`55%` phần còn lại sau thanh bên.
+  - **Mở rộng:** panel lịch chiếm toàn bộ, chat thu thành dải `56px` bên trái kèm nút mở lại.
+- Panel gồm: tiêu đề viết từ dữ liệu, dòng xám, nhóm nút 3 trạng thái + nút chính `"Lưu chuyến"`, tab ngày, rồi `DayTimeline full` và bản đồ đặt cạnh nhau (bản đồ tối đa `40%` bề rộng panel). Khi bề rộng panel nhỏ hơn `760px`, bản đồ chuyển thành tab.
 - Tab phụ của panel: Lịch trình · Chi phí · Kiểm tra.
 
-**Desktop khi chưa có lịch:** một cột chat rộng tối đa 720px, căn giữa.
+**Desktop khi chưa có lịch:** một cột chat rộng tối đa 760px, căn giữa.
 
 **Từ 768px đến dưới 1200px:** một cột. Thẻ tóm tắt mở panel lịch thành một ngăn kéo từ bên phải, rộng 560px.
 
 **Mobile:**
 - thanh trên cùng 48px gồm ☰, tên cuộc chat và nút "+";
 - thẻ tóm tắt trong luồng chat mở sheet lịch có 3 tab Lịch · Bản đồ · Chi phí, nút "Lưu chuyến" dính ở chân sheet;
-- bỏ nút mở thanh bên đang nổi.
+- bỏ nút mở thanh bên đang nổi; giữ dạng sheet toàn màn hình cho thanh lịch sử.
 
-**Thanh bên:**
-- tên cuộc chat tự đặt từ nội dung đã chốt (ví dụ "Đà Nẵng → HG · 4 người · 12/12");
-- chấm 6px `--tv-accent` cho cuộc chat đã ra chuyến đi;
-- mục đang chọn có nền `--tv-sunken`.
+**Thanh bên (A1):**
+- rộng 240px khi mở;
+- mỗi dòng cuộc chat cao `32px`, chữ `14px / 400 --tv-ink-2`; dòng đang chọn nền `--tv-sunken`, chữ `--tv-ink` đậm `500` (không tô xanh chữ); rê chuột nền `--tv-sunken`;
+- nhãn nhóm viết thường: `"Hôm nay"`, `"Hôm qua"`, `"7 ngày trước"`, `"Cũ hơn"` (`12px / 500 --tv-ink-3`, không chữ hoa, không giãn chữ);
+- nút `"Đoạn chat mới"` cỡ `sm` (`28px`) có icon `+`; ô tìm kiếm cao `32px`, chữ `13px`;
+- `"Xóa tất cả"` nằm trong menu `"⋯"` đầu thanh bên kèm hộp xác nhận;
+- tên cuộc chat tự đặt từ nội dung đã chốt (ví dụ `"Đà Nẵng → HG · 4 người · 12/12"`); chấm `6px --tv-accent` cho cuộc chat đã lưu thành chuyến đi.
+
+**Nhãn trạng thái tạm đang xử lý (A5):**
+- `.tripsage-thinking` hiển thị không khung (bỏ nền, viền, bo tròn), dùng hoàn toàn token `--tv-*`;
+- 3 chấm `6px --tv-accent` đứng cạnh dòng chữ `13px / 400 --tv-ink-2`, cao `24px`, `align-self: flex-start; width: fit-content`; tôn trọng `prefers-reduced-motion`; gắn `role="status"` / `aria-live="polite"`. Khối tiến độ 4 bước giữ nguyên kiểu riêng.
 
 ### 4.2 Chi tiết chuyến đi
 
