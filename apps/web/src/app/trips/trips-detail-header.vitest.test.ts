@@ -171,6 +171,13 @@ describe("Ticket 12: Trip detail header, RouteStrip, single primary CTA & mobile
     expect(html).toContain("https://cdn.example.com/quan-ba.jpg");
     expect(html).toContain("my-trips-mobile-bottombar");
     expect(html).toContain("Bản đồ");
+
+    // P9: Ordered heading hierarchy (no skipped H1 -> H3) and non-empty headings
+    expect(html).toContain('<h2 class="font-semibold text-base">Điểm xuất phát hành trình</h2>');
+    const levels = [...html.matchAll(/<h([1-6])\b/gu)].map((m) => Number(m[1]));
+    for (let i = 1; i < levels.length; i += 1) {
+      expect(levels[i]! - levels[i - 1]!).toBeLessThanOrEqual(1);
+    }
   });
 
   it("hides the floating global assistant launcher on /trips/[id] (design §4.2)", () => {

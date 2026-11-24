@@ -4013,6 +4013,7 @@ body:has([data-testid="companion-management-view"]) .global-assistant-launcher {
   color: var(--trip-read-ink, var(--tv-accent));
 }
 
+.trip-pinned-section h2,
 .trip-pinned-section h3 {
   display: flex;
   align-items: center;

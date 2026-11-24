@@ -196,8 +196,8 @@ const groups: { status: TripStatus; label: string; desc: string }[] = [
 
 const transportLabel = (transport: TripSummary["transport"]) =>
   transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô";
-const tripTitle = (trip: TripSummary) =>
-  buildDataTripTitle({
+const tripTitle = (trip: TripSummary) => {
+  const built = buildDataTripTitle({
     companionTitle: trip.companionTitle,
     homeCity: trip.homeCity,
     originLabel: trip.originLabel,
@@ -207,6 +207,8 @@ const tripTitle = (trip: TripSummary) =>
     endDate: trip.endDate,
     durationDays: trip.durationDays,
   });
+  return built.trim() || `Chuyến đi ${trip.durationDays} ngày`;
+};
 const dateLabel = (date: string) =>
   `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
 function shiftIsoDate(iso: string | undefined, deltaDays: number): string | null {
@@ -1188,7 +1190,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
           <div className="my-trips-journey-header">
             <div className="flex items-center gap-2">
               <Home size={18} className="text-primary" aria-hidden="true" />
-              <h3 className="font-semibold text-base">Điểm xuất phát hành trình</h3>
+              <h2 className="font-semibold text-base">Điểm xuất phát hành trình</h2>
               <span className="my-trips-badge my-trips-badge-upcoming">Riêng tư</span>
             </div>
             {trip.status === "UPCOMING" && isOwner && (
@@ -1265,7 +1267,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
         </section>
       )}
 
-      {isOwner && nonAccessPins.length > 0 && <TripPinnedSection items={nonAccessPins} />}
+      {isOwner && nonAccessPins.length > 0 && <TripPinnedSection items={nonAccessPins} headingLevel={2} />}
 
       {/* Legacy Trip Disclosure Banner (for Owner when journey does not exist) */}
       {isOwner && !hasJourney && (
@@ -1414,7 +1416,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                     <span className="tv-day-tab-dot" style={{ background: "var(--tv-ink-3)" }} aria-hidden="true" />
                     <h2>Ngày đi{outboundDate ? ` · ${dateLabel(outboundDate)}` : ""}</h2>
                   </div>
-                  <TripsageAccessLegCard leg={accessLeg} only="outbound" />
+                  <TripsageAccessLegCard leg={accessLeg} only="outbound" inlineHeadingLevel={3} />
                 </section>
               )}
               {trip.days.map((day) => {
@@ -1583,7 +1585,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                     <span className="tv-day-tab-dot" style={{ background: "var(--tv-ink-3)" }} aria-hidden="true" />
                     <h2>Ngày về{returnDate ? ` · ${dateLabel(returnDate)}` : ""}</h2>
                   </div>
-                  <TripsageAccessLegCard leg={accessLeg} only="return" />
+                  <TripsageAccessLegCard leg={accessLeg} only="return" inlineHeadingLevel={3} />
                 </section>
               )}
             </div>

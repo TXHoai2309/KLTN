@@ -2281,3 +2281,10 @@
   align-items: center;
   gap: var(--tv-space-1);
 }
+
+@media (max-width: 767px) {
+  .my-trips-featured-media {
+    aspect-ratio: 16 / 9;
+    max-height: 320px;
+  }
+}

@@ -20,14 +20,25 @@ function segmentPriceLabel(segment: AccessLegPart["outbound"][number]): string {
   return `~${formatVnd(segment.priceVndPerPerson)}/người (ước tính)`;
 }
 
-function Segments({ title, segments, minutes }: { title: string; segments: AccessLegPart["outbound"]; minutes: number }) {
+function Segments({
+  title,
+  segments,
+  minutes,
+  headingLevel = 5,
+}: {
+  title: string;
+  segments: AccessLegPart["outbound"];
+  minutes: number;
+  headingLevel?: 3 | 5;
+}) {
   const hasMissingDuration = segments.some(s => s.durationMinutes <= 0);
+  const Heading = headingLevel === 3 ? "h3" : "h5";
   return (
     <div>
-      <h5 className="font-semibold">
+      <Heading className="font-semibold">
         {title}
         {minutes > 0 ? ` · khoảng ${hours(minutes)}${hasMissingDuration ? " (chưa đủ mọi đoạn)" : ""}` : ""}
-      </h5>
+      </Heading>
       <ol className="tripsage-access-segments">
         {segments.map((segment, index) => (
           <li key={index}>
@@ -52,18 +63,20 @@ export function TripsageAccessLegCard({
   only,
   isStale = false,
   pins,
+  inlineHeadingLevel = 5,
 }: {
   leg: AccessLegPart;
   only?: "outbound" | "return";
   isStale?: boolean;
   pins?: PinControl;
+  inlineHeadingLevel?: 3 | 5;
 }) {
   if (only) {
     return (
       <section className="tripsage-access tripsage-access-inline" aria-label={only === "outbound" ? "Chặng đi tới điểm tập kết" : "Chặng về nhà"}>
         {only === "outbound"
-          ? <Segments title={`Trước ngày 1 · ${leg.homeCity} → ${leg.hubName}`} segments={leg.outbound} minutes={leg.outboundMinutes} />
-          : <Segments title={`Sau ngày cuối · ${leg.hubName} → ${leg.homeCity}`} segments={leg.return} minutes={leg.returnMinutes} />}
+          ? <Segments title={`Trước ngày 1 · ${leg.homeCity} → ${leg.hubName}`} segments={leg.outbound} minutes={leg.outboundMinutes} headingLevel={inlineHeadingLevel} />
+          : <Segments title={`Sau ngày cuối · ${leg.hubName} → ${leg.homeCity}`} segments={leg.return} minutes={leg.returnMinutes} headingLevel={inlineHeadingLevel} />}
       </section>
     );
   }

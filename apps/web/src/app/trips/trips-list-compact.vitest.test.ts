@@ -75,5 +75,17 @@ describe("Ticket 13: Compact trip list & data-driven auto-title (slim C15, BR-7,
     // Search works on auto-generated route titles
     expect(filterTripsBySearch(items, "da nang")).toHaveLength(1);
     expect(filterTripsBySearch(items, "dong van")).toHaveLength(11);
+
+    // P9: No empty H3 headings and ordered H1 -> H2 -> H3 hierarchy
+    const h3Matches = [...html.matchAll(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gu)];
+    expect(h3Matches.length).toBeGreaterThan(0);
+    for (const match of h3Matches) {
+      const text = match[1]!.replace(/<[^>]+>/g, "").trim();
+      expect(text.length).toBeGreaterThan(0);
+    }
+    const levels = [...html.matchAll(/<h([1-6])\b/gu)].map((m) => Number(m[1]));
+    for (let i = 1; i < levels.length; i += 1) {
+      expect(levels[i]! - levels[i - 1]!).toBeLessThanOrEqual(1);
+    }
   });
 });
