@@ -26,7 +26,6 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   return <main className="explore-page" lang="vi">
     <header className="explore-intro">
       <div className="explore-intro-copy">
-        <p className="explore-eyebrow">BẢN ĐỒ &amp; HỒ SƠ HÀ GIANG</p>
         <h1>Khám phá Hà Giang</h1>
         <p>Tìm điểm đến, khám phá cảnh quan và tìm hiểu những câu chuyện văn hóa phù hợp với điều bạn quan tâm.</p>
       </div>

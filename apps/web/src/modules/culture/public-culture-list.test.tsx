@@ -98,6 +98,7 @@ test("Home is product UI; Explore streams independently and exposes no dead Cult
   const exploreCss=await readFile(new URL("../../app/explore/explore.css",import.meta.url),"utf8"); assert.doesNotMatch(exploreCss,/\.explore-cards-single/); assert.match(exploreCss,/explore-map-panel \.destination-map-canvas/); assert.match(exploreCss,/\.dark \.explore-page/); assert.match(exploreCss,/@media \(prefers-reduced-motion: reduce\)/); assert.match(exploreCss,/@media \(max-width: 600px\)/); assert.match(exploreCss,/destination-filter-options/);
   assert.match(exploreCss,/\.destination-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(exploreCss,/\.destination-search-fields\s*\{[^}]*grid-template-columns:/);
-  assert.match(page,/BẢN ĐỒ &amp; HỒ SƠ HÀ GIANG|BẢN ĐỒ & HỒ SƠ HÀ GIANG/);
+  assert.match(page, /Khám phá Hà Giang/);
+  assert.doesNotMatch(page, /explore-eyebrow|BẢN ĐỒ/);
   const route=await readFile(new URL("../../app/api/culture/route.ts",import.meta.url),"utf8"); assert.match(route,/publicCultureResponse/); assert.doesNotMatch(route,/requireActor|findMany|admin/);
 });
