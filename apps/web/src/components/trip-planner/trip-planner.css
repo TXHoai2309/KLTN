@@ -777,6 +777,8 @@
 }
 
 .planner-map-workspace {
+  container-type: inline-size;
+  container-name: itinerary-map;
   --planner-route-1: #28734f;
   --planner-route-2: #286ba5;
   --planner-route-3: #99621d;
@@ -800,18 +802,27 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
   margin-bottom: 12px;
 }
 
 .planner-map-scope {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   padding: 3px;
   border-radius: 10px;
   background: var(--planner-soft);
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .planner-map-scope button,
 .planner-map-fit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-height: 44px;
   padding: 8px 12px;
   border: 0;
@@ -819,9 +830,16 @@
   font: inherit;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
   color: var(--planner-muted);
   background: transparent;
   cursor: pointer;
+}
+
+.planner-map-scope-icon {
+  display: none;
+  flex-shrink: 0;
 }
 
 .planner-map-scope button[aria-pressed="true"] {
@@ -870,8 +888,68 @@
 @media (max-width: 420px) {
   .planner-map-toolbar { gap: 4px; }
   .planner-map-scope button, .planner-map-fit { padding: 8px; font-size: 12px; }
-  .planner-map-fit span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .planner-map-fit .planner-map-fit-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .planner-map-fit { min-width: 44px; justify-content: center; }
+}
+
+@container itinerary-map (max-width: 359px) {
+  .planner-map-toolbar {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .planner-map-scope {
+    padding: 2px;
+    border-radius: 8px;
+    gap: 2px;
+  }
+
+  .planner-map-scope button {
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .planner-map-fit {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 4px 7px;
+    justify-content: center;
+  }
+
+  .planner-map-fit .planner-map-fit-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@container itinerary-map (max-width: 239px) {
+  .planner-map-scope button {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 4px 7px;
+    justify-content: center;
+  }
+
+  .planner-map-scope .planner-map-scope-icon {
+    display: inline-block;
+  }
+
+  .planner-map-scope .planner-map-scope-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 .planner-map {

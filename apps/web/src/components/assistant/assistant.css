@@ -3654,6 +3654,74 @@
   min-width: 0;
 }
 
+.tripsage-plan-panel .planner-map-toolbar {
+  margin-bottom: 10px;
+}
+
+.tripsage-plan-panel .planner-map-scope {
+  background: var(--tv-sunken);
+  border-radius: var(--tv-radius-control);
+  padding: 2px;
+}
+
+.tripsage-plan-panel .planner-map-scope button {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-sm);
+  font-weight: 500;
+  color: var(--tv-ink-2);
+  border-radius: 6px;
+}
+
+.tripsage-plan-panel .planner-map-scope button[aria-pressed="true"] {
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+}
+
+.tripsage-plan-panel .planner-map-fit {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-sm);
+  font-weight: 500;
+  color: var(--tv-ink-2);
+  border-radius: var(--tv-radius-control);
+}
+
+.tripsage-plan-panel .planner-map-scope button:hover,
+.tripsage-plan-panel .planner-map-fit:hover:not(:disabled) {
+  color: var(--tv-accent);
+  background: var(--tv-accent-tint);
+}
+
+.tripsage-plan-panel .planner-map-scope button:focus-visible,
+.tripsage-plan-panel .planner-map-fit:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+}
+
+@container itinerary-map (max-width: 359px) {
+  .tripsage-plan-panel .planner-map-scope button {
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: var(--tv-text-xs);
+  }
+
+  .tripsage-plan-panel .planner-map-fit {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 4px 7px;
+  }
+}
+
+@container itinerary-map (max-width: 239px) {
+  .tripsage-plan-panel .planner-map-scope button {
+    min-width: 28px;
+    padding: 4px 7px;
+  }
+}
+
 .tripsage-panel-map-col .planner-map,
 .tripsage-panel-map-tab .planner-map {
   height: 460px;

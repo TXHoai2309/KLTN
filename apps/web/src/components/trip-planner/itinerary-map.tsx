@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useTheme } from "next-themes";
-import { Expand, MapPinned, RotateCcw } from "lucide-react";
+import { Calendar, Expand, Map as MapIcon, MapPinned, RotateCcw } from "lucide-react";
 import { mapStyle } from "@/modules/map/map-config";
 import { loadMapLibrary, mountItineraryMap } from "@/modules/map/map-renderer";
 import type { MapsProvider } from "@/modules/map/maps-provider";
@@ -137,11 +137,36 @@ export function ItineraryMap({
     <section className="planner-map-workspace" aria-label="Bản đồ hành trình">
       <div className="planner-map-toolbar">
         {!overviewOnly && <div className="planner-map-scope" role="group" aria-label="Phạm vi bản đồ">
-          <button type="button" aria-pressed={!overview} onClick={() => setOverview(false)}>Ngày {day.day}</button>
-          <button type="button" aria-pressed={overview} onClick={() => setOverview(true)}>Toàn hành trình</button>
+          <button
+            type="button"
+            aria-pressed={!overview}
+            aria-label={`Ngày ${day.day}`}
+            title={`Ngày ${day.day}`}
+            onClick={() => setOverview(false)}
+          >
+            <Calendar size={14} className="planner-map-scope-icon" aria-hidden="true" />
+            <span className="planner-map-scope-label">Ngày {day.day}</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={overview}
+            aria-label="Toàn hành trình"
+            title="Toàn hành trình"
+            onClick={() => setOverview(true)}
+          >
+            <MapIcon size={14} className="planner-map-scope-icon" aria-hidden="true" />
+            <span className="planner-map-scope-label">Toàn hành trình</span>
+          </button>
         </div>}
-        <button className="planner-map-fit" type="button" disabled={state !== "ready"} onClick={() => renderer.current?.fit()}>
-          <Expand size={15} aria-hidden="true" /><span>Vừa bản đồ</span>
+        <button
+          className="planner-map-fit"
+          type="button"
+          aria-label="Vừa bản đồ"
+          title="Vừa bản đồ"
+          disabled={state !== "ready"}
+          onClick={() => renderer.current?.fit()}
+        >
+          <Expand size={15} aria-hidden="true" /><span className="planner-map-fit-label">Vừa bản đồ</span>
         </button>
       </div>
       {overview && (
