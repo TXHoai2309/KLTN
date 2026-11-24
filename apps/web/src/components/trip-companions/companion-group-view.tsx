@@ -853,7 +853,7 @@ function CompanionGroupContent({
                 <span className="companion-hero-tag">Không gian nhóm</span>
               </div>
               <h1 id="group-hero-title" className="companion-hero-title">
-                {group.introduction.title}
+                {cleanPlaceDisplayName(group.introduction.title) || group.introduction.title}
               </h1>
             </div>
 
@@ -1531,7 +1531,7 @@ function CompanionGroupContent({
 
             {/* Members Section */}
             <div className="companion-members-subheading mt-6 mb-3">
-              <h4 className="font-semibold text-foreground text-sm uppercase tracking-wider">
+              <h4 className="font-semibold text-foreground text-sm">
                 Thành viên tham gia ({membersData ? membersData.members.length : "..."})
               </h4>
             </div>

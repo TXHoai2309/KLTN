@@ -1565,14 +1565,13 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 4px 14px;
+  padding: 4px 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--tv-on-accent);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(8px);
+  background: var(--tv-accent-tint);
+  color: var(--tv-accent);
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 24%, var(--tv-line));
 }
 
 .companion-badge-dot {
@@ -1584,28 +1583,28 @@
 }
 
 .companion-hero-tag {
-  color: var(--tv-accent);
+  color: var(--tv-ink-2);
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   margin: 0;
 }
 
 .companion-hero-title {
-  color: var(--tv-on-accent);
+  color: var(--tv-ink);
   font-family: var(--tv-font-title);
-  font-size: clamp(30px, 4vw, 44px);
+  font-size: clamp(28px, 3.6vw, 40px);
   font-weight: 600;
-  line-height: 1.18;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
   margin: 0;
 }
 
 .companion-group-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -1614,65 +1613,61 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 0 18px;
-  border-radius: 12px;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
   font-size: 13.5px;
   font-weight: 500;
   text-decoration: none;
-  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
   white-space: nowrap;
 }
 
 .companion-hero-action-outline {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--tv-on-accent) !important;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(10px);
+  background: var(--tv-ground);
+  color: var(--tv-ink) !important;
+  border: 1px solid var(--tv-line);
 }
 
 .companion-hero-action-outline:hover {
-  background: rgba(255, 255, 255, 0.22);
-  color: var(--tv-on-accent) !important;
-  border-color: rgba(255, 255, 255, 0.45);
-  transform: translateY(-1.5px);
+  background: var(--tv-accent-tint);
+  color: var(--tv-accent) !important;
+  border-color: var(--tv-accent);
 }
 
 .companion-page a.companion-hero-action-primary,
 .companion-hero-action-primary {
-  background: var(--tv-surface) !important;
-  color: var(--tv-accent) !important;
-  border: 1px solid var(--tv-surface);
+  background: var(--tv-accent) !important;
+  color: var(--tv-on-accent) !important;
+  border: 1px solid var(--tv-accent);
   box-shadow: none;
 }
 
 .companion-page a.companion-hero-action-primary svg,
 .companion-hero-action-primary svg {
-  color: var(--tv-accent) !important;
-  stroke: var(--tv-accent) !important;
+  color: var(--tv-on-accent) !important;
+  stroke: var(--tv-on-accent) !important;
 }
 
 .companion-page a.companion-hero-action-primary:hover,
 .companion-hero-action-primary:hover {
-  background: var(--tv-accent-tint) !important;
-  color: var(--tv-accent) !important;
-  transform: translateY(-1.5px);
+  background: var(--tv-accent-hover) !important;
+  border-color: var(--tv-accent-hover);
+  color: var(--tv-on-accent) !important;
   box-shadow: none;
 }
 
 .companion-hero-action-secondary {
-  background: linear-gradient(135deg, rgba(233, 185, 75, 0.22) 0%, rgba(255, 255, 255, 0.12) 100%);
-  color: var(--tv-on-accent) !important;
-  border: 1px solid rgba(233, 185, 75, 0.45);
-  backdrop-filter: blur(10px);
+  background: var(--tv-sunken);
+  color: var(--tv-ink) !important;
+  border: 1px solid var(--tv-line);
   box-shadow: none;
 }
 
 .companion-hero-action-secondary:hover {
-  background: linear-gradient(135deg, rgba(233, 185, 75, 0.32) 0%, rgba(255, 255, 255, 0.2) 100%);
-  color: var(--tv-on-accent) !important;
-  border-color: rgba(233, 185, 75, 0.7);
-  transform: translateY(-1.5px);
+  background: var(--tv-accent-tint);
+  color: var(--tv-accent) !important;
+  border-color: var(--tv-accent);
   box-shadow: none;
 }
 
@@ -1680,7 +1675,7 @@
 .companion-hero-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 @media (max-width: 992px) {
@@ -1698,21 +1693,19 @@
 .companion-hero-stat-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(14px);
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--tv-radius-card, 12px);
+  background: var(--tv-ground);
+  border: 1px solid var(--tv-line);
   box-shadow: none;
   min-width: 0;
-  transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 180ms ease, border-color 180ms ease;
 }
 
 .companion-hero-stat-item:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
-  border-color: rgba(233, 185, 75, 0.45);
-  transform: translateY(-2px);
+  background: var(--tv-sunken);
+  border-color: color-mix(in srgb, var(--tv-accent) 40%, var(--tv-line));
   box-shadow: none;
 }
 
@@ -1720,21 +1713,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(233, 185, 75, 0.22) 0%, rgba(233, 185, 75, 0.08) 100%);
-  border: 1px solid rgba(233, 185, 75, 0.32);
-  color: var(--tv-warn-ink);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--tv-accent-tint);
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 22%, var(--tv-line));
+  color: var(--tv-accent);
   box-shadow: none;
   flex-shrink: 0;
-  transition: transform 200ms ease;
+  transition: border-color 180ms ease;
 }
 
 .companion-hero-stat-item:hover .companion-stat-icon {
-  transform: scale(1.06);
-  color: var(--tv-warn-ink);
-  border-color: rgba(233, 185, 75, 0.55);
+  color: var(--tv-accent);
+  border-color: var(--tv-accent);
 }
 
 .companion-stat-info {
@@ -1745,17 +1737,17 @@
 }
 
 .companion-stat-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(220, 245, 230, 0.75);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--tv-ink-2);
 }
 
 .companion-stat-value {
   font-size: 14.5px;
   font-weight: 600;
-  color: var(--tv-on-accent);
+  color: var(--tv-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3514,7 +3506,7 @@ body:has([data-testid="companion-management-view"]) .global-assistant-launcher {
     padding: 7px 9px !important;
     gap: 8px !important;
     border-radius: 10px !important;
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: var(--tv-ground) !important;
     min-width: 0 !important;
     overflow: hidden !important;
   }

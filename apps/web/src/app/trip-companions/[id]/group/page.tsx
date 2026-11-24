@@ -10,6 +10,7 @@ import { tripReadDependencies } from "@/modules/trip-read/trip-read-server";
 import { AppError } from "@/server/http/app-error";
 import { requireTraveler } from "@/server/auth/require-traveler";
 import { CompanionGroupView } from "@/components/trip-companions/companion-group-view";
+import { cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import "@/app/trip-companions/companion.css";
 import "@/components/trip-planner/trip-planner.css";
 
@@ -28,13 +29,15 @@ export async function generateMetadata({ params }: GroupPageProps): Promise<Meta
   const { id } = await params;
   try {
     const group = await readGroupForPage(id);
+    const safeTitle =
+      cleanPlaceDisplayName(group.introduction.title) || group.introduction.title;
     return {
-      title: `${group.introduction.title} — Nhóm đồng hành Hà Giang`,
-      description: `Lịch trình chi tiết và nhóm đồng hành chuyến đi ${group.introduction.title}`,
+      title: `${safeTitle} | Hà Giang Travel Assistant`,
+      description: `Lịch trình chi tiết và nhóm đồng hành chuyến đi ${safeTitle}`,
     };
   } catch {
     return {
-      title: "Nhóm đồng hành — Tìm bạn đồng hành Hà Giang",
+      title: "Nhóm đồng hành | Hà Giang Travel Assistant",
     };
   }
 }
