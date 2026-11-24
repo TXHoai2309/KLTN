@@ -1,6 +1,8 @@
 /* Shared DayTimeline styles — docs/design/traveler-ui-system.md §3.3 */
 
 .dt-day {
+  container-type: inline-size;
+  container-name: dt-day;
   scroll-margin-top: 64px;
   font-family: var(--tv-font-ui);
   color: var(--tv-ink);
@@ -677,6 +679,63 @@
 .dt-evening-lodging-list {
   display: grid;
   gap: 4px;
+}
+
+/* Narrow container fallback (e.g. 1440px split panel beside side-by-side map) so day headings never crush vertically */
+@container dt-day (max-width: 560px) {
+  .dt-day-heading {
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: var(--tv-space-3);
+  }
+
+  .dt-day-heading::after,
+  .dt-visits > li:not(:last-child)::after {
+    left: 9px;
+  }
+
+  .dt-day-meta {
+    grid-column: 2;
+    width: fit-content;
+  }
+}
+
+@container dt-day (max-width: 480px) {
+  .dt-visit-item,
+  .dt-break-item,
+  .dt-suggestion-marker {
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: var(--tv-space-3);
+  }
+
+  .dt-lunch-wrap,
+  .dt-visit-main-col,
+  .dt-marker-body {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .dt-visit-time,
+  .dt-suggestion-marker .dt-visit-time {
+    grid-column: 2;
+    padding-top: 0;
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--tv-space-2);
+  }
+
+  .dt-suggestion-marker .dt-marker-time--empty {
+    display: none;
+  }
+
+  .dt-visit-card {
+    grid-column: auto;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: var(--tv-space-3);
+  }
+
+  .dt-visit-media {
+    width: 112px;
+  }
 }
 
 /* Compact variant (design §3.3: 64px square photo, 15px UI font 600; below 480px photo 16:9 on top) */
