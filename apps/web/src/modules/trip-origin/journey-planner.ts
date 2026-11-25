@@ -2,28 +2,104 @@ import type { TripRequirementInput } from "../trip-requirement/trip-requirement-
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
 import { dateForDay, dayEndMinute, EARLIEST_DEPARTURE_MINUTE, MAX_STOPS_PER_DAY, MORNING_DEPARTURE_MINUTE, schedulePlannerDays, visitDuration } from "../trip-planner/planner-engine";
 import { OVERNIGHT_TOWN_CENTERS } from "../../lib/traveler-display-clean";
+import { resolveOvernightAnchorTown, type OvernightAnchorTown } from "../../lib/overnight-anchor";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { travelLegSchema, type PlannerCheck, type PlannerDay, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { isFeaturedDestination } from "../trip-planner/planner-candidates";
 import { estimateSeconds, missingLeg, resolveBoundedRoutes, ROUTING_DEADLINE_MS, type CoordinateRoutePair, type RouteProvider, type RoutePair } from "../trip-planner/planner-routes";
 import { optimizeScheduleForWeather } from "../trip-planner/planner-weather-preference";
 import type { ForecastOptions } from "../trip-weather/forecast";
-import { journeyRouteSchema, type JourneyPlan, type JourneyRoute } from "./journey-route-contract";
+import { journeyRouteSchema, type JourneyPlan, type JourneyRoute, type OvernightStayAnchor } from "./journey-route-contract";
 import { afterVisitDriving, driveWithRest, restPolicyOf, restProfileOf } from "./rest-policy";
 import { missingJourneyFields } from "./trip-origin-contract";
 
 const missing = (reason: NonNullable<JourneyRoute["reason"]>): JourneyRoute => ({ status: "INSUFFICIENT_DATA", reason, durationSeconds: null, distanceMeters: null, provider: null });
-type Request = { kind: "OUTBOUND" | "RETURN"; from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number }; transport: TripRequirementInput["transport"] } | { kind: "TRANSFER"; pair: RoutePair };
+type Request =
+  | { kind: "OUTBOUND" | "RETURN"; from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number }; transport: TripRequirementInput["transport"] }
+  | { kind: "TRANSFER"; pair: RoutePair }
+  | { kind: "MORNING_TRANSFER"; pair: RoutePair; originCoords: { latitude: number; longitude: number } }
+  | { kind: "CHECKIN"; day: number; fromDestinationId: string; from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number }; transport: TripRequirementInput["transport"] };
+
+function buildOvernightStayAnchors(
+  partition: readonly (readonly PlannerCandidate[])[],
+  checkinByFromId?: ReadonlyMap<string, JourneyRoute>,
+): OvernightStayAnchor[] {
+  const stays: OvernightStayAnchor[] = [];
+  for (let dayIndex = 0; dayIndex < partition.length - 1; dayIndex++) {
+    const lastStop = partition[dayIndex]?.at(-1);
+    if (!lastStop) continue;
+    const anchor = resolveOvernightAnchorTown(lastStop);
+    if (!anchor) continue;
+    const checkinRoute = checkinByFromId?.get(lastStop.id);
+    stays.push({
+      day: dayIndex + 1,
+      area: anchor.area,
+      latitude: anchor.latitude,
+      longitude: anchor.longitude,
+      fromDestinationId: lastStop.id,
+      distanceFromLastStopKm: anchor.distanceKm,
+      ...(checkinRoute ? { checkinRoute } : {}),
+    });
+  }
+  return stays;
+}
 
 /** Extends the existing scheduler/Validator with explicit boundary legs. Never saves. */
 export async function planJourney(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], provider: RouteProvider, timeoutMs?: number, allowBoundaryRepartition = false, fixedArrivals?: ReadonlyMap<string, number>, preferFullDays = false) {
   const stops = selected.flat(), first = stops[0], last = stops.at(-1);
   const origin = requirement.journey?.origin?.confirmed ? requirement.journey.origin : null;
+  const dayIndexOf = new Map<string, number>();
+  const dayLastAnchors = new Map<number, { fromStop: PlannerCandidate; anchor: OvernightAnchorTown }>();
+  selected.forEach((dayStops, dayIndex) => {
+    for (const s of dayStops) dayIndexOf.set(s.id, dayIndex);
+    if (dayIndex < selected.length - 1 && dayStops.length > 0) {
+      const lastStop = dayStops.at(-1)!;
+      const anchor = resolveOvernightAnchorTown(lastStop);
+      if (anchor) dayLastAnchors.set(dayIndex, { fromStop: lastStop, anchor });
+    }
+  });
+  const returnOnly = requirement.durationDays > 1 && selected.at(-1)?.length === 0 && !!selected.at(-2)?.length;
+  const returnAnchor = returnOnly ? dayLastAnchors.get(selected.length - 2)?.anchor ?? null : null;
+
   const requests: Request[] = [];
   if (origin && first) requests.push({ kind: "OUTBOUND", from: origin, to: first, transport: requirement.transport });
-  for (let i = 1; i < stops.length; i++) requests.push({ kind: "TRANSFER", pair: { from: stops[i - 1]!, to: stops[i]!, transport: requirement.transport } });
-  if (origin && last) requests.push({ kind: "RETURN", from: last, to: origin, transport: requirement.transport });
+  for (let i = 1; i < stops.length; i++) {
+    const prev = stops[i - 1]!;
+    const curr = stops[i]!;
+    const prevDay = dayIndexOf.get(prev.id) ?? 0;
+    const currDay = dayIndexOf.get(curr.id) ?? 0;
+    const prevAnchor = currDay > prevDay ? dayLastAnchors.get(prevDay)?.anchor ?? null : null;
+    if (prevAnchor?.needsCheckinLeg && provider.coordinateRoute) {
+      requests.push({
+        kind: "MORNING_TRANSFER",
+        pair: { from: prev, to: curr, transport: requirement.transport },
+        originCoords: { latitude: prevAnchor.latitude, longitude: prevAnchor.longitude },
+      });
+    } else {
+      requests.push({ kind: "TRANSFER", pair: { from: prev, to: curr, transport: requirement.transport } });
+    }
+  }
+  if (origin && last) {
+    // ADR-57 (D2): on RETURN_ONLY final days, depart from the fixed overnight town center (> 1 km from lastStop).
+    const returnFrom = returnAnchor?.needsCheckinLeg ? { latitude: returnAnchor.latitude, longitude: returnAnchor.longitude } : last;
+    requests.push({ kind: "RETURN", from: returnFrom, to: origin, transport: requirement.transport });
+  }
+  if (provider.coordinateRoute) {
+    for (const [dayIndex, info] of dayLastAnchors.entries()) {
+      if (requests.length >= 29) break;
+      if (!info.anchor.needsCheckinLeg) continue;
+      requests.push({
+        kind: "CHECKIN",
+        day: dayIndex + 1,
+        fromDestinationId: info.fromStop.id,
+        from: info.fromStop,
+        to: { latitude: info.anchor.latitude, longitude: info.anchor.longitude },
+        transport: requirement.transport,
+      });
+    }
+  }
   const transfer = new Map<string, TravelLeg>();
+  const checkinByFromId = new Map<string, JourneyRoute>();
   const evidence = await resolveBoundedRoutes(requests, async (request, signal): Promise<JourneyRoute> => {
     if (request.kind === "TRANSFER") {
       const parsed = travelLegSchema.safeParse(await provider.route(request.pair, signal));
@@ -32,16 +108,27 @@ export async function planJourney(requirement: TripRequirementInput, selected: r
       return route;
     }
     if (!provider.coordinateRoute) return missing("NOT_CONFIGURED");
+    if (request.kind === "MORNING_TRANSFER") {
+      const parsed = journeyRouteSchema.safeParse(await provider.coordinateRoute({ from: request.originCoords, to: request.pair.to, transport: request.pair.transport }, signal));
+      return parsed.success ? parsed.data : missing("INVALID_RESPONSE");
+    }
     const parsed = journeyRouteSchema.safeParse(await provider.coordinateRoute(request, signal));
     return parsed.success ? parsed.data : missing("INVALID_RESPONSE");
   }, (_request, reason) => missing(reason), timeoutMs);
   requests.forEach((request, index) => {
-    if (request.kind === "TRANSFER") transfer.set(request.pair.to.id, { fromDestinationId: request.pair.from.id, toDestinationId: request.pair.to.id, ...evidence[index]! });
+    if (request.kind === "TRANSFER" || request.kind === "MORNING_TRANSFER") {
+      transfer.set(request.pair.to.id, { fromDestinationId: request.pair.from.id, toDestinationId: request.pair.to.id, ...evidence[index]! });
+    } else if (request.kind === "CHECKIN") {
+      checkinByFromId.set(request.fromDestinationId, evidence[index]!);
+    }
   });
-  const outbound = origin && first ? evidence[0]! : missing("NOT_CONFIGURED");
-  const returning = origin && last ? evidence.at(-1)! : missing("NOT_CONFIGURED");
-  const original = scheduleJourneyEvidence(requirement, selected, transfer, outbound, returning, fixedArrivals);
-  if (!allowBoundaryRepartition || selected.length < 2 || evidence.some(route => route.status !== "VERIFIED")) return original;
+  const outboundIndex = requests.findIndex(r => r.kind === "OUTBOUND");
+  const returnIndex = requests.findIndex(r => r.kind === "RETURN");
+  const outbound = outboundIndex >= 0 ? evidence[outboundIndex]! : missing("NOT_CONFIGURED");
+  const returning = returnIndex >= 0 ? evidence[returnIndex]! : missing("NOT_CONFIGURED");
+  const initialStays = buildOvernightStayAnchors(selected, checkinByFromId);
+  const original = scheduleJourneyEvidence(requirement, selected, transfer, outbound, returning, fixedArrivals, initialStays);
+  if (!allowBoundaryRepartition || selected.length < 2 || evidence.some((route, index) => requests[index]?.kind !== "CHECKIN" && route.status !== "VERIFIED")) return original;
   const partitions = [selected.map(day => [...day])];
   const cap = MAX_STOPS_PER_DAY;
   // Bounded alternative day boundaries on the SAME directed chain. No extra
@@ -69,7 +156,7 @@ export async function planJourney(requirement: TripRequirementInput, selected: r
   };
   let best = original, bestScore = score(original), bestIdle = idleBeforeLastDay(requirement, original.days, original.journeyPlan);
   for (const partition of partitions.slice(1)) {
-    const result = scheduleJourneyEvidence(requirement, partition, transfer, outbound, returning);
+    const result = scheduleJourneyEvidence(requirement, partition, transfer, outbound, returning, undefined, buildOvernightStayAnchors(partition, checkinByFromId));
     const resultScore = score(result), resultIdle = idleBeforeLastDay(requirement, result.days, result.journeyPlan);
     if (resultScore < bestScore || (preferFullDays && resultScore === bestScore && resultIdle < bestIdle)) { best = result; bestScore = resultScore; bestIdle = resultIdle; }
   }
@@ -204,7 +291,7 @@ export function journeyDrivingWarnings(requirement: TripRequirementInput, days: 
     message: `Ngày ${day.day} chạy xe khoảng ${Math.round(day.travelSeconds! / 360) / 10} giờ, vượt mức ${hours} giờ nên cân nhắc. Hãy thêm ngày hoặc bớt điểm.` }));
 }
 
-export function scheduleJourneyEvidence(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], transfer: ReadonlyMap<string, TravelLeg>, outbound: JourneyRoute, returning: JourneyRoute, fixedArrivals?: ReadonlyMap<string, number>) {
+export function scheduleJourneyEvidence(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], transfer: ReadonlyMap<string, TravelLeg>, outbound: JourneyRoute, returning: JourneyRoute, fixedArrivals?: ReadonlyMap<string, number>, overnightStays?: readonly OvernightStayAnchor[]) {
   const stops = selected.flat(), first = stops[0], last = stops.at(-1);
   const outboundOnly = requirement.durationDays > 1 && selected[0]?.length === 0 && !!selected[1]?.length;
   const returnOnly = requirement.durationDays > 1 && selected.at(-1)?.length === 0 && !!selected.at(-2)?.length;
@@ -264,11 +351,16 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
   }
   if (last) legs.push({ kind: "RETURN", day: requirement.durationDays, from: { kind: "ATTRACTION", destinationId: last.id }, to: { kind: "ORIGIN" }, route: returning, startMinute: returnStart, endMinute: returnEnd, restMinutes: returnRest });
   const complete = legs.length > 0 && legs.every(leg => leg.route.status === "VERIFIED" && leg.restMinutes !== null);
-  const journeyPlan: JourneyPlan = { policy: restPolicyOf(requirement), legs, totals: {
-    drivingSeconds: complete ? legs.reduce((sum, leg) => sum + leg.route.durationSeconds!, 0) : null,
-    restMinutes: complete ? legs.reduce((sum, leg) => sum + leg.restMinutes!, 0) : null,
-    distanceMeters: complete ? legs.reduce((sum, leg) => sum + leg.route.distanceMeters!, 0) : null,
-  } };
+  const journeyPlan: JourneyPlan = {
+    policy: restPolicyOf(requirement),
+    legs,
+    totals: {
+      drivingSeconds: complete ? legs.reduce((sum, leg) => sum + leg.route.durationSeconds!, 0) : null,
+      restMinutes: complete ? legs.reduce((sum, leg) => sum + leg.restMinutes!, 0) : null,
+      distanceMeters: complete ? legs.reduce((sum, leg) => sum + leg.route.distanceMeters!, 0) : null,
+    },
+    ...(overnightStays && overnightStays.length > 0 ? { overnightStays: [...overnightStays] } : {}),
+  };
   // Per-day travel totals include origin legs exactly once; unknown is never zero.
   for (const day of days) {
     day.journeyDayKind = day.stops.length ? "VISITS" : outboundOnly && day.day === 1 ? "OUTBOUND_ONLY" : returnOnly && day.day === requirement.durationDays ? "RETURN_ONLY" : "EMPTY";

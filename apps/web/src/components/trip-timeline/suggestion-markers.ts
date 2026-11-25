@@ -17,6 +17,7 @@ export interface TimelineSuggestionMarker {
   title: string;
   infoTooltip: string;
   freeItems?: readonly DayTimelineNearbyItem[];
+  checkinRouteSummary?: string | null;
   chosenLodging?: {
     nightIndex: number;
     name: string;
@@ -152,6 +153,7 @@ export function buildDaySuggestionMarkers(input: {
   eveningPlan?: DayTimelineEveningPlan | null;
   chosenLodging?: DayTimelineChosenLodging | null;
   estimatedCheckinTravelMinutes?: number | null;
+  checkinRouteSummary?: string | null;
 }): TimelineSuggestionMarker[] {
   const markers: TimelineSuggestionMarker[] = [];
 
@@ -201,6 +203,7 @@ export function buildDaySuggestionMarkers(input: {
       infoTooltip: chosen
         ? "Chưa kiểm tra · Không phải đặt phòng"
         : "Gợi ý từ Google Maps · Chưa kiểm tra · Không phải đặt phòng",
+      ...(input.checkinRouteSummary ? { checkinRouteSummary: input.checkinRouteSummary } : {}),
       chosenLodging: chosen
         ? {
             nightIndex: input.eveningPlan.nightIndex,

@@ -13,8 +13,8 @@ import {
   type DayTimelineNearbyItem,
   type DayTimelineStop,
 } from "@/components/trip-timeline/day-timeline";
-import { estimateCheckinTravelMinutes, isSameTravelArea } from "@/components/trip-timeline/suggestion-markers";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
+import { resolveOvernightCheckinPresentation, resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
 import { scenicBufferMinutes } from "@/modules/trip-planner/planner-engine";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import { ItineraryValidationPanel } from "@/components/trip-planner/planner-presentation";
@@ -504,18 +504,26 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       eveningPlaces,
     });
 
-    const sameOvernightArea = eveningPlan
-      ? isSameTravelArea(lastDayStop?.destination.area, eveningPlan.overnightArea)
-      : false;
-    const referenceLodgingDistKm = sameOvernightArea
-      ? (lodgingChoices.find((l) => l.chosen)?.distanceKm ?? lodgingChoices[0]?.distanceKm ?? null)
-      : null;
-    const estimatedCheckinTravelMinutes = eveningPlan
-      ? estimateCheckinTravelMinutes({
-          sameAreaDistanceKm: referenceLodgingDistKm,
+    const overnightStay = proposal.journeyPlan?.overnightStays?.find(
+      (stay) => stay.day === activePlannerDay.day,
+    );
+    const checkinPresentation = eveningPlan
+      ? resolveOvernightCheckinPresentation({
+          overnightStay,
+          lastStop: lastDayStop?.destination
+            ? {
+                area: lastDayStop.destination.area,
+                name: lastDayStop.destination.name,
+                address: lastDayStop.destination.address,
+                latitude: lastDayStop.destination.latitude,
+                longitude: lastDayStop.destination.longitude,
+              }
+            : null,
           transport: proposal.requirement.transport,
         })
-      : null;
+      : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
+    const estimatedCheckinTravelMinutes = checkinPresentation.estimatedCheckinTravelMinutes;
+    const checkinRouteSummary = checkinPresentation.checkinRouteSummary;
 
     const allStopLegsVerified = stops.every(
       (s) => !s.travelFromPrevious || s.travelFromPrevious.verified,
@@ -534,9 +542,26 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       activePlannerDay.day > 1
         ? proposal.days.find((d) => d.day === activePlannerDay.day - 1)
         : undefined;
+    const previousOvernightArea = resolvePreviousOvernightArea({
+      dayIndex: activePlannerDay.day,
+      overnightStays: proposal.journeyPlan?.overnightStays,
+      previousDays: proposal.days.map((d) => ({
+        dayIndex: d.day,
+        lastStop: d.stops.at(-1)?.destination
+          ? {
+              area: d.stops.at(-1)!.destination.area,
+              name: d.stops.at(-1)!.destination.name,
+              address: d.stops.at(-1)!.destination.address,
+              latitude: d.stops.at(-1)!.destination.latitude,
+              longitude: d.stops.at(-1)!.destination.longitude,
+            }
+          : null,
+      })),
+    });
     const routeLabel = resolveDayRouteLabel({
       dayIndex: activePlannerDay.day,
       originLabel: proposal.requirement.journey?.origin?.label,
+      previousOvernightArea,
       stops,
       previousDayStops: (previousPlannerDay?.stops ?? []).map((s) => ({
         destinationId: s.destination.id,
@@ -558,6 +583,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       stops,
       eveningPlan,
       estimatedCheckinTravelMinutes,
+      checkinRouteSummary,
       freeTimeSuggestions: freeNearby.length > 0 ? freeNearby : undefined,
     };
   }, [

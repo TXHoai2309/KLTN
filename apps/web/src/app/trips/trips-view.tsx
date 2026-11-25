@@ -8,7 +8,8 @@ import { Fragment, useEffect, useRef, useState, useMemo, type CSSProperties } fr
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, travelerDayColorVar, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { buildDayTimelineTravelLeg, DayTimeline, resolveDayRouteLabel, type DayTimelineDay, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
-import { estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
+import { splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
+import { resolveOvernightCheckinPresentation, resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
 import { buildDataTripTitle, daysUntilTrip } from "@/lib/traveler-trip-title";
@@ -1574,16 +1575,26 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   };
                 });
 
-                const estimatedCheckinTravelMinutes =
-                  (eveningPlan || (day.dayIndex < trip.days.length && chosen)) && chosen
-                    ? estimateCheckinTravelMinutes({
-                        lastStopLat: lastVisit?.destination.latitude,
-                        lastStopLng: lastVisit?.destination.longitude,
-                        targetLat: chosen.latitude,
-                        targetLng: chosen.longitude,
+                const overnightStay = trip.journey?.plan?.overnightStays?.find(
+                  (stay) => stay.day === day.dayIndex,
+                );
+                const checkinPresentation =
+                  eveningPlan || (day.dayIndex < trip.days.length && lastVisit)
+                    ? resolveOvernightCheckinPresentation({
+                        overnightStay,
+                        lastStop: lastVisit?.destination
+                          ? {
+                              area: lastVisit.destination.area,
+                              name: lastVisit.destination.name,
+                              latitude: lastVisit.destination.latitude,
+                              longitude: lastVisit.destination.longitude,
+                            }
+                          : null,
                         transport: trip.transport,
                       })
-                    : null;
+                    : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
+                const estimatedCheckinTravelMinutes = checkinPresentation.estimatedCheckinTravelMinutes;
+                const checkinRouteSummary = checkinPresentation.checkinRouteSummary;
 
                 const tripStopNamesById: Record<string, string> = {};
                 for (const tripDay of trip.days) {
@@ -1592,9 +1603,25 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   }
                 }
                 const prevTripDay = trip.days.find((item) => item.dayIndex === day.dayIndex - 1);
+                const previousOvernightArea = resolvePreviousOvernightArea({
+                  dayIndex: day.dayIndex,
+                  overnightStays: trip.journey?.plan?.overnightStays,
+                  previousDays: trip.days.map((d) => ({
+                    dayIndex: d.dayIndex,
+                    lastStop: d.visits.at(-1)?.destination
+                      ? {
+                          area: d.visits.at(-1)!.destination.area,
+                          name: d.visits.at(-1)!.destination.name,
+                          latitude: d.visits.at(-1)!.destination.latitude,
+                          longitude: d.visits.at(-1)!.destination.longitude,
+                        }
+                      : null,
+                  })),
+                });
                 const routeLabel = resolveDayRouteLabel({
                   dayIndex: day.dayIndex,
                   originLabel: trip.journey?.journey.origin?.label,
+                  previousOvernightArea,
                   stops,
                   previousDayStops: (prevTripDay?.visits ?? []).map((visit) => ({
                     destinationId: visit.destination.id,
@@ -1665,6 +1692,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                     : null,
                   eveningPlan,
                   estimatedCheckinTravelMinutes,
+                  checkinRouteSummary,
                   freeTimeSuggestions: freeTimeSuggestions.length > 0 ? freeTimeSuggestions : undefined,
                 };
 

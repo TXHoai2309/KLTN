@@ -603,5 +603,53 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     expect(html).toContain("dt-day-route");
     expect(html).toContain("Hà Nội → Phố cổ Đồng Văn");
     expect(html).toContain("64,2 km");
+
+    // ADR-57 (D2): ngày sau xuất phát từ khu vực nghỉ đêm tối hôm trước và card nhận phòng hiển thị chặng từ điểm cuối
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 5,
+        originLabel: "Hà Nội",
+        previousOvernightArea: "Mèo Vạc",
+        stops: [],
+        legs: [
+          {
+            kind: "RETURN",
+            day: 5,
+            from: { kind: "ATTRACTION", destinationId: "d4" },
+            to: { kind: "ORIGIN" },
+          },
+        ],
+        stopNamesById: { d4: "Sông Nho Quế" },
+      }),
+    ).toBe("Mèo Vạc → Hà Nội");
+
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 3,
+        originLabel: "Hà Nội",
+        previousOvernightArea: "Quản Bạ",
+        previousDayStops: [{ destinationId: "d2", name: "Hang Lùng Khúy" }],
+        stops: [{ destinationId: "d3", name: "Rừng thông Yên Minh" }],
+      }),
+    ).toBe("Quản Bạ → Rừng thông Yên Minh");
+
+    const withCheckinSummary = renderToStaticMarkup(
+      createElement(DayTimeline, {
+        day: {
+          ...SAMPLE_DAY,
+          estimatedCheckinTravelMinutes: 14,
+          checkinRouteSummary: "Về khu vực Mèo Vạc: 6,6 km · khoảng 14 phút",
+          eveningPlan: {
+            nightIndex: 1,
+            overnightArea: "Mèo Vạc",
+            lodgingSuggestions: [],
+            eveningPlaces: [],
+          },
+        },
+        variant: "full",
+      }),
+    );
+    expect(withCheckinSummary).toContain("Nhận phòng · Mèo Vạc");
+    expect(withCheckinSummary).toContain("Về khu vực Mèo Vạc: 6,6 km · khoảng 14 phút");
   });
 });

@@ -1,4 +1,5 @@
 import { fromMinute } from "../destination/destination-contract";
+import { resolveOvernightAnchorTown } from "../../lib/overnight-anchor";
 import { assertJourneyBeforeDeparture } from "../trip-origin/journey-cutoff";
 import {
   journeyPlanSchema,
@@ -160,6 +161,17 @@ export async function evaluateEditJourney(
   const firstCoordsOk = input.hasUsableCoords?.get(firstEntry.visit.destinationId) ?? true;
   const lastCoordsOk = input.hasUsableCoords?.get(lastEntry.visit.destinationId) ?? true;
 
+  const lastAnchor = lastDayEmpty
+    ? resolveOvernightAnchorTown({
+        latitude: lastDest.latitude,
+        longitude: lastDest.longitude,
+      })
+    : null;
+  const returnOriginPoint =
+    lastAnchor?.needsCheckinLeg
+      ? { latitude: lastAnchor.latitude, longitude: lastAnchor.longitude }
+      : { latitude: lastDest.latitude, longitude: lastDest.longitude };
+
   const [rawOutbound, rawReturn] = await Promise.all([
     firstCoordsOk
       ? input.getRoute({
@@ -170,7 +182,7 @@ export async function evaluateEditJourney(
       : Promise.resolve({ kind: "unavailable" as const }),
     lastCoordsOk
       ? input.getRoute({
-          origin: { latitude: lastDest.latitude, longitude: lastDest.longitude },
+          origin: returnOriginPoint,
           destination: { latitude: originPoint.latitude, longitude: originPoint.longitude },
           vehicle: input.candidate.transport,
         })
@@ -331,8 +343,16 @@ export async function evaluateEditJourney(
       const prevCoordsOk = input.hasUsableCoords?.get(prev.visit.destinationId) ?? true;
       const currCoordsOk = input.hasUsableCoords?.get(curr.visit.destinationId) ?? true;
       if (prevDest && currDest && prevCoordsOk && currCoordsOk) {
+        const prevAnchor = resolveOvernightAnchorTown({
+          latitude: prevDest.latitude,
+          longitude: prevDest.longitude,
+        });
+        const morningOrigin =
+          prevAnchor?.needsCheckinLeg
+            ? { latitude: prevAnchor.latitude, longitude: prevAnchor.longitude }
+            : { latitude: prevDest.latitude, longitude: prevDest.longitude };
         const res = await input.getRoute({
-          origin: { latitude: prevDest.latitude, longitude: prevDest.longitude },
+          origin: morningOrigin,
           destination: { latitude: currDest.latitude, longitude: currDest.longitude },
           vehicle: input.candidate.transport,
         });

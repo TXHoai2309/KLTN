@@ -137,7 +137,7 @@ export function revalidateJourneySnapshot(proposal: TripProposal, destinations: 
   for (const leg of plan.legs) if (leg.kind === "TRANSFER" && leg.from.kind === "ATTRACTION" && leg.to.kind === "ATTRACTION") transfers.set(leg.to.destinationId, { ...leg.route, fromDestinationId: leg.from.destinationId, toDestinationId: leg.to.destinationId });
   const outbound = plan.legs.find(leg => leg.kind === "OUTBOUND")!.route;
   const returning = plan.legs.find(leg => leg.kind === "RETURN")!.route;
-  const scheduled = scheduleJourneyEvidence(input.requirement, input.selected, transfers, outbound, returning, input.fixed);
+  const scheduled = scheduleJourneyEvidence(input.requirement, input.selected, transfers, outbound, returning, input.fixed, plan.overnightStays);
   const result = journeyValidationResult(proposal, scheduled, input.selected, now, input.canonicalMinimums);
   return { validation: toTripValidation(result, now), plan: scheduled.journeyPlan, result };
 }

@@ -21,6 +21,16 @@ export const journeyRouteSchema = z.object({
 export type JourneyRoute = z.infer<typeof journeyRouteSchema>;
 export type JourneyEndpoint = z.infer<typeof journeyEndpointSchema>;
 const totals = z.object({ drivingSeconds: z.number().nonnegative().nullable(), restMinutes: z.number().nonnegative().nullable(), distanceMeters: z.number().nonnegative().nullable() }).strict();
+export const overnightStayAnchorSchema = z.object({
+  day: z.number().int().min(1).max(13),
+  area: z.string().min(1).max(80),
+  latitude: z.number().finite().min(-90).max(90),
+  longitude: z.number().finite().min(-180).max(180),
+  fromDestinationId: z.string().min(1).max(128),
+  distanceFromLastStopKm: z.number().nonnegative(),
+  checkinRoute: journeyRouteSchema.optional(),
+}).strict();
+export type OvernightStayAnchor = z.infer<typeof overnightStayAnchorSchema>;
 export const journeyPlanSchema = z.object({
   policy: z.enum(["roadside-rest-v1", "roadside-rest-compact-v1"]),
   legs: z.array(z.object({
@@ -30,5 +40,6 @@ export const journeyPlanSchema = z.object({
     restMinutes: z.number().nonnegative().nullable(),
   }).strict()).max(29),
   totals,
+  overnightStays: z.array(overnightStayAnchorSchema).max(13).optional(),
 }).strict();
 export type JourneyPlan = z.infer<typeof journeyPlanSchema>;

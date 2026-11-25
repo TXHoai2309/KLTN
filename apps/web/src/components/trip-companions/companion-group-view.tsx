@@ -45,6 +45,7 @@ import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
 import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { cleanAreaDisplayLabel, cleanOvernightAreaLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
+import { resolveOvernightCheckinPresentation, resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
 import { resolveDayLunchBreak } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { PlannerDay, PlannerStop, TravelLeg } from "@/modules/trip-planner/planner-contract";
 import {
@@ -1235,9 +1236,45 @@ function CompanionGroupContent({
                   const prevGroupDay = currentGroup.itinerary.days.find(
                     (item) => item.dayIndex === day.dayIndex - 1,
                   );
+                  const overnightStay = currentGroup.meetingPoint?.plan?.overnightStays?.find(
+                    (stay) => stay.day === day.dayIndex,
+                  );
+                  const checkinPresentation = eveningPlan
+                    ? resolveOvernightCheckinPresentation({
+                        overnightStay,
+                        lastStop: lastVisit?.destination
+                          ? {
+                              area:
+                                lastVisit.destination.area ||
+                                inferDestinationArea(lastVisit.destination.name),
+                              name: lastVisit.destination.name,
+                            }
+                          : null,
+                        transport: currentGroup.introduction.transport === "CAR" ? "CAR" : "MOTORCYCLE",
+                      })
+                    : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
+                  const previousOvernightArea = resolvePreviousOvernightArea({
+                    dayIndex: day.dayIndex,
+                    overnightStays: currentGroup.meetingPoint?.plan?.overnightStays,
+                    previousDays: currentGroup.itinerary.days.map((d) => {
+                      const tail = d.visits.at(-1);
+                      return {
+                        dayIndex: d.dayIndex,
+                        lastStop: tail?.destination
+                          ? {
+                              area:
+                                tail.destination.area ||
+                                inferDestinationArea(tail.destination.name),
+                              name: tail.destination.name,
+                            }
+                          : null,
+                      };
+                    }),
+                  });
                   const routeLabel = resolveDayRouteLabel({
                     dayIndex: day.dayIndex,
                     originLabel: currentGroup.meetingPoint?.origin?.label,
+                    previousOvernightArea,
                     stops,
                     previousDayStops: (prevGroupDay?.visits ?? []).map((v) => ({
                       destinationId: v.destination.destinationId || v.visitId,
@@ -1260,6 +1297,8 @@ function CompanionGroupContent({
                       ? { nightIndex: dayLodging.nightIndex, name: dayLodging.name, placeId: dayLodging.placeId }
                       : null,
                     eveningPlan,
+                    estimatedCheckinTravelMinutes: checkinPresentation.estimatedCheckinTravelMinutes,
+                    checkinRouteSummary: checkinPresentation.checkinRouteSummary,
                     freeTimeSuggestions: freeTimeSuggestions.length > 0 ? freeTimeSuggestions : undefined,
                   };
 

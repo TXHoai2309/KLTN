@@ -130,6 +130,7 @@ export function formatDayRouteLabel(
 export function resolveDayRouteLabel(input: {
   dayIndex: number;
   originLabel?: string | null;
+  previousOvernightArea?: string | null;
   stops: readonly { destinationId: string; name: string }[];
   previousDayStops?: readonly { destinationId: string; name: string }[];
   legs?: readonly {
@@ -152,12 +153,17 @@ export function resolveDayRouteLabel(input: {
     if (!(stop.destinationId in lookup)) lookup[stop.destinationId] = stop.name;
   }
   const originText = cleanName(input.originLabel);
+  const prevOvernight = input.dayIndex > 1 ? cleanName(input.previousOvernightArea) : null;
   const endpointLabel = (endpoint: { kind: "ORIGIN" } | { kind: "ATTRACTION"; destinationId: string }): string | null =>
     endpoint.kind === "ORIGIN" ? (originText ?? "Điểm xuất phát") : cleanName(lookup[endpoint.destinationId]);
 
   const dayLegs = (input.legs ?? []).filter((leg) => leg.day === input.dayIndex);
   if (dayLegs.length > 0) {
-    const from = endpointLabel(dayLegs[0]!.from);
+    const rawFrom = endpointLabel(dayLegs[0]!.from);
+    const from =
+      prevOvernight && dayLegs[0]!.from.kind === "ATTRACTION"
+        ? prevOvernight
+        : rawFrom;
     const to = endpointLabel(dayLegs.at(-1)!.to);
     if (from && to) {
       if (from !== to) return `${from} → ${to}`;
@@ -169,7 +175,7 @@ export function resolveDayRouteLabel(input: {
   const firstStop = cleanName(input.stops[0]?.name);
   const lastStop = cleanName(input.stops.at(-1)?.name);
   const prevLast = cleanName(input.previousDayStops?.at(-1)?.name);
-  const startLabel = input.dayIndex === 1 ? (originText ?? firstStop) : (prevLast ?? firstStop);
+  const startLabel = input.dayIndex === 1 ? (originText ?? firstStop) : (prevOvernight ?? prevLast ?? firstStop);
   return formatDayRouteLabel(startLabel, lastStop);
 }
 
@@ -281,6 +287,7 @@ export interface DayTimelineDay {
   nearbySuggestions?: readonly DayTimelineNearbyItem[];
   freeTimeSuggestions?: readonly DayTimelineNearbyItem[];
   estimatedCheckinTravelMinutes?: number | null;
+  checkinRouteSummary?: string | null;
   eveningPlan?: DayTimelineEveningPlan | null;
   emptyMessage?: string;
 }
@@ -503,6 +510,10 @@ function SuggestionMarkerItem({
           </ul>
         )}
 
+        {marker.kind === "CHECKIN" && marker.checkinRouteSummary && (
+          <p className="dt-suggestion-dist">{marker.checkinRouteSummary}</p>
+        )}
+
         {marker.kind === "CHECKIN" &&
           (marker.chosenLodging ? (
             <div className="dt-evening-lodging">
@@ -651,6 +662,7 @@ export function DayTimeline({
     eveningPlan: day.eveningPlan,
     chosenLodging: day.chosenLodging,
     estimatedCheckinTravelMinutes: day.estimatedCheckinTravelMinutes,
+    checkinRouteSummary: day.checkinRouteSummary,
   });
 
   const headingRailToSuggestion =
