@@ -25,7 +25,12 @@ import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import type { AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
-import { itineraryDistanceKm, type TripsageTripInfo } from "@/modules/tripsage-chat/tripsage-chat-context";
+import {
+  formatTravelSplitLabel,
+  itineraryDistanceKm,
+  resolveWholeTripDates,
+  type TripsageTripInfo,
+} from "@/modules/tripsage-chat/tripsage-chat-context";
 import type { CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 import {
   isEligibleLodgingSuggestion,
@@ -253,6 +258,18 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   const totalKm = itineraryDistanceKm(proposal);
   const travelers = accessLeg?.travelers ?? tripInfo?.travelers ?? cost?.travelers ?? 2;
   const transportText = proposal.requirement.transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô";
+  const wholeDates = useMemo(
+    () =>
+      resolveWholeTripDates({
+        tripInfo,
+        sightseeingStartDate: firstDate || null,
+        sightseeingEndDate: lastDate || firstDate || null,
+        durationDays: proposal.days.length,
+        accessLeg,
+      }),
+    [tripInfo, firstDate, lastDate, proposal.days.length, accessLeg],
+  );
+  const dateSplitLine = useMemo(() => formatTravelSplitLabel(wholeDates), [wholeDates]);
 
   const panelTitle = useMemo(
     () =>
@@ -262,25 +279,34 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         hubName: accessLeg?.hubName ?? null,
         firstArea: firstStop?.destination.area ?? null,
         lastArea: lastStop?.destination.area ?? null,
-        startDate: firstDate || "2026-12-01",
-        endDate: lastDate || firstDate || "2026-12-01",
+        startDate: wholeDates.tripStartDate || firstDate || "2026-12-01",
+        endDate: wholeDates.tripEndDate || lastDate || firstDate || "2026-12-01",
         durationDays: proposal.days.length,
       }),
     [
       accessLeg?.homeCity,
+      accessLeg?.hubName,
       tripInfo?.homeCity,
       proposal.requirement.journey?.origin?.label,
       firstStop?.destination.area,
       lastStop?.destination.area,
+      wholeDates.tripStartDate,
+      wholeDates.tripEndDate,
       firstDate,
       lastDate,
       proposal.days.length,
     ],
   );
 
-  const hasTravel = Boolean(accessLeg || travel);
-  const outboundDate = shiftIsoDate(firstDate, -1);
-  const returnDate = shiftIsoDate(lastDate, 1);
+  const hasTravel = Boolean(accessLeg || travel || wholeDates.hasPreTravelDay || wholeDates.hasPostTravelDay);
+  const outboundDate =
+    wholeDates.tripStartDate && firstDate && wholeDates.tripStartDate < firstDate
+      ? wholeDates.tripStartDate
+      : shiftIsoDate(firstDate, -1);
+  const returnDate =
+    wholeDates.tripEndDate && lastDate && wholeDates.tripEndDate > lastDate
+      ? wholeDates.tripEndDate
+      : shiftIsoDate(lastDate, 1);
 
   const dayTabs: TravelerDayTabItem[] = useMemo(() => {
     const items: TravelerDayTabItem[] = [];
@@ -594,6 +620,11 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
           <div className="tripsage-panel-title-wrap">
             <h2 className="tripsage-panel-title">{panelTitle}</h2>
             <p className="tripsage-panel-meta">{metaLine}</p>
+            {dateSplitLine && (
+              <p className="tripsage-panel-meta" data-testid="plan-panel-date-split">
+                {dateSplitLine}
+              </p>
+            )}
           </div>
           <div className="tripsage-panel-header-actions">
             <div

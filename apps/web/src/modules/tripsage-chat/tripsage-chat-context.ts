@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { cleanDocumentSourceTitle } from "@/lib/traveler-display-clean";
+import { formatTripDateRangeShort } from "../../lib/traveler-trip-title";
 import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-contract";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { ASSUMABLE_FIELDS, type AssumableField } from "../trip-validation/trip-proposal-contract";
@@ -48,6 +49,9 @@ export const tripInfoSchema = z.object({
   transport: z.enum(TRANSPORT_VALUES).optional(),
   durationDays: z.number().int().min(MIN_DURATION_DAYS).max(MAX_DURATION_DAYS).optional(),
   startDate: z.string().refine(isValidCalendarDate).optional(),
+  /** D7: whole-trip departure & return dates including transit days (YYYY-MM-DD). Sightseeing stays within [tripStartDate, tripEndDate]. */
+  tripStartDate: z.string().refine(isValidCalendarDate).optional(),
+  tripEndDate: z.string().refine(isValidCalendarDate).optional(),
   interests: z.array(z.enum(INTEREST_VALUES)).min(1).max(INTEREST_VALUES.length).optional(),
   pace: z.enum(PACE_VALUES).optional(),
   travelers: z.number().int().min(1).max(20).optional(),
@@ -247,6 +251,108 @@ export function compactChatMessagesForRequest(messages: readonly unknown[]): unk
   return compacted.length > MAX_CLIENT_HISTORY_MESSAGES
     ? compacted.slice(-MAX_CLIENT_HISTORY_MESSAGES)
     : compacted;
+}
+
+export function addCalendarDaysIso(iso: string, delta: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + delta)).toISOString().slice(0, 10);
+}
+
+export function calendarDayDiff(fromIso: string, toIso: string): number {
+  return Math.round((Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 86_400_000);
+}
+
+export function resolveWholeTripDates(input: {
+  tripInfo?: TripsageTripInfo | null;
+  sightseeingStartDate?: string | null;
+  sightseeingEndDate?: string | null;
+  durationDays?: number | null;
+  accessLeg?: Pick<AccessLegPart, "outbound" | "return" | "outboundMinutes" | "returnMinutes"> | null;
+}): {
+  tripStartDate: string | null;
+  tripEndDate: string | null;
+  sightseeingStartDate: string | null;
+  sightseeingEndDate: string | null;
+  hasPreTravelDay: boolean;
+  hasPostTravelDay: boolean;
+} {
+  const sightseeingStartDate = input.sightseeingStartDate ?? input.tripInfo?.startDate ?? null;
+  const days = input.durationDays ?? input.tripInfo?.durationDays ?? null;
+  const sightseeingEndDate =
+    input.sightseeingEndDate
+    ?? (sightseeingStartDate && days ? addCalendarDaysIso(sightseeingStartDate, Math.max(0, days - 1)) : sightseeingStartDate);
+
+  const explicitStart = input.tripInfo?.tripStartDate ?? null;
+  const explicitEnd = input.tripInfo?.tripEndDate ?? null;
+  if (explicitStart && explicitEnd && explicitEnd >= explicitStart) {
+    return {
+      tripStartDate: explicitStart,
+      tripEndDate: explicitEnd,
+      sightseeingStartDate,
+      sightseeingEndDate,
+      hasPreTravelDay: Boolean(sightseeingStartDate && explicitStart < sightseeingStartDate),
+      hasPostTravelDay: Boolean(sightseeingEndDate && explicitEnd > sightseeingEndDate),
+    };
+  }
+
+  if (input.accessLeg && (input.accessLeg.outbound.length > 0 || input.accessLeg.return.length > 0) && sightseeingStartDate && sightseeingEndDate) {
+    const outMins =
+      input.accessLeg.outboundMinutes > 0
+        ? input.accessLeg.outboundMinutes
+        : input.accessLeg.outbound.reduce((sum, s) => sum + s.durationMinutes, 0);
+    const retMins =
+      input.accessLeg.returnMinutes > 0
+        ? input.accessLeg.returnMinutes
+        : input.accessLeg.return.reduce((sum, s) => sum + s.durationMinutes, 0);
+    const hasPreTravelDay = outMins >= 300 || input.accessLeg.outbound.length >= 2;
+    const hasPostTravelDay = retMins >= 300 || input.accessLeg.return.length >= 2;
+    return {
+      tripStartDate: explicitStart ?? (hasPreTravelDay ? addCalendarDaysIso(sightseeingStartDate, -1) : sightseeingStartDate),
+      tripEndDate: explicitEnd ?? (hasPostTravelDay ? addCalendarDaysIso(sightseeingEndDate, 1) : sightseeingEndDate),
+      sightseeingStartDate,
+      sightseeingEndDate,
+      hasPreTravelDay,
+      hasPostTravelDay,
+    };
+  }
+
+  return {
+    tripStartDate: explicitStart ?? sightseeingStartDate,
+    tripEndDate: explicitEnd ?? sightseeingEndDate,
+    sightseeingStartDate,
+    sightseeingEndDate,
+    hasPreTravelDay: false,
+    hasPostTravelDay: false,
+  };
+}
+
+export function formatTravelSplitLabel(input: {
+  tripStartDate?: string | null;
+  tripEndDate?: string | null;
+  sightseeingStartDate?: string | null;
+  sightseeingEndDate?: string | null;
+}): string | null {
+  const { tripStartDate, tripEndDate, sightseeingStartDate, sightseeingEndDate } = input;
+  if (!tripStartDate || !tripEndDate || !sightseeingStartDate || !sightseeingEndDate) return null;
+  const hasPre = tripStartDate < sightseeingStartDate;
+  const hasPost = tripEndDate > sightseeingEndDate;
+  if (!hasPre && !hasPost) return null;
+  const sightseeingRange = formatTripDateRangeShort(sightseeingStartDate, sightseeingEndDate);
+  const s = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tripStartDate);
+  const e = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tripEndDate);
+  if (!s || !e) return null;
+  let travelText: string;
+  if (hasPre && hasPost) {
+    travelText = s[1] === e[1] && s[2] === e[2]
+      ? `Di chuyển ${Number(s[3])} và ${Number(e[3])}/${Number(e[2])}`
+      : `Di chuyển ${Number(s[3])}/${Number(s[2])} và ${Number(e[3])}/${Number(e[2])}`;
+  } else if (hasPre) {
+    travelText = `Di chuyển ${Number(s[3])}/${Number(s[2])}`;
+  } else {
+    travelText = `Di chuyển ${Number(e[3])}/${Number(e[2])}`;
+  }
+  return `Tham quan ${sightseeingRange} · ${travelText}`;
 }
 
 export function buildTripsageChatBody(input: {

@@ -7,7 +7,7 @@ import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
 import { INTEREST_OPTIONS, PACE_OPTIONS, TRANSPORT_OPTIONS } from "../trip-requirement/trip-requirement-contract";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { journeyPartSchema, originCandidatesPartSchema, quickRepliesPartSchema, resolveEffectiveJourney, sourcesPartSchema, tripInfoSchema, tripsageItinerarySummarySchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
-import { assistantOfferedHub, FIXED_HUB_CANDIDATES, verifyOriginCandidatesToken, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
+import { assistantOfferedHub, detectDateRangeDurationConflict, FIXED_HUB_CANDIDATES, verifyOriginCandidatesToken, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { tripsageProviderOptions } from "./tripsage-chat-provider";
 import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { PlacesSearch } from "./tripsage-places";
@@ -66,7 +66,7 @@ const PERSONA_INSTRUCTIONS = [
   "Giá tra cứu và giá ước tính là hai việc khác nhau: chỉ nói 'đã tra' / 'theo Google Flights' / 'theo Google Hotels' khi công cụ tra cứu của lượt này trả về kết quả; nếu chỉ có giá ước tính (priceSource ESTIMATE, bảng giá tham khảo) thì nói rõ 'ước tính'. Nếu tra cứu lỗi, nói thẳng là chưa tra được. KHÔNG BAO GIỜ hỏi người dùng tự đặt, tự nhập hay gửi mức giá vé (ví dụ 'Bạn muốn dùng mức giá vé bay nào?'); khi thiếu giá, hãy dùng công cụ tra vé máy bay (nếu được bật và còn lượt) hoặc dùng bảng giá tham khảo, nếu vẫn thiếu thì nói ngắn gọn 'chưa có giá đoạn X, tổng đang thiếu khoản này' và đưa suggestReplies phù hợp ĐÚNG với đoạn thiếu giá và phương tiện hiện tại (chỉ dùng 'Tra lại vé máy bay' khi có chặng máy bay thiếu giá; với chặng xe khách thiếu giá dùng 'Giữ xe khách, chốt giá sau', 'Đổi tuyến qua Hà Nội' nếu tuyến qua Hà Nội có trong bảng giá, 'Bỏ qua, lưu trước'; không bao giờ gợi ý đổi sang phương tiện đang dùng).",
   "Đoàn từ 6 người trở lên: nếu phương tiện ở Hà Giang mới là giả định (assumedFields có transport) thì hỏi đúng một lần 'Đoàn mình thuê xe máy, xe 16 chỗ có tài xế hay ô tô tự lái?' (đưa 3 lựa chọn vào suggestReplies); không tự giữ xe máy cho đoàn đông.",
   "Không hỏi xác nhận lại điều người dùng đã nói rõ (số ngày, ngày đi, cách chia ngày đi/về, điểm tập kết): ghi lại rồi làm tiếp ngay trong lượt, ví dụ lập lịch luôn.",
-  "Khi người dùng dành ngày riêng để đi từ nhà tới điểm tập kết (ví dụ bay Đà Nẵng → Hà Nội), startDate của lịch Hà Giang là NGÀY SAU ngày đi đó và số ngày chỉ tính phần ở Hà Giang; tự ghi bằng recordTripInfo cho khớp rồi lập lịch, không hỏi lại. Ngày đi và ngày về hiển thị riêng trong timeline.",
+  "Khi người dùng dành ngày riêng để đi từ nhà tới điểm tập kết (ví dụ bay Đà Nẵng → Hà Nội), startDate và durationDays của lịch Hà Giang là phần tham quan (startDate là ngày bắt đầu tham quan, ngay sau ngày đi), còn tripStartDate và tripEndDate ghi ngày đi–về của cả chuyến (D7) bằng recordTripInfo rồi lập lịch luôn, không hỏi lại. Nếu số ngày và khoảng ngày người dùng nêu mâu thuẫn (ví dụ '7 ngày… đi từ 20/12 – 27/12'), KHÔNG tự chọn: hỏi đúng một lần kèm 2 nút gợi ý như '7 ngày: 20–26/12' và '8 ngày: 20–27/12'. Ngày đi và ngày về hiển thị riêng trong timeline.",
   "Điểm tập kết là nơi đoàn bắt đầu tự lái: nếu đoàn đi xe khách/xe giường nằm hoặc thuê xe có tài xế từ Hà Nội lên Hà Giang rồi mới thuê xe máy, điểm tập kết là TP Hà Giang (confirmOrigin hub:HA_GIANG_CITY), chặng Hà Nội → Hà Giang thuộc planAccessLeg; chỉ dùng hub:HA_NOI khi đoàn tự lái xe từ Hà Nội. Ngày đầu tự lái từ Hà Nội gần như chỉ để di chuyển: đừng xếp quá 1 điểm vào ngày 1 và ngày cuối.",
   "TUYỆT ĐỐI KHÔNG nhắc cơ chế hay thuật ngữ nội bộ với người dùng (không nói 'lựa chọn điểm ban đầu không hợp lệ', 'bản nháp tự chọn', 'INVALID_AI_PLAN', 'hệ thống đã lược', 'bộ kiểm tra từ chối'). KHÔNG nói chuyện hạ tầng hay lỗi công cụ với người dùng (tuyệt đối không dùng các cụm 'tra web', 'tra cứu web', 'không khả dụng', 'dịch vụ chưa sẵn sàng', 'API', 'Firecrawl'). Khi không có thông tin giá hoặc lịch vận hành cập nhật, nói tự nhiên như 'mình chưa có thông tin cập nhật về X, bạn nên kiểm trực tiếp với nhà xe hoặc đơn vị vận hành', kèm chip hành động nếu phù hợp. Nếu cần bỏ bớt điểm để kịp giờ, nói tự nhiên theo góc nhìn người dùng kèm tên điểm cụ thể (bỏ tiền tố [Tam]/[Tạm]): ví dụ 'Mình bỏ bớt Cột cờ Lũng Cú và Sủng Là để kịp giờ; muốn giữ thì thêm 1 ngày.' Khi lịch còn vi phạm, nói ngắn nguyên nhân thực tế (như chặng chạy xe dài hay trùng giờ) và luôn kết thúc bằng 2-4 lựa chọn cụ thể qua suggestReplies; không bao giờ kết thúc lượt mà không có bước tiếp theo.",
   "Khi người dùng đã nêu rõ cách di chuyển tới điểm tập kết (như 'bay ra Hà Nội rồi đi xe khách lên TP Hà Giang', 'đi xe khách lên TP Hà Giang', 'bay ra Hà Nội rồi tự chạy xe từ Hà Nội') hoặc nơi tập trung ('tập trung ở Hà Nội', 'gặp nhau ở TP Hà Giang'), đó đã là xác nhận điểm tập kết: gọi confirmOrigin với hub tương ứng NGAY trong cùng lượt rồi lập lịch luôn, không hỏi lại 'Bạn xác nhận điểm tập kết là … nhé?'. Chưa có lịch thì không tự đề xuất đổi cung đường hay hỏi 'thử lại theo cung X chứ?'; chỉ nói ngắn điều còn thiếu và bước tiếp theo.",
@@ -656,6 +656,11 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
     const parsed = quickRepliesPartSchema.safeParse({ replies: [...candidates] });
     return parsed.success ? parsed.data.replies : null;
   };
+
+  const dateConflict = input.latestUserText ? detectDateRangeDurationConflict(input.latestUserText, new Date()) : null;
+  if (dateConflict) {
+    return pick(dateConflict.chips);
+  }
 
   // Point 3: honor explicit closing-question intent first (e.g. "Bạn muốn ra điểm tập kết bằng cách nào?").
   if (HUB_TRANSPORT_QUESTION_RE.test(questionLine)) {

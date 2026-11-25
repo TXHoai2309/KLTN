@@ -18,14 +18,15 @@ import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
 import { activityAnchors, nearbyActivitySuggestions, type EveningAnchorDiagnostic } from "./tripsage-activities";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
-import { computeBudgetSavingsChips, computeTieredTripCost, costSelectionsSchema, parseTicketPriceVnd, type CostPart, type CostSelectionsInput, type RentalTier } from "./tripsage-cost";
+import { computeBudgetSavingsChips, computeCostDateSpan, computeTieredTripCost, costSelectionsSchema, parseTicketPriceVnd, type CostPart, type CostSelectionsInput, type RentalTier } from "./tripsage-cost";
 import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
-import { itineraryDistanceKm } from "./tripsage-chat-context";
+import { addCalendarDaysIso, itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, resolveMissingPriceChips, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { formatDocumentSourceTitle, quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
   computeMinimumSelfDriveDays,
+  detectDateRangeDurationConflict,
   estimateRoadFromCoordinates,
   extractStatedDateFromText,
   FAR_HOME_TRANSPORT_CHIPS,
@@ -361,8 +362,10 @@ export function nearestReasonableSaturday(now: Date): string {
 
 const recordInputSchema = tripInfoSchema.omit({ assumedFields: true }).extend({
   transport: tripInfoSchema.shape.transport.describe("MOTORCYCLE (xe máy) hoặc CAR (ô tô)."),
-  durationDays: tripInfoSchema.shape.durationDays.describe("Số ngày, 1-14, tính từ điểm xuất phát/điểm tập kết."),
-  startDate: tripInfoSchema.shape.startDate.describe("Ngày bắt đầu YYYY-MM-DD, không ở quá khứ."),
+  durationDays: tripInfoSchema.shape.durationDays.describe("Số ngày tham quan ở Hà Giang, 1-14, tính từ điểm xuất phát/điểm tập kết."),
+  startDate: tripInfoSchema.shape.startDate.describe("Ngày bắt đầu tham quan YYYY-MM-DD, không ở quá khứ."),
+  tripStartDate: tripInfoSchema.shape.tripStartDate.describe("Ngày khởi hành cả chuyến (kể cả ngày di chuyển đi) YYYY-MM-DD."),
+  tripEndDate: tripInfoSchema.shape.tripEndDate.describe("Ngày về đến nhà của cả chuyến YYYY-MM-DD."),
   interests: tripInfoSchema.shape.interests.describe(`Sở thích: ${INTEREST_VALUES.join(", ")}.`),
   pace: tripInfoSchema.shape.pace.describe(`Nhịp đi: ${PACE_VALUES.join(", ")} (2/3/4 điểm mỗi ngày).`),
   travelers: tripInfoSchema.shape.travelers.describe("Số người đi, 1-20."),
@@ -660,10 +663,28 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   };
 
   const recordTripInfo = tool({
-    description: "Ghi thông tin chuyến đi người dùng vừa nói hoặc vừa đồng ý (chỉ các trường thay đổi), gồm cả giờ đi/về và điểm bắt buộc (mustIncludeDestinationIds từ listDestinations). Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý gợi ý của bạn. Có hiệu lực ngay trong lượt này.",
+    description: "Ghi thông tin chuyến đi người dùng vừa nói hoặc vừa đồng ý (chỉ các trường thay đổi), gồm cả ngày cả chuyến (tripStartDate, tripEndDate), giờ đi/về và điểm bắt buộc (mustIncludeDestinationIds từ listDestinations). Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý gợi ý của bạn. Có hiệu lực ngay trong lượt này.",
     inputSchema: recordInputSchema,
     execute: async input => {
-      if (input.startDate && input.startDate < vietnamDateOf(now())) return { ok: false as const, code: "PAST_DATE", message: "Ngày bắt đầu đã qua. Hỏi lại người dùng ngày đi, gợi ý một ngày sắp tới." };
+      const todayIso = vietnamDateOf(now());
+      if (input.startDate && input.startDate < todayIso) return { ok: false as const, code: "PAST_DATE", message: "Ngày bắt đầu đã qua. Hỏi lại người dùng ngày đi, gợi ý một ngày sắp tới." };
+      if (input.tripStartDate && input.tripStartDate < todayIso) return { ok: false as const, code: "PAST_DATE", message: "Ngày khởi hành cả chuyến đã qua. Hỏi lại người dùng ngày đi, gợi ý một ngày sắp tới." };
+      const activeConflict = context.latestUserText ? detectDateRangeDurationConflict(context.latestUserText, now()) : null;
+      const priorConflictAsked = (context.userHistoryTexts ?? []).some(text => detectDateRangeDurationConflict(text, now()) !== null);
+      if (
+        activeConflict
+        && !priorConflictAsked
+        && (input.durationDays !== undefined || input.startDate !== undefined || input.tripStartDate !== undefined || input.tripEndDate !== undefined)
+      ) {
+        context.emitQuickReplies?.(activeConflict.chips);
+        return {
+          ok: false as const,
+          code: "AMBIGUOUS_TRIP_DATES",
+          question: activeConflict.question,
+          options: activeConflict.chips,
+          message: `Ngày và số ngày người dùng nêu mâu thuẫn (${activeConflict.question}). KHÔNG tự chọn: hãy hỏi đúng một lần và mời chọn 1 trong 2 nút (${activeConflict.chips.join(" / ")}).`,
+        };
+      }
       let normalizedRequired: string[] | undefined;
       if (input.mustIncludeDestinationIds !== undefined) {
         let resolvedInput = input.mustIncludeDestinationIds;
@@ -685,6 +706,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       }
       const nextEntries = Object.entries(input).filter(([, value]) => value !== undefined);
       const nextTripInfo: TripsageTripInfo = { ...tripInfo, ...Object.fromEntries(nextEntries) };
+      if (nextTripInfo.tripStartDate && nextTripInfo.tripEndDate && nextTripInfo.tripEndDate < nextTripInfo.tripStartDate) {
+        return { ok: false as const, code: "INVALID_DATE_RANGE", message: "Ngày về cả chuyến không thể trước ngày khởi hành." };
+      }
+      if (nextTripInfo.tripStartDate && nextTripInfo.tripEndDate && nextTripInfo.startDate && nextTripInfo.durationDays) {
+        const sightEnd = addCalendarDaysIso(nextTripInfo.startDate, nextTripInfo.durationDays - 1);
+        if (nextTripInfo.startDate < nextTripInfo.tripStartDate || sightEnd > nextTripInfo.tripEndDate) {
+          return { ok: false as const, code: "DATES_OUTSIDE_WHOLE_TRIP", message: "Khoảng ngày tham quan ở Hà Giang phải nằm trong khoảng ngày đi–về của cả chuyến." };
+        }
+      }
       if (normalizedRequired !== undefined) {
         if (normalizedRequired.length > 0) nextTripInfo.mustIncludeDestinationIds = normalizedRequired;
         else delete nextTripInfo.mustIncludeDestinationIds;
@@ -716,6 +746,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         || input.durationDays !== undefined
         || input.travelers !== undefined
         || input.startDate !== undefined
+        || input.tripStartDate !== undefined
+        || input.tripEndDate !== undefined
         || input.homeCity !== undefined
       ) {
         await syncCostIfTracked();
@@ -1269,6 +1301,18 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     inputSchema: proposeInputSchema,
     execute: async (input, options) => {
       if (proposals >= maxProposals) return { ok: false as const, code: "PROPOSAL_LIMIT", message: "Đã đạt số lần lập lịch tối đa trong lượt này. Hãy tóm tắt và mời người dùng nhắn tiếp." };
+      const pendingDateConflict = proposals === 0 && context.latestUserText ? detectDateRangeDurationConflict(context.latestUserText, now()) : null;
+      const priorConflictAsked = (context.userHistoryTexts ?? []).some(text => detectDateRangeDurationConflict(text, now()) !== null);
+      if (pendingDateConflict && !priorConflictAsked) {
+        context.emitQuickReplies?.(pendingDateConflict.chips);
+        return {
+          ok: false as const,
+          code: "AMBIGUOUS_TRIP_DATES",
+          question: pendingDateConflict.question,
+          options: pendingDateConflict.chips,
+          message: `Ngày và số ngày người dùng nêu mâu thuẫn (${pendingDateConflict.question}). Hỏi đúng một lần kèm 2 nút (${pendingDateConflict.chips.join(" / ")}) thay vì tự chọn.`,
+        };
+      }
       // An explicitly supplied but unconfirmed origin selection is never silently promoted.
       if (currentJourney?.origin && !currentJourney.origin.confirmed) {
         const missing = missingTripInfo(withTripInfoDefaults(tripInfo).info, resolveEffectiveJourney(currentJourney, tripInfo));
@@ -1490,6 +1534,17 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           ...all.filter(c => overrides[c.id] && c.minimumDurationMinutes && overrides[c.id]! < c.minimumDurationMinutes).map(c => ({ code: "USER_SHORT_VISIT", day: null, destinationId: c.id, message: `Bạn chọn ở ${cleanPlaceDisplayName(c.name) || c.name} ${overrides[c.id]} phút, ngắn hơn mức gợi ý tối thiểu ${c.minimumDurationMinutes} phút.` })),
         ];
         if (flexNotes.length) rawResult = { ...rawResult, warnings: [...flexNotes, ...rawResult.warnings].slice(0, 80) };
+        if (latestAccessLeg && candidateTripInfo.startDate && candidateTripInfo.durationDays && !candidateTripInfo.tripStartDate && !candidateTripInfo.tripEndDate) {
+          const span = computeCostDateSpan({
+            startDate: candidateTripInfo.startDate,
+            durationDays: candidateTripInfo.durationDays,
+            accessLeg: latestAccessLeg,
+          });
+          const sightEnd = addCalendarDaysIso(candidateTripInfo.startDate, candidateTripInfo.durationDays - 1);
+          candidateTripInfo.tripStartDate = span.hasPreTravelDay ? addCalendarDaysIso(candidateTripInfo.startDate, -1) : candidateTripInfo.startDate;
+          candidateTripInfo.tripEndDate = span.hasPostTravelDay ? addCalendarDaysIso(sightEnd, 1) : sightEnd;
+          addedAssumption = true;
+        }
         if (addedAssumption) {
           tripInfo = candidateTripInfo;
           context.emitTripInfo?.(tripInfo);
@@ -1968,6 +2023,24 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const flightOverride = findMatchingFlightOverride(info);
       const previousForReuse = canReusePreviousAccessLegPrices(info) ? latestAccessLeg : null;
       latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers, flightOverride, previousForReuse);
+      if (info.startDate && info.durationDays) {
+        const span = computeCostDateSpan({
+          startDate: info.startDate,
+          durationDays: info.durationDays,
+          tripStartDate: tripInfo.tripStartDate,
+          tripEndDate: tripInfo.tripEndDate,
+          accessLeg: latestAccessLeg,
+        });
+        const sightEnd = addCalendarDaysIso(info.startDate, info.durationDays - 1);
+        const derivedStart = span.hasPreTravelDay ? addCalendarDaysIso(info.startDate, -1) : info.startDate;
+        const derivedEnd = span.hasPostTravelDay ? addCalendarDaysIso(sightEnd, 1) : sightEnd;
+        const nextWholeStart = tripInfo.tripStartDate && tripInfo.tripStartDate <= info.startDate ? tripInfo.tripStartDate : derivedStart;
+        const nextWholeEnd = tripInfo.tripEndDate && tripInfo.tripEndDate >= sightEnd ? tripInfo.tripEndDate : derivedEnd;
+        if (nextWholeStart !== tripInfo.tripStartDate || nextWholeEnd !== tripInfo.tripEndDate) {
+          tripInfo = { ...tripInfo, tripStartDate: nextWholeStart, tripEndDate: nextWholeEnd };
+          context.emitTripInfo?.(tripInfo);
+        }
+      }
       context.emitAccessLeg?.(latestAccessLeg);
       await syncCostIfTracked();
       const missingSegs = latestAccessLeg.missingPriceSegments ?? [];

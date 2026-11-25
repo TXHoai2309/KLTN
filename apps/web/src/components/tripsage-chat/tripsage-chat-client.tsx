@@ -1070,6 +1070,8 @@ export function TripsageChatClient({
                             version={planEntry.version}
                             proposal={planEntry.proposal}
                             cost={isCurrentPlanMessage ? (state.cost?.data ?? cost) : null}
+                            tripInfo={isCurrentPlanMessage ? state.tripInfo : null}
+                            accessLeg={isCurrentPlanMessage ? (state.accessLeg?.data ?? accessLeg) : null}
                             isCurrent={isCurrentPlanMessage}
                             isOutdated={isCurrentPlanMessage && planOutdated}
                             isPanelOpen={isDesktopSplitViewport && hasActivePlan ? planPanelMode !== "collapsed" : planDrawerOpen}

@@ -496,3 +496,96 @@ export function isDateConfirmationOnlyReplies(replies: readonly string[]): boole
   const hasChangeDate = folded.some(item => /\b(?:chon\s+ngay\s+khac|doi\s+ngay)\b/u.test(item));
   return hasConfirmDate && hasChangeDate;
 }
+
+function resolveCalendarDateFromDayMonth(day: number, month: number, explicitYear: number | null, todayIso: string): string | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const [todayY, todayM, todayD] = todayIso.split("-").map(Number) as [number, number, number];
+  let year = explicitYear ?? todayY;
+  if (!explicitYear && (month < todayM || (month === todayM && day < todayD))) {
+    year += 1;
+  }
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) {
+    return null;
+  }
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function addDaysIso(iso: string, delta: number): string {
+  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
+}
+
+function shortRangeLabel(startIso: string, endIso: string): string {
+  const s = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startIso)!;
+  const e = /^(\d{4})-(\d{2})-(\d{2})$/.exec(endIso)!;
+  if (s[1] === e[1] && s[2] === e[2]) return `${Number(s[3])}–${Number(e[3])}/${Number(s[2])}`;
+  return `${Number(s[3])}/${Number(s[2])}–${Number(e[3])}/${Number(e[2])}`;
+}
+
+export type DateRangeDurationConflict = {
+  statedDays: number;
+  rangeDays: number;
+  startDate: string;
+  endDate: string;
+  optionByDays: { days: number; startDate: string; endDate: string; label: string };
+  optionByRange: { days: number; startDate: string; endDate: string; label: string };
+  question: string;
+  chips: [string, string];
+};
+
+/**
+ * D7: Detects when the traveler states BOTH a whole-trip day count and a calendar date range whose
+ * inclusive length disagrees (e.g. "7 ngày… đi từ 20/12 – 27/12" = 7 vs 8 days), returning one
+ * clarification question and 2 quick-reply buttons instead of guessing.
+ */
+export function detectDateRangeDurationConflict(text: string, now: Date): DateRangeDurationConflict | null {
+  const normalized = text.normalize("NFC").trim();
+  if (!normalized) return null;
+  // Ignore when the traveler already selected a disambiguation chip ("7 ngày: 20–26/12").
+  if (/^\d{1,2}\s*ng[aà]y\s*:\s*\d{1,2}/iu.test(normalized)) return null;
+
+  const daysMatch = /(?:^|[^\d])(\d{1,2})\s*ng[aà]y\b(?!\s*tham\s*quan|\s*l[aá]i\s*xe)/iu.exec(normalized);
+  if (!daysMatch) return null;
+  const statedDays = Number(daysMatch[1]);
+  if (!Number.isInteger(statedDays) || statedDays < 1 || statedDays > 14) return null;
+
+  const todayIso = vietnamDateOf(now);
+  let startIso: string | null = null;
+  let endIso: string | null = null;
+
+  const fullRange = /(?:^|[^\d])(\d{1,2})\s*[/\-]\s*(\d{1,2})(?:\s*[/\-]\s*(\d{4}))?\s*(?:[-–—]|đ[eế]n|t[oớ]i)\s*(\d{1,2})\s*[/\-]\s*(\d{1,2})(?:\s*[/\-]\s*(\d{4}))?(?!\d)/iu.exec(normalized);
+  if (fullRange) {
+    startIso = resolveCalendarDateFromDayMonth(Number(fullRange[1]), Number(fullRange[2]), fullRange[3] ? Number(fullRange[3]) : null, todayIso);
+    const endYear = fullRange[6] ? Number(fullRange[6]) : startIso ? Number(startIso.slice(0, 4)) : null;
+    endIso = resolveCalendarDateFromDayMonth(Number(fullRange[4]), Number(fullRange[5]), endYear, todayIso);
+  } else {
+    const compactRange = /(?:^|[^\d])(\d{1,2})\s*[–—-]\s*(\d{1,2})\s*[/\-]\s*(\d{1,2})(?:\s*[/\-]\s*(\d{4}))?(?!\d)/iu.exec(normalized);
+    if (compactRange) {
+      const month = Number(compactRange[3]);
+      const year = compactRange[4] ? Number(compactRange[4]) : null;
+      startIso = resolveCalendarDateFromDayMonth(Number(compactRange[1]), month, year, todayIso);
+      endIso = resolveCalendarDateFromDayMonth(Number(compactRange[2]), month, year, todayIso);
+    }
+  }
+
+  if (!startIso || !endIso || endIso < startIso) return null;
+  const rangeDays = Math.round((Date.parse(`${endIso}T00:00:00Z`) - Date.parse(`${startIso}T00:00:00Z`)) / 86_400_000) + 1;
+  if (rangeDays === statedDays || rangeDays < 1 || rangeDays > 30) return null;
+
+  const endForStatedDays = addDaysIso(startIso, statedDays - 1);
+  const labelDays = `${statedDays} ngày: ${shortRangeLabel(startIso, endForStatedDays)}`;
+  const labelRange = `${rangeDays} ngày: ${shortRangeLabel(startIso, endIso)}`;
+  if (labelDays === labelRange) return null;
+
+  return {
+    statedDays,
+    rangeDays,
+    startDate: startIso,
+    endDate: endIso,
+    optionByDays: { days: statedDays, startDate: startIso, endDate: endForStatedDays, label: labelDays },
+    optionByRange: { days: rangeDays, startDate: startIso, endDate: endIso, label: labelRange },
+    question: `Khoảng ${shortRangeLabel(startIso, endIso)} là ${rangeDays} ngày trọn, nhưng bạn có nhắc ${statedDays} ngày — bạn muốn chốt theo phương án nào?`,
+    chips: [labelDays, labelRange],
+  };
+}

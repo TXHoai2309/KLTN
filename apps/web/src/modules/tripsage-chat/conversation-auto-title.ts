@@ -1,9 +1,9 @@
 import type { TripJourney } from "../trip-origin/trip-origin-contract";
 import type { AccessLegPart } from "./tripsage-access-leg";
-import type { TripsageTripInfo } from "./tripsage-chat-context";
+import { resolveWholeTripDates, type TripsageTripInfo } from "./tripsage-chat-context";
 import type { StoredAssistantPart } from "./assistant-conversation-contract";
 
-import { extractOriginCityProvince } from "../../lib/traveler-trip-title";
+import { extractOriginCityProvince, formatTripDateRangeShort } from "../../lib/traveler-trip-title";
 
 function shortCity(raw: string | null | undefined): string | null {
   return extractOriginCityProvince(raw, { allowHaGiang: true });
@@ -66,7 +66,15 @@ export function buildConversationAutoTitle(input: ConversationAutoTitleInput): s
       : null;
 
   const departure = confirmedHome ?? confirmedOrigin;
-  const confirmedStartDate = !assumed.has("startDate") ? shortDateDayMonth(info?.startDate) : null;
+  const confirmedStartDate = !assumed.has("startDate") ? shortDateDayMonth(info?.tripStartDate ?? info?.startDate) : null;
+  const wholeDates = !assumed.has("startDate")
+    ? resolveWholeTripDates({ tripInfo: info, accessLeg: input.accessLeg })
+    : null;
+  const confirmedDateDisplay = wholeDates?.tripStartDate && wholeDates?.tripEndDate
+    && (Boolean(info?.tripEndDate) || wholeDates.hasPreTravelDay || wholeDates.hasPostTravelDay)
+    && wholeDates.tripEndDate > wholeDates.tripStartDate
+    ? formatTripDateRangeShort(wholeDates.tripStartDate, wholeDates.tripEndDate)
+    : confirmedStartDate;
   const confirmedDays = !assumed.has("durationDays") && typeof info?.durationDays === "number"
     ? info.durationDays
     : existingMeta.days;
@@ -78,7 +86,7 @@ export function buildConversationAutoTitle(input: ConversationAutoTitleInput): s
         : existingMeta.travelers;
 
   // Require at least a confirmed departure/hub OR confirmed date/days to rename from raw first message.
-  if (!departure && !confirmedStartDate && !confirmedDays) return null;
+  if (!departure && !confirmedDateDisplay && !confirmedDays) return null;
 
   const routePart = departure
     ? isHaGiangCity(departure)
@@ -90,9 +98,9 @@ export function buildConversationAutoTitle(input: ConversationAutoTitleInput): s
   if (confirmedTravelers !== null && confirmedTravelers > 0) {
     parts.push(`${confirmedTravelers} người`);
   }
-  if (confirmedStartDate) {
+  if (confirmedDateDisplay) {
     if (existingMeta.days !== null) parts.push(`${existingMeta.days} ngày`);
-    parts.push(confirmedStartDate);
+    parts.push(confirmedDateDisplay);
   } else if (confirmedDays !== null) {
     parts.push(`${confirmedDays} ngày`);
   }

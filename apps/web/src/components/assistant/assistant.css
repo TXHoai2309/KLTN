@@ -3344,6 +3344,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+.tripsage-plan-summary-dates {
+  margin: 0;
+  font-size: var(--tv-text-xs);
+  color: var(--tv-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
 .tripsage-plan-summary-stats {
   display: flex;
   flex-wrap: wrap;
