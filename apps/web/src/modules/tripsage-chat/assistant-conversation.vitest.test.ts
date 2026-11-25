@@ -287,7 +287,8 @@ describe("assistant conversations HTTP and chat route persistence (ticket 03)", 
       { tool: "lookupLocalKnowledge", input: { question: "lịch trình Hà Giang" } },
       { tool: "recordTripInfo", input: { travelers: 3 } },
       { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
-      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 300_000 }] } },
+      // D5: estimateCosts now accepts tier selections while server computes quantities.
+      { tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD" } },
       { text: "Theo Cẩm nang Hà Giang, mình đã lập lịch trình cao nguyên đá và ước tính chi phí xong." },
     ]);
 

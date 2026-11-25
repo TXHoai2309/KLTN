@@ -169,27 +169,28 @@ describe("local knowledge (ticket 02)", () => {
 });
 
 describe("cost estimate in the chat (ticket 03)", () => {
-  const lines = [{ category: "food", label: "Ăn uống", amount: 300_000 }];
+  // D5: estimateCosts receives tier selections and server computes whole-trip food/lodging/fuel.
+  const selections = { lodgingTier: "HOMESTAY" as const, mealTier: "STANDARD" as const };
   it("streams a cost table whose fuel follows the itinerary's routed distance", async () => {
-    const { all } = await run([propose([["a", "b"]]), { tool: "estimateCosts", input: { lines } }, { text: "Xong." }]);
+    const { all } = await run([propose([["a", "b"]]), { tool: "estimateCosts", input: selections }, { text: "Xong." }]);
     const result = itineraryOf(all);
     const km = result.journeyPlan!.totals.distanceMeters! / 1000;
     const cost = costPartSchema.parse(all.find(p => p.type === "data-cost")!.data);
     expect(cost.lines[0]).toMatchObject({ label: "Xăng", computed: true, amount: Math.round(Math.round(km * 10) / 10 * 8 / 100 * PRICE_REFERENCE.fuelVndPerLiter) });
-    expect(cost.total).toBe(cost.lines[0]!.amount + 300_000);
+    expect(cost.total).toBe(cost.lines[0]!.amount + 2 * 1 * 270_000);
     expect(cost.travelers).toBe(2);
   });
 
   it("uses the current itinerary's distance on a later turn and the user's budget", async () => {
     const currentItinerary = { days: [{ day: 1, stops: [{ id: "a", name: "Điểm a", arrivalMinute: 480, departureMinute: 720 }] }], distanceKm: 100 };
-    const { all } = await run([{ tool: "estimateCosts", input: { lines, budgetCap: 400_000 } }, { text: "Xong." }], { currentItinerary });
+    const { all } = await run([{ tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "BUDGET", budgetCap: 400_000 } }, { text: "Xong." }], { currentItinerary });
     const cost = costPartSchema.parse(all.find(p => p.type === "data-cost")!.data);
     expect(cost.lines[0]!.amount).toBe(8 * PRICE_REFERENCE.fuelVndPerLiter);
-    expect(cost).toMatchObject({ withinCap: false, overBy: 8 * PRICE_REFERENCE.fuelVndPerLiter + 300_000 - 400_000 });
+    expect(cost).toMatchObject({ withinCap: false, overBy: 8 * PRICE_REFERENCE.fuelVndPerLiter + 380_000 - 400_000 });
   });
 
   it("needs transport and days first", async () => {
-    const { all, fed } = await run([{ tool: "estimateCosts", input: { lines } }, { text: "Xong." }], { tripInfo: {} });
+    const { all, fed } = await run([{ tool: "estimateCosts", input: selections }, { text: "Xong." }], { tripInfo: {} });
     expect(all.some(p => p.type === "data-cost")).toBe(false);
     expect(fed(1)).toContain("MISSING_REQUIRED_INFO");
   });
@@ -204,7 +205,7 @@ describe("access leg to a trip hub (ticket 04)", () => {
   const fromSaigon = { tripInfo: { ...TRIP_INFO_FIXTURE, homeCity: "TP Hồ Chí Minh", travelers: 2 } };
 
   it("sums the estimated leg per traveler and adds it to the cost table's transport", async () => {
-    const { all } = await run([{ tool: "planAccessLeg", input: leg }, { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn", amount: 100_000 }] } }, { text: "Xong." }], fromSaigon);
+    const { all } = await run([{ tool: "planAccessLeg", input: leg }, { tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD" } }, { text: "Xong." }], fromSaigon);
     const access = accessLegPartSchema.parse(all.find(p => p.type === "data-access-leg")!.data);
     expect(access).toMatchObject({ hubName: "TP Hà Giang (bến xe phía Nam)", homeCity: "TP Hồ Chí Minh", outboundMinutes: 520, returnMinutes: 520, totalVnd: 2 * 3_600_000 });
     const cost = costPartSchema.parse(all.find(p => p.type === "data-cost")!.data);
@@ -221,7 +222,7 @@ describe("access leg to a trip hub (ticket 04)", () => {
 
   it("a leg sent back by the browser is re-validated and counted on a later turn", async () => {
     const access = { hubName: "Hà Nội (bến xe Mỹ Đình)", homeCity: "Đà Nẵng", travelers: 1, outbound: leg.outbound, return: leg.return, outboundMinutes: 520, returnMinutes: 520, totalVnd: 3_600_000 };
-    const { all } = await run([{ tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn", amount: 100_000 }] } }, { text: "Xong." }], { accessLeg: access });
+    const { all } = await run([{ tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD" } }, { text: "Xong." }], { accessLeg: access });
     expect(costPartSchema.parse(all.find(p => p.type === "data-cost")!.data).lines.some(line => line.amount === 3_600_000)).toBe(true);
     const model = scripted([{ text: "x" }]);
     const bad = await tripsageChatResponse(new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" },

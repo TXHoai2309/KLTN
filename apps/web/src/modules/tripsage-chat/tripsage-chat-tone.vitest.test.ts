@@ -90,7 +90,8 @@ describe("Ticket 03: tone rules & document source scoping", () => {
     const { all } = await runTurn("Lập lịch cho mình nhé", [
       { tool: "listDestinations", input: {} },
       { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
-      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 300_000, basis: "2 người" }] } },
+      // D5: tier-only input for estimateCosts.
+      { tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD" } },
       { tool: "suggestReplies", input: { replies: ["Đi 4 người", "Nhịp thong thả"] } },
       { text: "Mình đã lên lịch mẫu bên dưới, lịch chưa được lưu." },
     ]);

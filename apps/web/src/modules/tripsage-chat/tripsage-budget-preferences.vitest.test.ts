@@ -97,15 +97,13 @@ describe("Ticket 16: Budget savings chips & grounded preference labels (slim AC-
       emitQuickReplies: replies => emittedReplies.push(replies),
     });
 
+    // D5: AI supplies lodging/meal/rental tiers; server computes nights, whole-trip meal days, bikes, and access leg.
     const estimateRes = (await tools.estimateCosts.execute!(
       {
         budgetCap: 20_000_000,
-        lines: [
-          { category: "lodging", label: "Homestay 3 đêm", amount: 6_000_000, basis: "3 đêm × 2 phòng × 1.000.000đ" },
-          { category: "food", label: "Ăn uống", amount: 4_800_000, basis: "4 người × 4 ngày × 300.000đ" },
-          { category: "transport", label: "Thuê xe máy", amount: 2_400_000, basis: "2 xe × 4 ngày × 300.000đ" },
-          { category: "activities", label: "Vé tham quan", amount: 2_074_332, basis: "Vé & thuyền Nho Quế" },
-        ],
+        lodgingTier: "HOTEL",
+        mealTier: "COMFORT",
+        rentalTier: "SEMI_AUTO",
       },
       options,
     )) as {
@@ -150,10 +148,12 @@ describe("Ticket 16: Budget savings chips & grounded preference labels (slim AC-
       tripInfo: { transport: "MOTORCYCLE", durationDays: 4, startDate: "2026-12-12", travelers: 4, homeCity: "Đà Nẵng" },
       accessLeg: sampleAccessLeg,
     });
+    // D5: tier-only input for silentTools budget-exceeded note check.
     const silentRes = (await silentTools.estimateCosts.execute!(
       {
         budgetCap: 20_000_000,
-        lines: [{ category: "lodging", label: "Homestay", amount: 6_000_000 }],
+        lodgingTier: "HOMESTAY",
+        mealTier: "STANDARD",
       },
       options,
     )) as { ok: boolean; note?: string };
@@ -238,14 +238,13 @@ describe("Ticket 16: Budget savings chips & grounded preference labels (slim AC-
       accessLeg: leg,
       emitCost: c => emittedCosts.push(c),
     });
+    // D5: tier-only input preserves missing-price access-leg incomplete guard.
     const res = (await tools.estimateCosts.execute!(
       {
         budgetCap: 20_000_000,
-        lines: [
-          { category: "lodging", label: "Lưu trú", amount: 2_400_000 },
-          { category: "food", label: "Ăn uống", amount: 1_920_000 },
-          { category: "transport", label: "Thuê xe", amount: 1_400_000 },
-        ],
+        lodgingTier: "HOMESTAY",
+        mealTier: "STANDARD",
+        rentalTier: "SEMI_AUTO",
       },
       { toolCallId: "tc-bug2", messages: [] } as never,
     )) as { ok: boolean; withinCap: boolean | null; isIncomplete?: boolean; missingItems?: string[]; note?: string };

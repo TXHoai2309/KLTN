@@ -419,6 +419,7 @@ export function TripsageChatClient({
     itinerary: itineraryCurrent ? summarizeItinerary(latestItinerary) : null,
     suggestions: itineraryCurrent ? state.suggestions : undefined,
     accessLeg: state.accessLeg?.data ?? null,
+    cost: state.cost?.data ?? null,
     originCandidatesToken: state.originCandidatesToken,
     conversationId: activeConversationId,
   };
@@ -666,7 +667,7 @@ export function TripsageChatClient({
     setFinishedTextIds(new Set());
     setPinned([]); setSavedRecord(null); setPinMessage(null);
     lastSyncedProposalRef.current = null;
-    bodyRef.current = { journey: null, tripInfo: null, itinerary: null, originCandidatesToken: null, conversationId: null };
+    bodyRef.current = { journey: null, tripInfo: null, itinerary: null, cost: null, originCandidatesToken: null, conversationId: null };
     setMessages([]);
     syncUrl(null);
   }

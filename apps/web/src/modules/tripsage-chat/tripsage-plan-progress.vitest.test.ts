@@ -164,8 +164,9 @@ describe("Ticket 15: real progress transitions & parallel post-validation execut
     expect(hotelRes.ok).toBe(false);
     expect(progressEvents.some(p => p.step === "LODGING" && p.state === "error" && p.detail?.includes("Chưa tìm được"))).toBe(true);
 
+    // D5: estimateCosts receives tier selections instead of free-form lines.
     const costRes = await tools.estimateCosts.execute!(
-      { lines: [{ category: "food", label: "Ăn uống", amount: 1_200_000, basis: "4 người × 2 ngày" }] },
+      { lodgingTier: "HOMESTAY", mealTier: "STANDARD" },
       opts,
     ) as { ok: boolean };
     expect(costRes.ok).toBe(true);
@@ -177,7 +178,7 @@ describe("Ticket 15: real progress transitions & parallel post-validation execut
     const steps = [
       { tool: "listDestinations", input: {} },
       { tool: "proposeItinerary", input: { selection: { days: [["dest-1"], ["dest-2"]] } } },
-      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 1_200_000 }] } },
+      { tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD" } },
       { text: "Lịch trình 2 ngày đã sẵn sàng." },
     ];
     let call = 0;

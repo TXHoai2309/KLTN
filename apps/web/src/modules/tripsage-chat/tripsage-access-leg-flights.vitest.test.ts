@@ -211,7 +211,8 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
           ],
         },
       },
-      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 1_000_000 }] } },
+      // D5: tier-only estimateCosts input; server sums access leg automatically.
+      { tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD" } },
       { text: "Đã cập nhật chặng tiếp cận với giá vé tham khảo." },
     ], { flights: flightLookup });
 
@@ -291,7 +292,8 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
           ],
         },
       },
-      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 3_200_000 }], budgetCap: 20_000_000 } },
+      // D5: tier-only estimateCosts input.
+      { tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD", budgetCap: 20_000_000 } },
       { text: "Đã áp giá vé máy bay Google Flights vào chặng tiếp cận." },
     ], {
       flights: flightLookup,
@@ -327,7 +329,8 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
         },
       },
       { tool: "searchFlights", input: { departureDate: "2026-12-11", returnDate: "2026-12-15", adults: 1 } },
-      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 3_200_000 }], budgetCap: 20_000_000 } },
+      // D5: tier-only estimateCosts input.
+      { tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD", budgetCap: 20_000_000 } },
       { text: "Đã cập nhật giá vé máy bay." },
     ], {
       flights: flightLookup,
@@ -515,7 +518,8 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
     // 3. Rebuilding access leg in v2 (e.g. after editing Day 2 stops, without re-calling searchFlights and even after DB reload without data-flights)
     //    MUST preserve v1's Google Flights price AND keep the approved bus price, AND re-sync estimateCosts even if called before planAccessLeg!
     const v2Model = scripted([
-      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 3_840_000 }], budgetCap: 20_000_000 } },
+      // D5: tier-only estimateCosts input (running before planAccessLeg auto-syncs later).
+      { tool: "estimateCosts", input: { lodgingTier: "HOMESTAY", mealTier: "STANDARD", budgetCap: 20_000_000 } },
       {
         tool: "planAccessLeg",
         input: {

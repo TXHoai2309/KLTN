@@ -4,6 +4,7 @@ import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { ASSUMABLE_FIELDS, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import type { AccessLegPart } from "./tripsage-access-leg";
+import type { CostPart } from "./tripsage-cost";
 import { LODGING_KINDS } from "./tripsage-chat-parts";
 import type { TimelineSuggestion } from "./tripsage-timeline";
 import {
@@ -255,6 +256,7 @@ export function buildTripsageChatBody(input: {
   itinerary: TripsageItinerarySummary | null;
   suggestions?: readonly TimelineSuggestion[];
   accessLeg?: AccessLegPart | null;
+  cost?: CostPart | null;
   originCandidatesToken?: string | null;
   conversationId?: string | null;
 }) {
@@ -265,6 +267,7 @@ export function buildTripsageChatBody(input: {
     currentItinerary: input.itinerary,
     ...(input.suggestions?.length ? { suggestions: input.suggestions.slice(0, 60) } : {}),
     accessLeg: input.accessLeg ?? null,
+    ...(input.cost ? { cost: input.cost } : {}),
     originCandidatesToken: input.originCandidatesToken ?? null,
     ...(input.conversationId ? { conversationId: input.conversationId } : {}),
   };

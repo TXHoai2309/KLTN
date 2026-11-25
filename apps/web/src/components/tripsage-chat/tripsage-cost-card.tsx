@@ -29,6 +29,12 @@ export function TripsageCostCard({
   const hasBudgetCap = cost.budgetCap !== null && cost.budgetCap > 0;
   const isOverBudget = hasBudgetCap && cost.withinCap === false && (cost.overBy ?? 0) > 0;
   const isIncomplete = cost.isIncomplete === true || Boolean(cost.missingItems?.length);
+  const accessLegMismatch = Boolean(
+    accessLeg && (
+      (cost.accessLegId && accessLeg.id && cost.accessLegId !== accessLeg.id) ||
+      (!cost.accessLegId && !cost.lines.some(line => line.label === "Chặng tiếp cận (đi và về)"))
+    ),
+  );
   const savingsChips = resolveBudgetSavingsChips(cost, accessLeg);
   return (
     <section className="tripsage-cost" aria-label="Bảng chi phí ước tính">
@@ -36,6 +42,11 @@ export function TripsageCostCard({
         <h4 className="tripsage-cost-title">Chi phí ước tính</h4>
         <div className="tripsage-cost-total-row">
           <strong className="tripsage-cost-total-amount">{formatVnd(cost.total)}</strong>
+          {accessLegMismatch && (
+            <span className="tripsage-cost-warn-badge" data-testid="cost-stale-badge">
+              Cần tính lại
+            </span>
+          )}
           {isIncomplete && (
             <span className="tripsage-cost-warn-badge" data-testid="cost-incomplete-badge">
               Chưa đầy đủ
@@ -49,6 +60,7 @@ export function TripsageCostCard({
         </div>
         <p className="tripsage-cost-sub">
           cả nhóm {cost.travelers} người · {formatVnd(cost.perPersonPerDay)}/người/ngày
+          {cost.days > 1 ? ` · trên cả chuyến ${cost.days} ngày` : ""}
         </p>
         {isIncomplete && cost.missingItems && cost.missingItems.length > 0 && (
           <p className="tripsage-cost-sub" data-testid="cost-missing-items">

@@ -18,6 +18,43 @@ export const COST_CATEGORIES = ["transport", "lodging", "food", "activities", "o
 export const COST_CATEGORY_LABELS: Record<(typeof COST_CATEGORIES)[number], string> = { transport: "Đi lại", lodging: "Lưu trú", food: "Ăn uống", activities: "Vé & vui chơi", other: "Khác" };
 const vnd = z.number().int().min(0).max(1_000_000_000);
 
+export const LODGING_TIERS = ["DORM", "HOMESTAY", "HOTEL"] as const;
+export type LodgingTier = (typeof LODGING_TIERS)[number];
+export const MEAL_TIERS = ["BUDGET", "STANDARD", "COMFORT"] as const;
+export type MealTier = (typeof MEAL_TIERS)[number];
+export const RENTAL_TIERS = [
+  "OWN_VEHICLE",
+  "SEMI_AUTO",
+  "MANUAL",
+  "EASY_RIDER",
+  "CAR_SELF_DRIVE",
+  "CAR_DRIVER",
+] as const;
+export type RentalTier = (typeof RENTAL_TIERS)[number];
+
+/** Midpoint rates grounded in docs/fixtures/price-reference-ha-giang.md (2026-11-21). */
+export const SERVER_COST_RATES = {
+  lodging: {
+    DORM: { label: "Homestay phòng tập thể", unitPrice: 125_000, perRoom: false },
+    HOMESTAY: { label: "Homestay phòng riêng", unitPrice: 450_000, perRoom: true },
+    HOTEL: { label: "Khách sạn 2–3 sao", unitPrice: 750_000, perRoom: true },
+  },
+  meal: {
+    BUDGET: { label: "Ăn uống tiết kiệm", perPersonPerDay: 190_000 },
+    STANDARD: { label: "Ăn uống phổ thông", perPersonPerDay: 270_000 },
+    COMFORT: { label: "Ăn uống thoải mái (lẩu & đặc sản)", perPersonPerDay: 400_000 },
+  },
+  rental: {
+    OWN_VEHICLE: { label: "Xe tự túc (không thuê)", perVehiclePerDay: 0, perTraveler: false },
+    SEMI_AUTO: { label: "Thuê xe máy số", perVehiclePerDay: 175_000, perTraveler: false },
+    MANUAL: { label: "Thuê xe máy côn tay", perVehiclePerDay: 300_000, perTraveler: false },
+    EASY_RIDER: { label: "Thuê xe máy có người lái (easy rider)", perVehiclePerDay: 850_000, perTraveler: true },
+    CAR_SELF_DRIVE: { label: "Thuê ô tô tự lái", perVehiclePerDay: 900_000, perTraveler: false },
+    CAR_DRIVER: { label: "Thuê xe ô tô có tài xế", perVehiclePerDay: 1_500_000, perTraveler: false },
+  },
+  overnightParkingPerBikeNight: 15_000,
+} as const;
+
 export const costLineInputSchema = z.object({
   category: z.enum(COST_CATEGORIES),
   label: z.string().trim().min(1).max(60),
@@ -25,6 +62,24 @@ export const costLineInputSchema = z.object({
   basis: z.string().trim().max(120).optional().describe("Cách tính ngắn, ví dụ: 3 đêm × 2 phòng × 400.000đ."),
 }).strict();
 export type CostLineInput = z.infer<typeof costLineInputSchema>;
+
+export const costSelectionsSchema = z.object({
+  lodgingTier: z.enum(LODGING_TIERS).default("HOMESTAY").describe("Hạng lưu trú: DORM (tập thể 125k/người/đêm), HOMESTAY (phòng riêng 450k/phòng/đêm), HOTEL (khách sạn 2-3 sao 750k/phòng/đêm)."),
+  mealTier: z.enum(MEAL_TIERS).default("STANDARD").describe("Mức ăn uống: BUDGET (190k/người/ngày), STANDARD (270k/người/ngày), COMFORT (400k/người/ngày)."),
+  rentalTier: z.enum(RENTAL_TIERS).optional().describe("Phương án xe tại Hà Giang: OWN_VEHICLE (xe tự túc từ nhà), SEMI_AUTO (xe số 175k/xe/ngày), MANUAL (xe côn 300k/xe/ngày), EASY_RIDER (có tài xế 850k/người/ngày), CAR_SELF_DRIVE (ô tô tự lái 900k/xe/ngày), CAR_DRIVER (ô tô có tài xế 1.500k/xe/ngày)."),
+  extras: z.array(costLineInputSchema).max(6).optional().describe("CHỈ thêm khoản phát sinh đặc biệt ngoài lưu trú, ăn uống, thuê xe, gửi xe, vé danh mục, xăng và chặng tiếp cận."),
+}).strict();
+export type CostSelectionsInput = z.infer<typeof costSelectionsSchema>;
+
+export const costPersistedSelectionsSchema = z.object({
+  lodgingTier: z.enum(LODGING_TIERS),
+  mealTier: z.enum(MEAL_TIERS),
+  rentalTier: z.enum(RENTAL_TIERS),
+  extras: z.array(costLineInputSchema).max(6).optional(),
+  fuelVndPerLiter: z.number().int().min(10_000).max(60_000).optional(),
+  fuelSource: z.string().max(160).optional(),
+}).strict();
+export type CostPersistedSelections = z.infer<typeof costPersistedSelectionsSchema>;
 
 export const budgetSavingsChipSchema = z.object({
   id: z.string().min(1).max(40),
@@ -37,17 +92,19 @@ export type BudgetSavingsChip = z.infer<typeof budgetSavingsChipSchema>;
 export const costPartSchema = z.object({
   currency: z.literal("VND"),
   travelers: z.number().int().min(1).max(20),
-  days: z.number().int().min(1).max(14),
+  days: z.number().int().min(1).max(30),
+  sightseeingDays: z.number().int().min(1).max(14).optional(),
   lines: z.array(costLineInputSchema.extend({ computed: z.literal(true).optional() }).strict()).min(1).max(16),
   total: vnd,
   perPersonPerDay: vnd,
-  budgetCap: vnd.nullable(),
+  budgetCap: z.number().int().min(0).max(1_000_000_000).nullable(),
   withinCap: z.boolean().nullable(),
   overBy: vnd.nullable(),
   assumptions: z.array(z.string().max(200)).max(6),
   priceReferenceDate: z.string().max(10),
   accessLegId: z.string().min(1).max(64).optional(),
   savingsOptions: z.array(budgetSavingsChipSchema).max(3).optional(),
+  selections: costPersistedSelectionsSchema.optional(),
   /** Bug 2: items whose price could not be estimated from the reference table; total is incomplete and never "withinCap: true". */
   isIncomplete: z.literal(true).optional(),
   missingItems: z.array(z.string().max(120)).max(8).optional(),
@@ -63,6 +120,10 @@ export type CostInput = {
   accessLegId?: string | null;
   /** Bug 2: explicit unpriced segments/items (e.g. "Chặng tiếp cận Đà Nẵng ⇄ Hà Nội"). */
   missingItems?: readonly string[];
+  /** D5: sightseeing days in Hà Giang when whole-trip `days` includes travel days. */
+  sightseeingDays?: number;
+  /** D5/D6: tier choices stored for automatic server recomputation across edits. */
+  selections?: CostPersistedSelections;
 };
 
 export const formatVnd = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
@@ -90,18 +151,266 @@ export function estimateTripCost(input: CostInput): CostPart {
   if (isIncomplete) {
     assumptions.push(`Chưa tính: ${missingItems.join(", ")}. Tổng chi phí chưa đầy đủ nên chưa thể kết luận trong ngân sách.`);
   }
-  assumptions.push("Các khoản khác là ước tính của trợ lý; giá thực tế có thể khác.");
+  assumptions.push("Các khoản lưu trú, ăn uống và thuê xe ước tính theo bảng giá tham khảo; giá thực tế có thể khác.");
   // Never conclude "withinCap: true" when required price segments are missing; still flag overBy if partial total already exceeds cap.
   const withinCap = cap === null ? null : total > cap ? false : isIncomplete ? null : true;
   const overBy = cap === null ? null : total > cap ? total - cap : isIncomplete ? null : 0;
   return {
     currency: "VND", travelers: input.travelers, days: input.days, lines: lines.slice(0, 16), total,
+    ...(input.sightseeingDays ? { sightseeingDays: input.sightseeingDays } : {}),
     perPersonPerDay: Math.round(total / (input.travelers * input.days)),
     budgetCap: cap, withinCap, overBy,
     assumptions: assumptions.slice(0, 6), priceReferenceDate: PRICE_REFERENCE.updatedAt,
     ...(input.accessLegId ? { accessLegId: input.accessLegId } : {}),
+    ...(input.selections ? { selections: input.selections } : {}),
     ...(isIncomplete ? { isIncomplete: true as const, missingItems } : {}),
   };
+}
+
+export type CostDateSpan = {
+  sightseeingDays: number;
+  wholeTripDays: number;
+  lodgingNights: number;
+  mealDays: number;
+  rentalDays: number;
+  hasPreTravelDay: boolean;
+  hasPostTravelDay: boolean;
+};
+
+function addIsoCalendarDays(iso: string, delta: number): string {
+  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
+}
+
+function isoCalendarDiff(fromIso: string, toIso: string): number {
+  return Math.round((Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 86_400_000);
+}
+
+function parseClockMinuteOrNull(hhmm?: string): number | null {
+  if (!hhmm) return null;
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm.trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+function isDirectionOvernight(segments: AccessLegPart["outbound"], direction: "outbound" | "return"): boolean {
+  if (segments.length === 0) return false;
+  for (const seg of segments) {
+    if (seg.mode !== "SLEEPER_BUS" && seg.mode !== "TRAIN") continue;
+    const dep = parseClockMinuteOrNull(seg.departTime);
+    if (dep !== null) {
+      if (dep >= 19 * 60 || dep < 4 * 60 || dep + seg.durationMinutes >= 24 * 60) return true;
+    } else if (direction === "return" && seg.mode === "SLEEPER_BUS") {
+      // Return sleeper buses from TP Hà Giang commonly depart overnight unless a daytime clock is given.
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * D5/D7: derives whole-trip calendar day span (`mealDays`, `perPersonPerDay` divisor), Hà Giang `rentalDays`,
+ * and actual `lodgingNights` (adding outbound arrival night if arriving daytime, subtracting overnight bus nights).
+ */
+export function computeCostDateSpan(input: {
+  startDate?: string | null;
+  durationDays: number;
+  tripStartDate?: string | null;
+  tripEndDate?: string | null;
+  accessLeg?: AccessLegPart | null;
+}): CostDateSpan {
+  const sightseeingDays = Math.max(1, input.durationDays);
+  let wholeTripDays = sightseeingDays;
+  let hasPreTravelDay = false;
+  let hasPostTravelDay = false;
+
+  if (input.tripStartDate && input.tripEndDate && input.tripEndDate >= input.tripStartDate) {
+    wholeTripDays = Math.min(30, Math.max(sightseeingDays, isoCalendarDiff(input.tripStartDate, input.tripEndDate) + 1));
+    if (input.startDate) {
+      hasPreTravelDay = input.tripStartDate < input.startDate;
+      const lastSightseeing = addIsoCalendarDays(input.startDate, sightseeingDays - 1);
+      hasPostTravelDay = input.tripEndDate > lastSightseeing;
+    } else {
+      const extra = Math.max(0, wholeTripDays - sightseeingDays);
+      hasPreTravelDay = extra >= 1;
+      hasPostTravelDay = extra >= 2;
+    }
+  } else if (input.accessLeg && (input.accessLeg.outbound.length > 0 || input.accessLeg.return.length > 0)) {
+    const outMins =
+      input.accessLeg.outboundMinutes > 0
+        ? input.accessLeg.outboundMinutes
+        : input.accessLeg.outbound.reduce((sum, s) => sum + s.durationMinutes, 0);
+    const retMins =
+      input.accessLeg.returnMinutes > 0
+        ? input.accessLeg.returnMinutes
+        : input.accessLeg.return.reduce((sum, s) => sum + s.durationMinutes, 0);
+    hasPreTravelDay = outMins >= 300 || input.accessLeg.outbound.length >= 2;
+    hasPostTravelDay = retMins >= 300 || input.accessLeg.return.length >= 2;
+    wholeTripDays = Math.min(30, sightseeingDays + (hasPreTravelDay ? 1 : 0) + (hasPostTravelDay ? 1 : 0));
+  }
+
+  const outboundOvernight = hasPreTravelDay && isDirectionOvernight(input.accessLeg?.outbound ?? [], "outbound");
+  const returnOvernight = hasPostTravelDay && isDirectionOvernight(input.accessLeg?.return ?? [], "return");
+  const lodgingNights = Math.max(
+    0,
+    sightseeingDays - 1 + (hasPreTravelDay && !outboundOvernight ? 1 : 0) + (hasPostTravelDay && !returnOvernight ? 1 : 0),
+  );
+
+  return {
+    sightseeingDays,
+    wholeTripDays,
+    lodgingNights,
+    mealDays: wholeTripDays,
+    rentalDays: sightseeingDays,
+    hasPreTravelDay,
+    hasPostTravelDay,
+  };
+}
+
+export function parseTicketPriceVnd(raw: string | null | undefined): number | null {
+  if (!raw) return null;
+  if (/mi[eễ]n\s*ph[ií]/iu.test(raw)) return 0;
+  const matches = [...raw.matchAll(/(\d{1,3}(?:[.,]\d{3})+|\d+\s*[kK])\b/gu)];
+  const values: number[] = [];
+  for (const match of matches) {
+    const token = match[1]!.toLowerCase().trim();
+    const numeric = token.endsWith("k")
+      ? Number.parseInt(token.slice(0, -1), 10) * 1000
+      : Number.parseInt(token.replaceAll(/[.,]/g, ""), 10);
+    if (Number.isFinite(numeric) && numeric > 0 && numeric <= 2_000_000) {
+      values.push(numeric);
+    }
+  }
+  if (values.length === 0) return null;
+  if (values.length === 1) return values[0]!;
+  return Math.round((values[0]! + values[1]!) / 2);
+}
+
+export function defaultRentalTierForTrip(transport: TripTransport, usesLocalRental: boolean): RentalTier {
+  if (!usesLocalRental) return "OWN_VEHICLE";
+  return transport === "CAR" ? "CAR_SELF_DRIVE" : "SEMI_AUTO";
+}
+
+export function computeTieredTripCost(input: {
+  transport: TripTransport;
+  travelers: number;
+  startDate?: string | null;
+  durationDays: number;
+  tripStartDate?: string | null;
+  tripEndDate?: string | null;
+  distanceKm: number | null;
+  usesLocalRental: boolean;
+  lodgingTier: LodgingTier;
+  mealTier: MealTier;
+  rentalTier?: RentalTier;
+  extras?: readonly CostLineInput[];
+  stopTickets?: readonly { name: string; perPersonVnd: number }[];
+  accessLeg?: AccessLegPart | null;
+  accessLegBasis?: string | null;
+  fuelVndPerLiter?: number;
+  fuelSource?: string;
+  budgetCap?: number | null;
+}): CostPart {
+  const span = computeCostDateSpan({
+    startDate: input.startDate,
+    durationDays: input.durationDays,
+    tripStartDate: input.tripStartDate,
+    tripEndDate: input.tripEndDate,
+    accessLeg: input.accessLeg,
+  });
+  const rentalTier = input.rentalTier ?? defaultRentalTierForTrip(input.transport, input.usesLocalRental);
+  const serverLines: CostLineInput[] = [];
+
+  if (span.lodgingNights > 0) {
+    const lodging = SERVER_COST_RATES.lodging[input.lodgingTier];
+    const roomsOrGuests = lodging.perRoom ? Math.ceil(input.travelers / 2) : input.travelers;
+    const unitLabel = lodging.perRoom ? "phòng" : "người";
+    serverLines.push({
+      category: "lodging",
+      label: lodging.label,
+      amount: span.lodgingNights * roomsOrGuests * lodging.unitPrice,
+      basis: `${span.lodgingNights} đêm × ${roomsOrGuests} ${unitLabel} × ${formatVnd(lodging.unitPrice)}`,
+    });
+  }
+
+  const meal = SERVER_COST_RATES.meal[input.mealTier];
+  serverLines.push({
+    category: "food",
+    label: meal.label,
+    amount: span.mealDays * input.travelers * meal.perPersonPerDay,
+    basis: `${span.mealDays} ngày${span.wholeTripDays > span.sightseeingDays ? " (cả ngày đi/về)" : ""} × ${input.travelers} người × ${formatVnd(meal.perPersonPerDay)}`,
+  });
+
+  const rental = SERVER_COST_RATES.rental[rentalTier];
+  if (rental.perVehiclePerDay > 0) {
+    const vehicles = rental.perTraveler
+      ? input.travelers
+      : rentalTier.startsWith("CAR_")
+        ? Math.max(1, Math.ceil(input.travelers / 14))
+        : Math.ceil(input.travelers / 2);
+    const unitWord = rental.perTraveler ? "người" : "xe";
+    serverLines.push({
+      category: "transport",
+      label: rental.label,
+      amount: span.rentalDays * vehicles * rental.perVehiclePerDay,
+      basis: `${vehicles} ${unitWord} × ${span.rentalDays} ngày × ${formatVnd(rental.perVehiclePerDay)}`,
+    });
+  }
+
+  if (input.transport === "MOTORCYCLE" && rentalTier !== "EASY_RIDER" && span.lodgingNights > 0) {
+    const bikes = Math.ceil(input.travelers / 2);
+    serverLines.push({
+      category: "other",
+      label: "Gửi xe máy qua đêm",
+      amount: bikes * span.lodgingNights * SERVER_COST_RATES.overnightParkingPerBikeNight,
+      basis: `${span.lodgingNights} đêm × ${bikes} xe × ${formatVnd(SERVER_COST_RATES.overnightParkingPerBikeNight)}`,
+    });
+  }
+
+  const pricedStops = (input.stopTickets ?? []).filter(s => s.perPersonVnd > 0);
+  if (pricedStops.length > 0) {
+    const perPersonSum = pricedStops.reduce((sum, s) => sum + s.perPersonVnd, 0);
+    serverLines.push({
+      category: "activities",
+      label: "Vé tham quan trong lịch",
+      amount: perPersonSum * input.travelers,
+      basis: `${input.travelers} người × ${formatVnd(perPersonSum)} (${pricedStops.map(s => s.name).join(", ")})`.slice(0, 120),
+    });
+  }
+
+  const extraLines: CostLineInput[] = [];
+  if (input.accessLeg) {
+    extraLines.push({
+      category: "transport",
+      label: "Chặng tiếp cận (đi và về)",
+      amount: input.accessLeg.totalVnd,
+      basis: input.accessLegBasis ?? `${input.accessLeg.travelers} người khứ hồi`,
+    });
+  }
+  const missingItems = (input.accessLeg?.missingPriceSegments ?? []).map(seg => `Chặng tiếp cận ${seg}`);
+  const mergedLines = [...serverLines, ...(input.extras ?? [])];
+
+  return estimateTripCost({
+    transport: input.transport,
+    travelers: input.travelers,
+    days: span.wholeTripDays,
+    sightseeingDays: span.sightseeingDays,
+    distanceKm: input.distanceKm,
+    fuelVndPerLiter: input.fuelVndPerLiter,
+    fuelSource: input.fuelSource,
+    budgetCap: input.budgetCap,
+    lines: mergedLines,
+    extraLines,
+    accessLegId: input.accessLeg?.id ?? null,
+    ...(missingItems.length ? { missingItems } : {}),
+    selections: {
+      lodgingTier: input.lodgingTier,
+      mealTier: input.mealTier,
+      rentalTier,
+      ...(input.extras && input.extras.length > 0 ? { extras: [...input.extras] } : {}),
+      ...(input.fuelVndPerLiter !== undefined ? { fuelVndPerLiter: input.fuelVndPerLiter } : {}),
+      ...(input.fuelSource !== undefined ? { fuelSource: input.fuelSource } : {}),
+    },
+  });
 }
 
 /**

@@ -209,14 +209,13 @@ describe("Ticket 12: post-itinerary meal suggestions offer", () => {
       text: "Ngày 1 bỏ Cột cờ Lũng Cú, thêm Phố cổ Đồng Văn buổi chiều.",
       steps: [
         { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
+        // D5: estimateCosts receives tier selections only.
         {
           tool: "estimateCosts",
           input: {
             budgetCap: 20_000_000,
-            lines: [
-              { category: "lodging", label: "Lưu trú", amount: 2_000_000 },
-              { category: "food", label: "Ăn uống", amount: 1_500_000 },
-            ],
+            lodgingTier: "HOMESTAY",
+            mealTier: "STANDARD",
           },
         },
         { tool: "suggestReplies", input: { replies: ["Có, tìm quán ăn giúp mình", "Không cần đâu"] } },
@@ -264,11 +263,13 @@ describe("Ticket 12: post-itinerary meal suggestions offer", () => {
             ],
           },
         },
+        // D5: estimateCosts receives tier selections only.
         {
           tool: "estimateCosts",
           input: {
             budgetCap: 20_000_000,
-            lines: [{ category: "food", label: "Ăn uống", amount: 2_000_000 }],
+            lodgingTier: "HOMESTAY",
+            mealTier: "STANDARD",
           },
         },
         { tool: "suggestReplies", input: { replies: ["Gửi giá vé bay dự kiến", "Dùng giá vé mình tự tra"] } },
@@ -297,9 +298,10 @@ describe("Ticket 12: post-itinerary meal suggestions offer", () => {
             return: [{ mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hải Phòng", durationMinutes: 420, priceVndPerPerson: 0 }],
           },
         },
+        // D5: estimateCosts receives tier selections only.
         {
           tool: "estimateCosts",
-          input: { budgetCap: 10_000_000, lines: [{ category: "food", label: "Ăn uống", amount: 800_000 }] },
+          input: { budgetCap: 10_000_000, lodgingTier: "HOMESTAY", mealTier: "STANDARD" },
         },
         { tool: "suggestReplies", input: { replies: ["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"] } },
         { tool: "suggestReplies", input: { replies: ["Giữ xe khách, chốt giá sau", "Đổi tuyến qua Hà Nội", "Bỏ qua, lưu trước"] } },

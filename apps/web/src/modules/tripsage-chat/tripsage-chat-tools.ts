@@ -18,7 +18,7 @@ import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
 import { activityAnchors, nearbyActivitySuggestions, type EveningAnchorDiagnostic } from "./tripsage-activities";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
-import { computeBudgetSavingsChips, costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostLineInput, type CostPart } from "./tripsage-cost";
+import { computeBudgetSavingsChips, computeTieredTripCost, costSelectionsSchema, parseTicketPriceVnd, type CostPart, type CostSelectionsInput, type RentalTier } from "./tripsage-cost";
 import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, resolveMissingPriceChips, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
@@ -287,6 +287,7 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Reviewed local documents (same retriever as Q&A); absent means unavailable. */ knowledge?: LocalKnowledge;
   /** Streams validated suggestions attached to timeline slots. */ emitSuggestions?: (suggestions: TimelineSuggestion[]) => void;
   /** Streams the server-computed cost table. */ emitCost?: (cost: CostPart) => void;
+  /** Prior cost table carried across turns so itinerary/access-leg edits auto-recompute with the same tiers (D6). */ priorCost?: CostPart | null;
   /** Access leg shown earlier in the conversation (request context, re-validated). */ accessLeg?: AccessLegPart | null;
   /** Streams the estimated access leg to a trip hub. */ emitAccessLeg?: (leg: AccessLegPart) => void;
   /** Compact summary of the itinerary currently shown (request context); used for suggestion slots when none was made this turn. */ currentItinerary?: TripsageItinerarySummary | null;
@@ -440,16 +441,100 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   const initialAccessStartDate = context.tripInfo?.startDate;
   const initialAccessDurationDays = context.tripInfo?.durationDays;
   const initialAccessHomeCity = context.tripInfo?.homeCity ?? context.accessLeg?.homeCity;
-  let lastCostComputeContext: {
-    transport: "MOTORCYCLE" | "CAR";
-    travelers: number;
-    days: number;
-    distanceKm: number | null;
-    fuelVndPerLiter?: number;
-    fuelSource?: string;
-    budgetCap: number | null;
-    lines: readonly CostLineInput[];
-  } | null = null;
+  const seededCostSelections = context.priorCost?.selections
+    ? {
+        lodgingTier: context.priorCost.selections.lodgingTier,
+        mealTier: context.priorCost.selections.mealTier,
+        rentalTier: context.priorCost.selections.rentalTier,
+        ...(context.priorCost.selections.extras?.length ? { extras: context.priorCost.selections.extras } : {}),
+      }
+    : null;
+  let lastCostSelections: (CostSelectionsInput & { rentalTier?: RentalTier }) | null = seededCostSelections;
+  let lastCostBudgetCap: number | null = context.priorCost?.budgetCap ?? null;
+  let lastCostFuelPrice: number | undefined = context.priorCost?.selections?.fuelVndPerLiter;
+  let lastCostFuelSource: string | undefined = context.priorCost?.selections?.fuelSource;
+  let latestStopTickets: { name: string; perPersonVnd: number }[] = [];
+  let stopTicketsResolvedKey = "";
+  const collectStopTicketsFromCandidates = (days: readonly (readonly string[])[], pool: readonly PlannerCandidate[]) => {
+    const byId = new Map(pool.map(item => [item.id, item]));
+    const seen = new Set<string>();
+    const out: { name: string; perPersonVnd: number }[] = [];
+    for (const day of days) {
+      for (const rawId of day) {
+        const resolvedId = resolveCatalogRef(rawId);
+        if (seen.has(resolvedId)) continue;
+        seen.add(resolvedId);
+        const found = byId.get(resolvedId);
+        const perPersonVnd = parseTicketPriceVnd(found?.ticketPrice);
+        if (found && perPersonVnd && perPersonVnd > 0) {
+          out.push({ name: found.name, perPersonVnd });
+        }
+      }
+    }
+    return out;
+  };
+  const ensureLatestStopTickets = async () => {
+    if (!latestDays) {
+      latestStopTickets = [];
+      stopTicketsResolvedKey = "";
+      return;
+    }
+    const key = latestDays.map(d => d.join(",")).join("|");
+    if (stopTicketsResolvedKey === key) return;
+    try {
+      const usable = await ensureShortCodes();
+      latestStopTickets = collectStopTicketsFromCandidates(latestDays, usable);
+      stopTicketsResolvedKey = key;
+    } catch {
+      // Keep last known ticket list when candidate catalog cannot be loaded.
+    }
+  };
+  const resolveUsesLocalRental = (info: TripsageTripInfo) =>
+    Boolean(latestAccessLeg)
+    || isHubOrigin(currentJourney?.origin?.label)
+    || (Boolean(info.homeCity) && !sameAccessPlace(info.homeCity!, "Hà Nội") && !sameAccessPlace(info.homeCity!, "TP Hà Giang"));
+  const resolveCompatibleRentalTier = (transport: TripTransport, rentalTier?: RentalTier): RentalTier | undefined => {
+    if (!rentalTier || rentalTier === "OWN_VEHICLE") return rentalTier;
+    const isCarTier = rentalTier === "CAR_SELF_DRIVE" || rentalTier === "CAR_DRIVER";
+    if (transport === "CAR" && !isCarTier) return undefined;
+    if (transport === "MOTORCYCLE" && isCarTier) return undefined;
+    return rentalTier;
+  };
+  const emitSyncedCostNow = (selections: CostSelectionsInput & { rentalTier?: RentalTier }) => {
+    const { info } = withTripInfoDefaults(tripInfo);
+    if (!info.transport || !info.durationDays) return null;
+    const cost = computeTieredTripCost({
+      transport: info.transport,
+      travelers: info.travelers,
+      startDate: info.startDate,
+      durationDays: info.durationDays,
+      tripStartDate: (info as { tripStartDate?: string }).tripStartDate,
+      tripEndDate: (info as { tripEndDate?: string }).tripEndDate,
+      distanceKm: latestDistanceKm,
+      usesLocalRental: resolveUsesLocalRental(info),
+      lodgingTier: selections.lodgingTier ?? "HOMESTAY",
+      mealTier: selections.mealTier ?? "STANDARD",
+      rentalTier: resolveCompatibleRentalTier(info.transport, selections.rentalTier),
+      extras: selections.extras,
+      stopTickets: latestStopTickets,
+      accessLeg: latestAccessLeg,
+      accessLegBasis: latestAccessLeg ? formatAccessLegCostBasis(latestAccessLeg) : null,
+      fuelVndPerLiter: lastCostFuelPrice,
+      fuelSource: lastCostFuelSource,
+      budgetCap: lastCostBudgetCap,
+    });
+    const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg, info.transport);
+    const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
+    latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
+    latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
+    context.emitCost?.(emittedCost);
+    return { cost, emittedCost, savingsOptions };
+  };
+  const syncCostIfTracked = async () => {
+    if (!lastCostSelections) return null;
+    await ensureLatestStopTickets();
+    return emitSyncedCostNow(lastCostSelections);
+  };
   let latestCostOverBudget = false;
   let latestCostMissingItems: string[] = [];
   let latestProposalReadyToSave = false;
@@ -626,6 +711,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         context.emitJourney?.(effectiveJourney);
       }
       const { info, defaulted } = withTripInfoDefaults(tripInfo);
+      if (
+        input.transport !== undefined
+        || input.durationDays !== undefined
+        || input.travelers !== undefined
+        || input.startDate !== undefined
+        || input.homeCity !== undefined
+      ) {
+        await syncCostIfTracked();
+      }
       return { ok: true as const, tripInfo, defaulted, missing: missingTripInfo(info, effectiveJourney).map(m => m.field) };
     },
   });
@@ -721,7 +815,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const latest = context.latestUserText ?? "";
       if (signedList.length === 1 && (statesSoleOrigin(latest, signedList[0]!) || namesOrAgreesOrigin(latest, query))) {
         const confirmed = applyConfirmedOrigin(signedList[0]!);
-        if (confirmed.ok) return { ...confirmed, note: "Điểm xuất phát đã được xác nhận vì người dùng vừa nêu đúng địa điểm này; không hỏi lại. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này." };
+        if (confirmed.ok) {
+          await syncCostIfTracked();
+          return { ...confirmed, note: "Điểm xuất phát đã được xác nhận vì người dùng vừa nêu đúng địa điểm này; không hỏi lại. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này." };
+        }
       }
       const token = context.signOriginCandidates?.(signedList) ?? null;
       if (!token) return { ok: false as const, code: "ORIGIN_SEARCH_UNAVAILABLE", message: "Chưa sẵn sàng xác thực ứng viên điểm xuất phát.", fixedHubs: fixedHubPublic };
@@ -776,7 +873,9 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         && !((fromPreviousTurn || pool.length === 1 || FIXED_HUB_CANDIDATES.includes(found)) && namesOrAgreesOrigin(latestText, found.label.split(/[,(]/u)[0]!))) {
         return { ok: false as const, code: "ORIGIN_CONFIRMATION_REQUIRED", message: "Người dùng chưa đồng ý hoặc chưa chọn rõ điểm xuất phát này trong tin nhắn mới nhất. Hãy nêu rõ nhãn địa điểm và chờ người dùng trả lời đồng ý." };
       }
-      return applyConfirmedOrigin(found);
+      const confirmed = applyConfirmedOrigin(found);
+      if (confirmed.ok) await syncCostIfTracked();
+      return confirmed;
     },
   });
 
@@ -1322,6 +1421,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             fill: shownIds.length === 0 || pickedIds.length >= shownIds.length,
             travelLookup: travelCache?.lookup,
             windingFactor: travelCache?.windingFactor,
+            coordinateRoute: context.planning.routes.coordinateRoute,
           }).catch(() => null);
           if (arranged) {
             resolvedSelection = { days: arranged.days.map(day => day.map(c => c.id)) };
@@ -1441,6 +1541,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         }
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
+        latestStopTickets = collectStopTicketsFromCandidates(latestDays, all);
+        stopTicketsResolvedKey = latestDays.map(d => d.join(",")).join("|");
+        if (lastCostSelections) {
+          emitSyncedCostNow(lastCostSelections);
+        }
         // Slim D20: run independent post-validation enrichments in parallel without increasing call caps; errors never block display or save.
         const emitGroundedPreferenceLabels = async () => {
           if (!context.knowledge || !context.emitSuggestions) return;
@@ -1768,9 +1873,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   });
 
   const estimateCosts = tool({
-    description: `Lập bảng chi phí ước tính cho cả nhóm (VND). Bạn đưa các khoản lưu trú, ăn uống, vé & vui chơi, khác, và đi lại ngoài xăng (thuê xe, gửi xe...), mỗi khoản kèm cách tính ngắn. Tiền xăng do hệ thống tự tính từ quãng đường của lịch (${PRICE_REFERENCE.litersPer100Km.MOTORCYCLE} L/100 km xe máy, ${PRICE_REFERENCE.litersPer100Km.CAR} L/100 km ô tô, giá xăng lấy từ Petrolimex vùng 2 khi tra được, nếu không thì mặc định ${PRICE_REFERENCE.fuelVndPerLiter} đ/L, người dùng sửa được); không tự đưa dòng xăng. Hệ thống cộng tổng, tính mỗi người mỗi ngày và so ngân sách nếu người dùng đã nêu. Chặng tiếp cận (máy bay/xe khách từ nhà tới điểm tập kết và về) đã được cộng tự động khi có: KHÔNG thêm lại dòng vé máy bay hay vé xe khách của chặng đó.`,
-    inputSchema: z.object({
-      lines: z.array(costLineInputSchema).min(1).max(12),
+    description: "Lập bảng chi phí ước tính cho cả nhóm (VND). Bạn CHỈ chọn hạng lưu trú (lodgingTier), mức ăn uống (mealTier) và phương án xe (rentalTier), cộng extras nếu có khoản phát sinh đặc biệt. Hệ thống tự tính số đêm (trừ đêm ngủ xe, cộng đêm nếu tới nơi ban ngày), số phòng/người, số ngày ăn uống cả chuyến (kể cả ngày đi/về), số xe thuê theo quy tắc 2 người/xe máy, gửi xe qua đêm, vé tham quan trong lịch, tiền xăng theo km lộ trình và chặng tiếp cận; đồng thời tự tính lại khi lịch hoặc chặng tiếp cận đổi.",
+    inputSchema: costSelectionsSchema.extend({
       fuelVndPerLiter: z.number().int().min(10_000).max(60_000).optional().describe("CHỈ khi người dùng tự nêu giá xăng trong tin nhắn này, đ/L; nếu không, bỏ trống để hệ thống tra giá Petrolimex."),
       budgetCap: z.number().int().min(0).max(1_000_000_000).optional().describe("Ngân sách tối đa cả nhóm người dùng đã nêu, VND."),
     }).strict(),
@@ -1781,39 +1885,23 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       // The model sometimes invents a fuel price; only a price the traveler typed this turn overrides the live Petrolimex lookup.
       const userFuel = input.fuelVndPerLiter !== undefined && /x[aă]ng/iu.test(context.latestUserText ?? "") && /\d/u.test(context.latestUserText ?? "") ? input.fuelVndPerLiter : undefined;
       const live = userFuel === undefined && context.fuelPrice ? await context.fuelPrice(options?.abortSignal).catch(() => null) : null;
-      const costCtx = {
-        transport: info.transport,
-        travelers: info.travelers,
-        days: info.durationDays,
-        distanceKm: latestDistanceKm,
-        fuelVndPerLiter: userFuel ?? live?.vndPerLiter,
-        fuelSource: live ? `${live.fuelName}, ${live.source}${live.asOf ? `, ${live.asOf.split("-").reverse().join("/")}` : ""}` : undefined,
-        budgetCap: input.budgetCap ?? null,
-        lines: input.lines,
+      lastCostFuelPrice = userFuel ?? live?.vndPerLiter ?? lastCostFuelPrice;
+      lastCostFuelSource = live ? `${live.fuelName}, ${live.source}${live.asOf ? `, ${live.asOf.split("-").reverse().join("/")}` : ""}` : lastCostFuelSource;
+      if (input.budgetCap !== undefined) {
+        lastCostBudgetCap = input.budgetCap > 0 ? input.budgetCap : null;
+      }
+      lastCostSelections = {
+        lodgingTier: input.lodgingTier ?? "HOMESTAY",
+        mealTier: input.mealTier ?? "STANDARD",
+        ...(input.rentalTier ? { rentalTier: input.rentalTier } : {}),
+        ...(input.extras?.length ? { extras: input.extras } : {}),
       };
-      lastCostComputeContext = costCtx;
-      const emitSyncedCost = (ctx: typeof costCtx) => {
-        const extraLines = latestAccessLeg
-          ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: formatAccessLegCostBasis(latestAccessLeg) }]
-          : [];
-        const missingItems = (latestAccessLeg?.missingPriceSegments ?? []).map(seg => `Chặng tiếp cận ${seg}`);
-        const cost = estimateTripCost({
-          ...ctx,
-          extraLines,
-          accessLegId: latestAccessLeg?.id ?? null,
-          ...(missingItems.length ? { missingItems } : {}),
-        });
-        const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg, ctx.transport);
-        const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
-        latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
-        latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
-        context.emitCost?.(emittedCost);
-        return { cost, emittedCost, savingsOptions };
-      };
-      const { cost, emittedCost, savingsOptions } = emitSyncedCost(costCtx);
+      await ensureLatestStopTickets();
+      const synced = emitSyncedCostNow(lastCostSelections)!;
+      const { cost, emittedCost, savingsOptions } = synced;
       const chipsSent = savingsOptions.length > 0 && Boolean(context.emitCost);
       context.emitPlanProgress?.({ step: "COSTS", state: "done" });
-      return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
+      return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount, basis }) => ({ label, amount, ...(basis ? { basis } : {}) })),
         ...(emittedCost.isIncomplete ? { isIncomplete: true as const, missingItems: emittedCost.missingItems } : {}),
         ...(savingsOptions.length > 0 ? { savingsOptions: savingsOptions.map(o => ({ label: o.label, estimatedSavingsVnd: o.estimatedSavingsVnd })) } : {}),
         note: latestUnmetOvernight.length > 0
@@ -1832,24 +1920,6 @@ export function createTripsageChatTools(context: TripsageToolContext) {
 
   const isoDaysDiff = (a: string, b: string) =>
     Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000);
-
-  /** Re-emits the current cost table whenever the access leg updates after `estimateCosts` ran in the same turn (ADR-52). */
-  const refreshEmittedCostWithLatestAccessLeg = () => {
-    if (!lastCostComputeContext || !latestAccessLeg) return;
-    const extraLines = [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: formatAccessLegCostBasis(latestAccessLeg) }];
-    const missingItems = (latestAccessLeg.missingPriceSegments ?? []).map(seg => `Chặng tiếp cận ${seg}`);
-    const cost = estimateTripCost({
-      ...lastCostComputeContext,
-      extraLines,
-      accessLegId: latestAccessLeg.id ?? null,
-      ...(missingItems.length ? { missingItems } : {}),
-    });
-    const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg, lastCostComputeContext.transport);
-    const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
-    latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
-    latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
-    context.emitCost?.(emittedCost);
-  };
 
   const canReusePreviousAccessLegPrices = (info: { startDate?: string; durationDays?: number; homeCity?: string }): boolean => {
     if (!latestAccessLeg) return false;
@@ -1899,7 +1969,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const previousForReuse = canReusePreviousAccessLegPrices(info) ? latestAccessLeg : null;
       latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers, flightOverride, previousForReuse);
       context.emitAccessLeg?.(latestAccessLeg);
-      refreshEmittedCostWithLatestAccessLeg();
+      await syncCostIfTracked();
       const missingSegs = latestAccessLeg.missingPriceSegments ?? [];
       return { ok: true as const, outboundMinutes: latestAccessLeg.outboundMinutes, returnMinutes: latestAccessLeg.returnMinutes, totalVnd: latestAccessLeg.totalVnd,
         usedGoogleFlightsPrice: [...latestAccessLeg.outbound, ...latestAccessLeg.return].some(s => s.priceSource === "GOOGLE_FLIGHTS"),
@@ -1968,7 +2038,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         if (refreshed) {
           latestAccessLeg = refreshed;
           context.emitAccessLeg?.(latestAccessLeg);
-          refreshEmittedCostWithLatestAccessLeg();
+          if (lastCostSelections) emitSyncedCostNow(lastCostSelections);
         }
       }
     },
