@@ -791,9 +791,25 @@ export function buildAccessDirectionSchedule(
 }
 
 /** D11: returns non-blocking transfer & airport check-in warnings across both access-leg directions. */
-export function collectAccessLegWarnings(leg: AccessLegPart | null | undefined): string[] {
+export function collectAccessLegWarnings(
+  leg: AccessLegPart | null | undefined,
+  options?: { lastSightseeingEndMinute?: number | null; returnDepartsSameDay?: boolean },
+): string[] {
   if (!leg) return [];
   const outbound = buildAccessDirectionSchedule(leg.outbound, "outbound");
   const returning = buildAccessDirectionSchedule(leg.return, "return");
-  return [...outbound.warnings, ...returning.warnings];
+  const warnings = [...outbound.warnings, ...returning.warnings];
+  const lastEnd = options?.lastSightseeingEndMinute;
+  const firstReturn = leg.return[0];
+  if (lastEnd != null && firstReturn?.departTime) {
+    const retDep = parseClockHhMm(firstReturn.departTime);
+    const sameEveningDeparture =
+      options?.returnDepartsSameDay === true || (options?.returnDepartsSameDay !== false && retDep !== null && retDep >= 15 * 60);
+    if (sameEveningDeparture && retDep !== null && retDep < lastEnd) {
+      warnings.push(
+        `Chặng về khởi hành (${firstReturn.departTime}) trước khi lượt tham quan cuối kết thúc (${formatClockOffsetVi(lastEnd)}).`,
+      );
+    }
+  }
+  return warnings;
 }

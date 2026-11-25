@@ -1558,6 +1558,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                     order: visit.order,
                     name: visit.destination.name,
                     area: visit.destination.area,
+                    category: (visit.destination as { category?: string }).category ?? null,
                     startMinute: visit.startMinute,
                     durationMinutes: visit.plannedDurationMinutes,
                     image: visit.destination.image,

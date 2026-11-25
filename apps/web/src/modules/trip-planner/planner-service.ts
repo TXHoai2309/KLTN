@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { AppError } from "@/server/http/app-error";
 import { assertTripRequirementClear } from "../trip-requirement/trip-clarification-server";
 import { plannerResultSchema, type PlannerResult } from "./planner-contract";
-import { plannerRoutePairs, schedulePlannerDays, selectPlannerDays } from "./planner-engine";
+import { applyGroupSizeDurationScale, plannerRoutePairs, schedulePlannerDays, selectPlannerDays } from "./planner-engine";
 import { resolvePlannerRoutes, type RouteProvider } from "./planner-routes";
 import { validatePlannerDays } from "./planner-validator";
 import { balancePlannerDays } from "./planner-day-balance";
@@ -58,7 +58,8 @@ export function createPlannerService(deps: {
     admissions.set(userId, [...recent, time]); active++;
     const promise = (async (): Promise<Completed> => {
       const inventory = deps.repository.inventory ? await dbCall(deps.repository.inventory) : null;
-      const candidates = inventory ? inventory.candidates : await dbCall(deps.repository.candidates);
+      const rawCandidates = inventory ? inventory.candidates : await dbCall(deps.repository.candidates);
+      const candidates = applyGroupSizeDurationScale(rawCandidates, requirement.companions?.groupSize);
       // ADR-55/D1: the picked places are ordered as a loop, fitted to days using cached DB travel times when available.
       const cachedTravel = deps.travelLookup ? await deps.travelLookup(requirement.transport, candidates).catch(() => null) : null;
       const selectedDays = (await arrangeTripRoute({

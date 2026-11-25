@@ -72,6 +72,43 @@ export function stopValue(candidate: PlannerCandidate, interests: TripRequiremen
   return 1 + (isFeaturedDestination(candidate) ? 3 : 0) + interestScore(candidate, interests);
 }
 
+export const SAME_CATEGORY_DECAY_SECONDS = 15 * 60;
+
+/**
+ * D9: halves `stopValue` when the same day already contains another stop of the exact same category
+ * within a 15-minute drive (preventing duplicate village/pass stops from crowding out variety).
+ */
+export function hasNearbySameCategoryPeer(
+  candidate: Pick<PlannerCandidate, "id" | "category" | "latitude" | "longitude">,
+  sameDayStops: readonly Pick<PlannerCandidate, "id" | "category" | "latitude" | "longitude">[],
+  drivingSecondsBetween: (
+    a: Pick<PlannerCandidate, "id" | "latitude" | "longitude">,
+    b: Pick<PlannerCandidate, "id" | "latitude" | "longitude">,
+  ) => number,
+): boolean {
+  const category = (candidate.category || "").normalize("NFC").trim().toLowerCase();
+  if (!category) return false;
+  return sameDayStops.some(peer => {
+    if (peer.id === candidate.id) return false;
+    const peerCategory = (peer.category || "").normalize("NFC").trim().toLowerCase();
+    if (!peerCategory || peerCategory !== category) return false;
+    return Math.min(drivingSecondsBetween(peer, candidate), drivingSecondsBetween(candidate, peer)) <= SAME_CATEGORY_DECAY_SECONDS;
+  });
+}
+
+export function diversityAdjustedStopValue(
+  candidate: PlannerCandidate,
+  interests: TripRequirementInput["interests"],
+  sameDayStops: readonly Pick<PlannerCandidate, "id" | "category" | "latitude" | "longitude">[],
+  drivingSecondsBetween: (
+    a: Pick<PlannerCandidate, "id" | "latitude" | "longitude">,
+    b: Pick<PlannerCandidate, "id" | "latitude" | "longitude">,
+  ) => number,
+): number {
+  const base = stopValue(candidate, interests);
+  return hasNearbySameCategoryPeer(candidate, sameDayStops, drivingSecondsBetween) ? base * 0.5 : base;
+}
+
 /** D1/D2: reads cached DB road leg first when available, falling back to calibrated estimate for day fitting. Never shown or saved. */
 function estimateProvider(
   transport: TripRequirementInput["transport"],
@@ -247,17 +284,32 @@ export async function arrangeTripRoute(input: {
     return hit ? hit.durationSeconds : (legKm(a, b) / MAX_AVERAGE_KMH[requirement.transport]) * 3600;
   };
   while (input.fill && timed && !fit.violations && fit.idle >= MIN_FILL_SAFETY_MARGIN_MINUTES && chain.length < limit && Date.now() < deadline) {
+    const dayIndexAtChainPos = (pos: number): number => {
+      let seen = 0;
+      for (let d = 0; d < fit.days.length; d++) {
+        seen += fit.days[d]!.length;
+        if (pos <= seen) return d;
+      }
+      return Math.max(0, fit.days.length - 1);
+    };
     const options = input.pool.filter(candidate => usableForFill(candidate) && !inChain(candidate) && !input.excludedIds?.has(candidate.id))
       .map(candidate => {
         let detourSeconds = Infinity;
+        let bestAt = 0;
         for (let at = 0; at <= chain.length; at++) {
           const before = at ? chain[at - 1]! : origin, after = at < chain.length ? chain[at]! : origin;
           const extra = (before ? legSecs(before, candidate) : 0) + (after ? legSecs(candidate, after) : 0) - (before && after ? legSecs(before, after) : 0);
-          detourSeconds = Math.min(detourSeconds, extra);
+          if (extra < detourSeconds) {
+            detourSeconds = extra;
+            bestAt = at;
+          }
         }
+        const targetDayStops = fit.days[dayIndexAtChainPos(bestAt)] ?? chain;
+        const duplicateNearby = hasNearbySameCategoryPeer(candidate, targetDayStops, legSecs);
+        const adjustedValue = duplicateNearby ? value(candidate) * 0.5 : value(candidate);
         const minutes = detourSeconds / 60 + visitDuration(candidate)! + scenicBufferMinutes(detourSeconds, requirement);
-        const roadside = detourSeconds < 600 && visitDuration(candidate)! <= 30 ? 1 : 0;
-        return { candidate, ratio: (value(candidate) + roadside) / Math.max(1, minutes) };
+        const roadside = detourSeconds < 600 && visitDuration(candidate)! <= 30 ? (duplicateNearby ? 0.5 : 1) : 0;
+        return { candidate, ratio: (adjustedValue + roadside) / Math.max(1, minutes) };
       })
       .sort((a, b) => b.ratio - a.ratio || a.candidate.id.localeCompare(b.candidate.id, "en"));
     let accepted = false;

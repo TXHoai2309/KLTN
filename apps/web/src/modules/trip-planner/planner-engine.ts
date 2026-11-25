@@ -54,6 +54,30 @@ export function visitDuration(candidate: PlannerCandidate) {
   if (suggested === null && minimum === null) return null;
   return Math.max(suggested ?? 0, minimum ?? 0);
 }
+
+/**
+ * D10: groups of >= 6 travelers move slower at regular attractions; scales `suggestedDurationMinutes`
+ * (+15% rounded to nearest 5 minutes) when >= 45m without touching short photo stops or `minimumDurationMinutes`.
+ */
+export function scaleDurationForGroupSize(suggestedMinutes: number | null, travelers?: number | null): number | null {
+  if (suggestedMinutes === null || !travelers || travelers < 6 || suggestedMinutes < 45) return suggestedMinutes;
+  return Math.round((suggestedMinutes * 1.15) / 5) * 5;
+}
+
+export function applyGroupSizeDurationScale(
+  candidates: readonly PlannerCandidate[],
+  travelers?: number | null,
+): PlannerCandidate[] {
+  if (!travelers || travelers < 6) return [...candidates];
+  return candidates.map(candidate => {
+    if (candidate.userChosenDuration || candidate.suggestedDurationMinutes === null || candidate.suggestedDurationMinutes < 45) {
+      return candidate;
+    }
+    const scaled = scaleDurationForGroupSize(candidate.suggestedDurationMinutes, travelers);
+    if (scaled === null || scaled === candidate.suggestedDurationMinutes) return candidate;
+    return { ...candidate, suggestedDurationMinutes: scaled };
+  });
+}
 export function selectPlannerDays(requirement: TripRequirementInput, input: readonly PlannerCandidate[]): PlannerCandidate[][] {
   const cap = MAX_STOPS_PER_DAY;
   // ADR-55: a day holds what fits its clock (visits plus estimated drives); routing and the checks fit the final days.

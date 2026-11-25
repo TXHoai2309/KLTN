@@ -55,8 +55,11 @@ export function getDestinationCoordinates(
   return fallbacks[index % fallbacks.length]!;
 }
 
+export const NEUTRAL_DESTINATION_FALLBACK_SRC = "/images/ha-giang-highland-poster.webp" as const;
+
 export function getDestinationVisual(name: string, area = ""): { src: string; alt: string } {
-  const n = (name || "").toLowerCase();
+  const displayName = (name || "").trim();
+  const n = displayName.toLowerCase();
   const a = (area || "").toLowerCase();
   if (n.includes("lũng cú") || n.includes("lung cu") || n.includes("cột cờ")) {
     return { src: "/images/gallery/ha-giang-day3-lg.webp", alt: "Cột cờ Lũng Cú" };
@@ -67,8 +70,20 @@ export function getDestinationVisual(name: string, area = ""): { src: string; al
   if (n.includes("nho quế") || n.includes("nho que") || n.includes("mã pí lèng") || n.includes("mã pì lèng") || n.includes("ma pi leng") || n.includes("tu sản")) {
     return { src: "/images/ha-giang-hero.webp", alt: "Đèo Mã Pì Lèng và sông Nho Quế" };
   }
+  if (/\bhang\b|\bđ[oộ]ng\b|l[uù]ng\s*kh[uú]y/iu.test(n)) {
+    return { src: "/images/ha-giang-destination-card.webp", alt: displayName || "Hang động Hà Giang" };
+  }
+  if (/\bd[oố]c\b|\bđ[eè]o\b|b[aắ]c\s*sum|th[aẩ]m\s*m[aã]|ch[ií]n\s*khoanh/iu.test(n)) {
+    return { src: "/images/ha-giang-hero.webp", alt: displayName || "Đường đèo Hà Giang" };
+  }
+  if (/\bth[aá]c\b|du\s*gi[aà]/iu.test(n)) {
+    return { src: "/images/gallery/ha-giang-terraces-mist-huts.webp", alt: displayName || "Thác nước Hà Giang" };
+  }
   if (n.includes("hạ thành") || n.includes("ha thanh") || n.includes("nặm đăm") || n.includes("nam dam")) {
     return { src: "/images/gallery/ha-giang-terraces-mist-huts.webp", alt: "Làng văn hóa du lịch cộng đồng" };
+  }
+  if (n.includes("lùng tám") || n.includes("lung tam") || n.includes("dệt lanh")) {
+    return { src: "/images/ha-giang-culture-card.webp", alt: displayName || "Làng dệt lanh Lùng Tám" };
   }
   if (n.includes("dinh") || n.includes("vương") || n.includes("vuong") || n.includes("phố cổ") || n.includes("đồng văn")) {
     return { src: "/images/gallery/ha-giang-stone-village-plum.webp", alt: "Dinh thự họ Vương và kiến trúc cổ" };
@@ -76,13 +91,19 @@ export function getDestinationVisual(name: string, area = ""): { src: string; al
   if (n.includes("lô lô") || n.includes("lo lo") || n.includes("pả vi") || n.includes("pa vi") || n.includes("mèo vạc") || n.includes("meo vac")) {
     return { src: "/images/gallery/ha-giang-buckwheat-harvest.webp", alt: "Làng cổ và hoa tam giác mạch" };
   }
-  if (n.includes("khâu vai") || n.includes("khau vai") || n.includes("chợ tình") || n.includes("tam giác mạch")) {
-    return { src: "/images/gallery/ha-giang-buckwheat-slope.webp", alt: "Chợ phiên và triền hoa Hà Giang" };
+  if (n.includes("khâu vai") || n.includes("khau vai") || n.includes("chợ tình") || n.includes("tam giác mạch") || n.includes("chợ phiên")) {
+    return { src: "/images/gallery/ha-giang-buckwheat-slope.webp", alt: displayName || "Chợ phiên và triền hoa Hà Giang" };
   }
   if (n.includes("hoàng su phì") || n.includes("ruộng bậc thang") || a.includes("hoàng su phì")) {
     return { src: "/images/gallery/ha-giang-terraces-golden.webp", alt: "Ruộng bậc thang Hoàng Su Phì" };
   }
-  return { src: "/images/gallery/ha-giang-stone-village-plum.webp", alt: name || "Điểm đến Hà Giang" };
+  if (n.includes("phố cáo") || n.includes("phố bảng")) {
+    return { src: "/images/gallery/ha-giang-stone-village-plum.webp", alt: displayName };
+  }
+  return {
+    src: NEUTRAL_DESTINATION_FALLBACK_SRC,
+    alt: displayName ? `Chưa có ảnh của ${displayName}` : "Chưa có ảnh điểm đến Hà Giang",
+  };
 }
 
 export function inferDestinationArea(name: string, fallback = "Hà Giang"): string {

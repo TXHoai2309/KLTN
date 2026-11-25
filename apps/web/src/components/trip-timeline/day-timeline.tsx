@@ -122,6 +122,7 @@ export interface DayTimelineStop {
   order: number;
   name: string;
   area?: string | null;
+  category?: string | null;
   startMinute: number | null;
   durationMinutes: number | null;
   image?: { url: string; alt: string } | null;
@@ -136,6 +137,52 @@ export interface DayTimelineStop {
   travelFromPrevious?: DayTimelineTravelLeg | null;
   nearbyAfter?: readonly DayTimelineNearbyItem[];
   lunchAfter?: DayTimelineLunch | null;
+}
+
+export const MAX_SCENIC_PHOTO_STOP_MINUTES = 20;
+
+export function isScenicPhotoStop(stop: Pick<DayTimelineStop, "durationMinutes" | "category">): boolean {
+  if (stop.durationMinutes === null || stop.durationMinutes <= 0 || stop.durationMinutes > MAX_SCENIC_PHOTO_STOP_MINUTES) {
+    return false;
+  }
+  const cat = (stop.category || "").normalize("NFC").trim();
+  if (!cat) return false;
+  return /(?:đi[eể]m\s*ng[aắ]m\s*c[aả]nh|ng[aắ]m\s*c[aả]nh|ch[uụ]p\s*[aả]nh|viewpoint|scenic)/iu.test(cat);
+}
+
+export function formatMergedPhotoStopTitle(stops: readonly Pick<DayTimelineStop, "name">[]): string {
+  const names = stops.map(s => cleanPlaceDisplayName(s.name) || s.name.trim()).filter(Boolean);
+  return `Dừng chụp ảnh: ${names.join(", ")}`;
+}
+
+export type TimelineRenderGroup =
+  | { kind: "single"; index: number; stop: DayTimelineStop }
+  | { kind: "photo_group"; startIndex: number; endIndex: number; stops: DayTimelineStop[]; label: string };
+
+export function groupConsecutivePhotoStops(
+  stops: readonly DayTimelineStop[],
+  lunchAfterIndex: ReadonlyMap<number, unknown>,
+): TimelineRenderGroup[] {
+  const groups: TimelineRenderGroup[] = [];
+  let i = 0;
+  while (i < stops.length) {
+    const first = stops[i]!;
+    if (isScenicPhotoStop(first)) {
+      let end = i;
+      while (end + 1 < stops.length && !lunchAfterIndex.has(end) && isScenicPhotoStop(stops[end + 1]!)) {
+        end += 1;
+      }
+      if (end > i) {
+        const run = stops.slice(i, end + 1);
+        groups.push({ kind: "photo_group", startIndex: i, endIndex: end, stops: run, label: formatMergedPhotoStopTitle(run) });
+        i = end + 1;
+        continue;
+      }
+    }
+    groups.push({ kind: "single", index: i, stop: first });
+    i += 1;
+  }
+  return groups;
 }
 
 export interface DayTimelineChosenLodging {
@@ -536,6 +583,8 @@ export function DayTimeline({
     }
   }
 
+  const timelineGroups = groupConsecutivePhotoStops(orderedStops, lunchAfterIndex);
+
   const suggestionMarkers = buildDaySuggestionMarkers({
     dayIndex: day.dayIndex,
     orderedStops,
@@ -609,7 +658,154 @@ export function DayTimeline({
       {(day.stops.length > 0 || Boolean(day.departureCard) || Boolean(day.returnCard) || suggestionMarkers.length > 0) && (
         <ol className="dt-visits">
           {day.departureCard}
-          {orderedStops.map((stop, index) => {
+          {timelineGroups.map((group) => {
+            if (group.kind === "photo_group") {
+              const firstStop = group.stops[0]!;
+              const lastStop = group.stops.at(-1)!;
+              const resolvedLunch = lunchAfterIndex.get(group.endIndex) ?? null;
+              const cleanArea = cleanAreaDisplayLabel(firstStop.area);
+              const firstStart = firstStop.startMinute;
+              const lastEnd =
+                lastStop.startMinute !== null && lastStop.durationMinutes !== null
+                  ? lastStop.startMinute + lastStop.durationMinutes
+                  : null;
+              const totalStayMinutes = group.stops.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0);
+              const fallback = firstStop.fallbackVisual ?? getDestinationVisual(cleanPlaceDisplayName(firstStop.name) || firstStop.name, cleanArea ?? undefined);
+              const anySelected = group.stops.some((s) => selectedDestinationId === s.destinationId);
+
+              return (
+                <Fragment key={firstStop.id}>
+                  {group.startIndex === 0 && day.breakfast && (
+                    <li className="dt-break-item">
+                      <span aria-hidden="true" />
+                      <div className="dt-visit-time">
+                        <strong>{minuteLabel(day.breakfast.minute)}</strong>
+                        <span>{day.breakfast.durationMinutes} phút</span>
+                      </div>
+                      <p className="planner-break dt-break-line">
+                        <Coffee size={13} aria-hidden="true" />
+                        <strong>Ăn sáng</strong> {day.breakfast.text}
+                      </p>
+                    </li>
+                  )}
+
+                  {firstStop.travelFromPrevious && (
+                    <li className="dt-break-item dt-leg-item">
+                      <span aria-hidden="true" />
+                      <span className="dt-visit-time dt-marker-time--empty" aria-hidden="true" />
+                      <p
+                        className={`dt-travel-leg${
+                          firstStop.travelFromPrevious.verified ? "" : " is-unverified"
+                        }`}
+                      >
+                        {formatTravelLegLine(firstStop.travelFromPrevious)}
+                      </p>
+                    </li>
+                  )}
+
+                  <li
+                    id={`trip-visit-${firstStop.destinationId}`}
+                    data-testid="merged-photo-stops"
+                    className={`dt-visit-item${anySelected ? " is-selected-item" : ""}${
+                      group.endIndex === orderedStops.length - 1 &&
+                      !resolvedLunch &&
+                      suggestionMarkers.length > 0
+                        ? " dt-rail-to-suggestion"
+                        : ""
+                    }`}
+                    onClick={onSelectDestination ? () => onSelectDestination(firstStop.destinationId) : undefined}
+                  >
+                    <span className="dt-timeline-node my-trips-timeline-node" aria-hidden="true" />
+                    <div className="dt-visit-time">
+                      <strong>{minuteLabel(firstStart)}</strong>
+                      {totalStayMinutes > 0 && <span>{totalStayMinutes} phút</span>}
+                    </div>
+
+                    <div className="dt-visit-main-col">
+                      <article className={`dt-visit-card${anySelected ? " is-active-selection" : ""}`}>
+                        <div className="dt-visit-media" role="img" aria-label={group.label}>
+                          <StopPhoto image={firstStop.image} fallback={fallback} />
+                          <div className="dt-visit-photo-gradient" aria-hidden="true" />
+                          <span className="dt-visit-seq-tag">#{firstStop.order}–#{lastStop.order}</span>
+                        </div>
+                        <div className="dt-visit-body">
+                          <div className="dt-visit-top">
+                            <span className="dt-order-label">
+                              Dừng chụp ảnh {firstStop.order}–{lastStop.order}
+                            </span>
+                          </div>
+                          <h3 className="dt-destination-title">{group.label}</h3>
+                          <div className="dt-visit-meta">
+                            {cleanArea && (
+                              <p className="dt-visit-meta-item">
+                                <MapPin size={14} aria-hidden="true" />
+                                <span>{cleanArea}</span>
+                              </p>
+                            )}
+                            {firstStart !== null && lastEnd !== null && (
+                              <p className="dt-visit-meta-item">
+                                <Clock3 size={14} aria-hidden="true" />
+                                <span>
+                                  {minuteLabel(firstStart)} – {minuteLabel(lastEnd)} ({group.stops.length} điểm)
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                          <ul className="dt-photo-group-list">
+                            {group.stops.map((subStop, subIdx) => {
+                              const subName = cleanPlaceDisplayName(subStop.name) || subStop.name;
+                              const subEnd =
+                                subStop.startMinute !== null && subStop.durationMinutes !== null
+                                  ? subStop.startMinute + subStop.durationMinutes
+                                  : null;
+                              return (
+                                <li key={subStop.id} className="dt-photo-group-subitem">
+                                  <span>
+                                    {subIdx > 0 && subStop.travelFromPrevious?.verified && subStop.travelFromPrevious.durationMinutes
+                                      ? `${formatTravelLegLine(subStop.travelFromPrevious)} → `
+                                      : ""}
+                                    <strong>{subName}</strong>
+                                    {subStop.startMinute !== null && subEnd !== null
+                                      ? ` (${minuteLabel(subStop.startMinute)}–${minuteLabel(subEnd)}${subStop.durationMinutes ? ` · ${subStop.durationMinutes} phút` : ""})`
+                                      : ""}
+                                  </span>
+                                  <PreviewLink target={subStop.previewTarget} name={subName} onPreview={onPreview} iconOnly />
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      </article>
+                    </div>
+                  </li>
+
+                  {resolvedLunch && (
+                    <li
+                      className={`dt-break-item${
+                        group.endIndex === orderedStops.length - 1 && suggestionMarkers.length > 0
+                          ? " dt-rail-to-suggestion"
+                          : ""
+                      }`}
+                    >
+                      <span aria-hidden="true" />
+                      <div className="dt-visit-time">
+                        <strong>{minuteLabel(resolvedLunch.fromMinute)}</strong>
+                        <span>{resolvedLunch.durationMinutes ?? (resolvedLunch.toMinute - resolvedLunch.fromMinute)} phút</span>
+                      </div>
+                      <div className="dt-lunch-wrap">
+                        <p className="planner-break dt-break-line">
+                          <UtensilsCrossed size={13} aria-hidden="true" />
+                          <strong>Nghỉ trưa</strong> {minuteLabel(resolvedLunch.fromMinute)} –{" "}
+                          {minuteLabel(resolvedLunch.toMinute)}
+                        </p>
+                      </div>
+                    </li>
+                  )}
+                </Fragment>
+              );
+            }
+
+            const { stop, index } = group;
             const cleanName = cleanPlaceDisplayName(stop.name) || stop.name;
             const cleanArea = cleanAreaDisplayLabel(stop.area);
             const cleanDescription = cleanTravelerDisplay(stop.description);

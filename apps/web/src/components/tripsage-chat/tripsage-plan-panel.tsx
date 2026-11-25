@@ -24,7 +24,7 @@ import { cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-disp
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
-import type { AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
+import { collectAccessLegWarnings, type AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
 import {
   formatTravelSplitLabel,
   itineraryDistanceKm,
@@ -447,6 +447,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         order: stop.order,
         name: stop.destination.name,
         area: stop.destination.area,
+        category: stop.destination.category,
         startMinute: stop.arrivalMinute,
         durationMinutes: stop.visitDurationMinutes,
         image: stop.destination.image ? { url: stop.destination.image.url, alt: stop.destination.image.alt } : null,
@@ -552,6 +553,12 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     .filter(Boolean)
     .join(" · ");
 
+  const lastSightseeingEndMinute = proposal.days.at(-1)?.stops.at(-1)?.departureMinute ?? null;
+  const returnDepartsSameDay = !wholeDates.hasPostTravelDay;
+  const accessLegWarnings = useMemo(
+    () => collectAccessLegWarnings(accessLeg, { lastSightseeingEndMinute, returnDepartsSameDay }),
+    [accessLeg, lastSightseeingEndMinute, returnDepartsSameDay],
+  );
   const passedChecks = proposal.checks.filter((c) => c.status === "PASS").length;
   const planOutdated = isProposalOutdated({ proposal, tripInfo, cost, itineraryStale: isOutdated });
   const outdatedReason = planOutdated ? STALE_ITINERARY_MESSAGE : null;
@@ -778,6 +785,8 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
                       <TripsageAccessLegCard
                         leg={accessLeg}
                         only={effectiveDayKey === "travel-outbound" ? "outbound" : "return"}
+                        lastSightseeingEndMinute={lastSightseeingEndMinute}
+                        returnDepartsSameDay={returnDepartsSameDay}
                       />
                     ) : travel ? (
                       <div className="dt-travel-day">
@@ -867,6 +876,15 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
           {subTab === "checks" && (
             <div className="tripsage-panel-checks">
               <ItineraryValidationPanel checks={proposal.checks} />
+              {accessLegWarnings.length > 0 && (
+                <ul className="tripsage-access-warn-list" data-testid="access-leg-warnings" role="note">
+                  {accessLegWarnings.map((warning, i) => (
+                    <li key={`panel-access-warn-${i}`} className="tripsage-access-warn">
+                      {warning}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {proposal.warnings.length > 0 && (
                 <ul className="tripsage-panel-warnings">
                   {proposal.warnings.map((w, i) => (

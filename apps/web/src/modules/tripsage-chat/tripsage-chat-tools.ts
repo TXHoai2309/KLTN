@@ -4,7 +4,7 @@ import { AppError } from "../../server/http/app-error";
 import { cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
 import { formatDistanceKm } from "../../lib/traveler-number-format";
 import { isUsablePlanningCandidate, scheduleSelection } from "../assistant-planning/planning-engine";
-import { selectPlannerDays } from "../trip-planner/planner-engine";
+import { applyGroupSizeDurationScale, selectPlannerDays } from "../trip-planner/planner-engine";
 import { arrangeTripRoute, orderRoundTrip, stopValue } from "../trip-planner/planner-route";
 import type { TravelTimeCacheBundle } from "../trip-planner/destination-travel-cache";
 import { planningSelectionSchema } from "../assistant-planning/planning-contract";
@@ -1426,25 +1426,28 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           /(?:\b\d+(?:[.,]\d+)?\s*(?:phút|phut|p\b|giờ|gio|tiếng|tieng|h\b)|\bnửa\s*(?:tiếng|tieng|giờ|gio)\b)/i.test(text),
         );
         const overrides: Record<string, number> = {};
-        let chosen = Object.keys(rawOverrides).length
-          ? all.map(c => {
-              const requested = rawOverrides[c.id];
-              if (requested === undefined) return c;
-              const isShort = c.minimumDurationMinutes !== null && requested < c.minimumDurationMinutes;
-              if (isShort && !hasUserDurationEvidence) {
-                // AI attempted to shorten a stop below catalogue minimum without traveler request: keep strict canonical minimum.
-                return c;
-              }
-              overrides[c.id] = requested;
-              return {
-                ...c,
-                suggestedDurationMinutes: requested,
-                // Missing required validation data (minimumDurationMinutes === null) is never turned into a pass.
-                ...(c.minimumDurationMinutes !== null ? { minimumDurationMinutes: requested } : {}),
-                userChosenDuration: true as const,
-              };
-            })
-          : all;
+        let chosen = applyGroupSizeDurationScale(
+          Object.keys(rawOverrides).length
+            ? all.map(c => {
+                const requested = rawOverrides[c.id];
+                if (requested === undefined) return c;
+                const isShort = c.minimumDurationMinutes !== null && requested < c.minimumDurationMinutes;
+                if (isShort && !hasUserDurationEvidence) {
+                  // AI attempted to shorten a stop below catalogue minimum without traveler request: keep strict canonical minimum.
+                  return c;
+                }
+                overrides[c.id] = requested;
+                return {
+                  ...c,
+                  suggestedDurationMinutes: requested,
+                  // Missing required validation data (minimumDurationMinutes === null) is never turned into a pass.
+                  ...(c.minimumDurationMinutes !== null ? { minimumDurationMinutes: requested } : {}),
+                  userChosenDuration: true as const,
+                };
+              })
+            : all,
+          effective.travelers,
+        );
         // ADR-55: the server orders the loop, splits the days and fills free time. Re-proposing the plan already shown with the
         // same places keeps the traveler's arrangement; explicit overnight areas keep their own arranger (ADR-53).
         const shownIds = latestDays?.flat() ?? [];

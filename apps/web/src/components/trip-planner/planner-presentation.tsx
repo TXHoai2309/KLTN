@@ -513,6 +513,9 @@ export function DestinationPreviewCard({
   );
 }
 
+export const HA_GIANG_VALIDATION_SCOPE_TEXT =
+  "Đã kiểm tra phần tham quan ở Hà Giang (giờ mở cửa, thời lượng, thời gian chạy xe, chồng lấn). Chặng máy bay và xe khách chưa được kiểm tra.";
+
 /**
  * Compact Validator Summary Row:
  * 1 single row trigger below the timeline.
@@ -550,6 +553,9 @@ export function ItineraryValidationPanel({
           <ChevronRight size={15} aria-hidden="true" />
         </div>
       </button>
+      <p className="planner-sheet-subtitle" data-testid="validation-scope-note">
+        {HA_GIANG_VALIDATION_SCOPE_TEXT}
+      </p>
     </section>
   );
 }
@@ -616,7 +622,7 @@ export function ValidationSheet({
               Kiểm tra lịch trình
             </h2>
             <p className="planner-sheet-subtitle">
-              Đối chiếu quy tắc di chuyển, thời gian và dữ liệu điểm đến
+              {HA_GIANG_VALIDATION_SCOPE_TEXT}
             </p>
           </div>
           <button

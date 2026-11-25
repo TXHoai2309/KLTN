@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import {
   ACCESS_MODE_LABELS,
   buildAccessDirectionSchedule,
+  collectAccessLegWarnings,
   formatDurationVi,
   type AccessLegPart,
 } from "@/modules/tripsage-chat/tripsage-access-leg";
@@ -105,19 +106,34 @@ export function TripsageAccessLegCard({
   isStale = false,
   pins,
   inlineHeadingLevel = 5,
+  lastSightseeingEndMinute = null,
+  returnDepartsSameDay,
 }: {
   leg: AccessLegPart;
   only?: "outbound" | "return";
   isStale?: boolean;
   pins?: PinControl;
   inlineHeadingLevel?: 3 | 5;
+  lastSightseeingEndMinute?: number | null;
+  returnDepartsSameDay?: boolean;
 }) {
+  const connectionWarnings = collectAccessLegWarnings(leg, { lastSightseeingEndMinute, returnDepartsSameDay });
   if (only) {
+    const dirWarnings = connectionWarnings.filter(w =>
+      only === "outbound" ? w.startsWith("Chặng đi") : !w.startsWith("Chặng đi"),
+    );
     return (
       <section className="tripsage-access tripsage-access-inline" aria-label={only === "outbound" ? "Chặng đi tới điểm tập kết" : "Chặng về nhà"}>
         {only === "outbound"
           ? <Segments title={`Trước ngày 1 · ${leg.homeCity} → ${leg.hubName}`} direction="outbound" segments={leg.outbound} minutes={leg.outboundMinutes} headingLevel={inlineHeadingLevel} />
           : <Segments title={`Sau ngày cuối · ${leg.hubName} → ${leg.homeCity}`} direction="return" segments={leg.return} minutes={leg.returnMinutes} headingLevel={inlineHeadingLevel} />}
+        {dirWarnings.length > 0 && (
+          <ul className="tripsage-access-warn-list" data-testid="access-leg-warnings" role="note">
+            {dirWarnings.map((warning, i) => (
+              <li key={`dir-warn-${i}`} className="tripsage-access-warn">{warning}</li>
+            ))}
+          </ul>
+        )}
       </section>
     );
   }
@@ -138,6 +154,13 @@ export function TripsageAccessLegCard({
       </div>
       <Segments title="Trước chuyến đi" direction="outbound" segments={leg.outbound} minutes={leg.outboundMinutes} />
       <Segments title="Sau chuyến đi" direction="return" segments={leg.return} minutes={leg.returnMinutes} />
+      {connectionWarnings.length > 0 && (
+        <ul className="tripsage-access-warn-list" data-testid="access-leg-warnings" role="note">
+          {connectionWarnings.map((warning, i) => (
+            <li key={`conn-warn-${i}`} className="tripsage-access-warn">{warning}</li>
+          ))}
+        </ul>
+      )}
       <p className="text-sm">
         Tổng tham khảo cả nhóm {leg.travelers} người:{" "}
         <strong>
