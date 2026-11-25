@@ -37,6 +37,7 @@ import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section"
 import {
   buildDayTimelineTravelLeg,
   DayTimeline,
+  resolveDayRouteLabel,
   type DayTimelineDay,
 } from "@/components/trip-timeline/day-timeline";
 import { splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
@@ -1225,9 +1226,31 @@ function CompanionGroupContent({
                     ? planTransferLegs.reduce((sum, l) => sum + (l.route.durationSeconds ?? 0), 0)
                     : null;
 
+                  const groupStopNamesById: Record<string, string> = {};
+                  for (const gDay of currentGroup.itinerary.days) {
+                    for (const v of gDay.visits) {
+                      groupStopNamesById[v.destination.destinationId || v.visitId] = v.destination.name;
+                    }
+                  }
+                  const prevGroupDay = currentGroup.itinerary.days.find(
+                    (item) => item.dayIndex === day.dayIndex - 1,
+                  );
+                  const routeLabel = resolveDayRouteLabel({
+                    dayIndex: day.dayIndex,
+                    originLabel: currentGroup.meetingPoint?.origin?.label,
+                    stops,
+                    previousDayStops: (prevGroupDay?.visits ?? []).map((v) => ({
+                      destinationId: v.destination.destinationId || v.visitId,
+                      name: v.destination.name,
+                    })),
+                    legs: currentGroup.meetingPoint?.plan?.legs,
+                    stopNamesById: groupStopNamesById,
+                  });
+
                   const timelineDay: DayTimelineDay = {
                     dayIndex: day.dayIndex,
                     localDate: day.localDate,
+                    routeLabel,
                     transportLabel,
                     totalDistanceMeters: groupTotalDistance && groupTotalDistance > 0 ? groupTotalDistance : null,
                     totalTravelSeconds: groupTotalSeconds && groupTotalSeconds > 0 ? groupTotalSeconds : null,

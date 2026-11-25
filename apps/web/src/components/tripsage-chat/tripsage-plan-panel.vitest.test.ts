@@ -248,12 +248,15 @@ describe("Ticket 10: Plan summary card & desktop split panel / tablet drawer (sl
     expect(html).toContain("Nghỉ trưa");
     expect(html).toContain("12:14 – 13:14");
     expect(html).not.toContain("12:00 – 13:00");
+    // Day heading shows route summary ("from → to") before the visits list; slice `<ol class="dt-visits">` for chronological stop order.
+    expect(html).toContain("Cổng trời Quản Bạ → Rừng thông Yên Minh");
+    const visitsHtml = html.slice(html.indexOf('<ol class="dt-visits">'));
 
     // Verify chronological DOM order: Núi Đôi (09:36-10:06) -> Nặm Đăm (10:14-12:14) -> Nghỉ trưa (12:14-13:14) -> Rừng thông Yên Minh (14:44)
-    const idxStop2 = html.indexOf("Núi Đôi Quản Bạ");
-    const idxStop3 = html.indexOf("Làng văn hóa Nặm Đăm");
-    const idxLunch = html.indexOf("Nghỉ trưa");
-    const idxStop4 = html.indexOf("Rừng thông Yên Minh");
+    const idxStop2 = visitsHtml.indexOf("Núi Đôi Quản Bạ");
+    const idxStop3 = visitsHtml.indexOf("Làng văn hóa Nặm Đăm");
+    const idxLunch = visitsHtml.indexOf("Nghỉ trưa");
+    const idxStop4 = visitsHtml.indexOf("Rừng thông Yên Minh");
     expect(idxStop2).toBeGreaterThan(-1);
     expect(idxStop3).toBeGreaterThan(idxStop2);
     expect(idxLunch).toBeGreaterThan(idxStop3);

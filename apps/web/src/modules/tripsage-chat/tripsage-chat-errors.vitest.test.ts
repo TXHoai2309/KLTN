@@ -80,4 +80,59 @@ describe("notice component", () => {
     for (const status of [401, 404, 400]) expect(html(new TripsageChatHttpError(status, null), () => {})).not.toContain("Gửi lại");
     expect(renderToStaticMarkup(createElement(TripsageChatNotice, { notice: null }))).toBe("");
   });
+
+  it("extracts X-Assistant-Conversation-Id, notifies chunk activity, and aborts stalled SSE streams cleanly into INTERRUPTED", async () => {
+    const convSpy = vi.fn();
+    const chunkSpy = vi.fn();
+    let timerKeepAliveDone = false;
+    const healthySse = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"type":"start"}\n\n'));
+        await new Promise(resolve => setTimeout(resolve, 25));
+        timerKeepAliveDone = true;
+        controller.enqueue(new TextEncoder().encode('data: {"type":"data-keepalive","data":{},"transient":true}\n\n'));
+        controller.close();
+      },
+    });
+    const okFetcher = createTripsageChatFetch(
+      (async () =>
+        new Response(healthySse, {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+            "X-Assistant-Conversation-Id": "conv-header-1",
+          },
+        })) as unknown as typeof fetch,
+      { idleTimeoutMs: 60, onConversationId: convSpy, onChunkReceived: chunkSpy },
+    );
+    const okResp = await okFetcher("/api/ai/chat");
+    const okBody = await okResp.text();
+    expect(timerKeepAliveDone).toBe(true);
+    expect(okBody).toContain("data-keepalive");
+    expect(convSpy).toHaveBeenCalledWith("conv-header-1");
+    expect(chunkSpy).toHaveBeenCalled();
+
+    const stalledSse = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"type":"start"}\n\n'));
+      },
+    });
+    const stalledFetcher = createTripsageChatFetch(
+      (async () =>
+        new Response(stalledSse, {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        })) as unknown as typeof fetch,
+      { idleTimeoutMs: 30 },
+    );
+    const stalledResp = await stalledFetcher("/api/ai/chat");
+    let caughtErr: unknown = null;
+    try {
+      await stalledResp.text();
+    } catch (err) {
+      caughtErr = err;
+    }
+    expect(caughtErr).not.toBeNull();
+    expect(classifyChatError(caughtErr)?.kind).toBe("INTERRUPTED");
+  });
 });

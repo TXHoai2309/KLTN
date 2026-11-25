@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { DayTimeline, type DayTimelineDay } from "./day-timeline";
+import { DayTimeline, resolveDayRouteLabel, type DayTimelineDay } from "./day-timeline";
 import { estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "./suggestion-markers";
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
 import { TripsageTimelineView } from "@/components/tripsage-chat/tripsage-timeline-view";
@@ -525,5 +525,83 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     });
     expect(travel).not.toBeNull();
     expect(travel!).toBeGreaterThanOrEqual(45);
+  });
+
+  it("stacks .dt-day-meta onto column 2 so day titles never crush vertically and displays from→to route span", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/components/trip-timeline/day-timeline.css"), "utf8");
+    expect(css).toMatch(/\.dt-day-heading\s*\{[^}]*grid-template-columns:\s*24px minmax\(0, 1fr\);/);
+    expect(css).toMatch(/\.dt-day-meta\s*\{[^}]*grid-column:\s*2;[^}]*max-width:\s*100%;/);
+
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 1,
+        originLabel: "Hà Nội",
+        stops: [{ destinationId: "d1", name: "[Tạm] Dốc Bắc Sum" }],
+        legs: [
+          {
+            kind: "OUTBOUND",
+            day: 1,
+            from: { kind: "ORIGIN" },
+            to: { kind: "ATTRACTION", destinationId: "d1" },
+          },
+        ],
+      }),
+    ).toBe("Hà Nội → Dốc Bắc Sum");
+
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 3,
+        originLabel: "Hà Nội",
+        previousDayStops: [{ destinationId: "d2", name: "Phố cổ Đồng Văn" }],
+        stops: [
+          { destinationId: "d3", name: "Đèo Mã Pì Lèng" },
+          { destinationId: "d4", name: "Sông Nho Quế" },
+        ],
+      }),
+    ).toBe("Phố cổ Đồng Văn → Sông Nho Quế");
+
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 5,
+        originLabel: "Hà Nội",
+        stops: [],
+        legs: [
+          {
+            kind: "RETURN",
+            day: 5,
+            from: { kind: "ATTRACTION", destinationId: "d4" },
+            to: { kind: "ORIGIN" },
+          },
+        ],
+        stopNamesById: { d4: "Sông Nho Quế" },
+      }),
+    ).toBe("Sông Nho Quế → Hà Nội");
+
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 1,
+        originLabel: "Hà Nội",
+        stops: [{ destinationId: "d1", name: "Cổng trời Quản Bạ" }],
+        legs: [
+          { kind: "OUTBOUND", day: 1, from: { kind: "ORIGIN" }, to: { kind: "ATTRACTION", destinationId: "d1" } },
+          { kind: "RETURN", day: 1, from: { kind: "ATTRACTION", destinationId: "d1" }, to: { kind: "ORIGIN" } },
+        ],
+      }),
+    ).toBe("Hà Nội → Cổng trời Quản Bạ → Hà Nội");
+
+    const html = renderToStaticMarkup(
+      createElement(DayTimeline, {
+        day: {
+          ...SAMPLE_DAY,
+          routeLabel: "Hà Nội → Phố cổ Đồng Văn",
+          totalDistanceMeters: 64_200,
+          totalTravelSeconds: 7_380,
+        },
+        variant: "full",
+      }),
+    );
+    expect(html).toContain("dt-day-route");
+    expect(html).toContain("Hà Nội → Phố cổ Đồng Văn");
+    expect(html).toContain("64,2 km");
   });
 });

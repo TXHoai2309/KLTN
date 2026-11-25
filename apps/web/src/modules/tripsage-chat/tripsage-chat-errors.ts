@@ -29,14 +29,88 @@ export function parseChatRetryAfter(value: string | null): number | undefined {
   return seconds >= 1 && seconds <= 3600 ? seconds : undefined;
 }
 
-/** Wraps fetch so a non-2xx answer becomes a typed error instead of the raw response body text. */
-export function createTripsageChatFetch(base: typeof fetch = (...args) => fetch(...args)): typeof fetch {
+/** Max idle gap on a chat SSE stream before assuming the connection stalled (well above the 8s server keepalive). */
+export const TRIPSAGE_STREAM_IDLE_TIMEOUT_MS = 25_000;
+
+export type TripsageChatFetchOptions = {
+  idleTimeoutMs?: number;
+  onConversationId?: (conversationId: string) => void;
+  onChunkReceived?: () => void;
+};
+
+/** Wraps fetch so a non-2xx answer becomes a typed error and stalled SSE streams fail cleanly instead of hanging forever. */
+export function createTripsageChatFetch(
+  base: typeof fetch = (...args) => fetch(...args),
+  options?: TripsageChatFetchOptions,
+): typeof fetch {
   return (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const response = await base(input, init);
-    if (response.ok) return response;
-    let code: string | null = null;
-    try { const body = await response.json() as { error?: { code?: unknown } }; if (typeof body?.error?.code === "string") code = body.error.code.slice(0, 64); } catch { /* body is optional */ }
-    throw new TripsageChatHttpError(response.status, code, parseChatRetryAfter(response.headers.get("Retry-After")));
+    if (!response.ok) {
+      let code: string | null = null;
+      try { const body = await response.json() as { error?: { code?: unknown } }; if (typeof body?.error?.code === "string") code = body.error.code.slice(0, 64); } catch { /* body is optional */ }
+      throw new TripsageChatHttpError(response.status, code, parseChatRetryAfter(response.headers.get("Retry-After")));
+    }
+    const headerConversationId = response.headers.get("X-Assistant-Conversation-Id")?.trim();
+    if (headerConversationId) {
+      options?.onConversationId?.(headerConversationId);
+    }
+    const idleTimeoutMs = options?.idleTimeoutMs ?? TRIPSAGE_STREAM_IDLE_TIMEOUT_MS;
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    if (!response.body || !contentType.includes("text/event-stream") || idleTimeoutMs <= 0) {
+      return response;
+    }
+    const upstream = response.body.getReader();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let settled = false;
+    const clearTimer = () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    };
+    const abortError = () => {
+      const err = new Error("aborted");
+      err.name = "AbortError";
+      return err;
+    };
+    const watchedBody = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        if (settled) return;
+        let timedOut = false;
+        timer = setTimeout(() => {
+          if (settled) return;
+          timedOut = true;
+          settled = true;
+          void upstream.cancel(new Error("stream_stalled")).catch(() => undefined);
+          controller.error(new Error("tripsage stream stalled"));
+        }, idleTimeoutMs);
+        try {
+          const next = await upstream.read();
+          clearTimer();
+          if (settled || timedOut) return;
+          if (next.done) {
+            settled = true;
+            controller.close();
+            return;
+          }
+          if (next.value.byteLength > 0) {
+            options?.onChunkReceived?.();
+          }
+          controller.enqueue(next.value);
+        } catch (error) {
+          clearTimer();
+          if (settled || timedOut) return;
+          settled = true;
+          controller.error(init?.signal?.aborted ? abortError() : error);
+        }
+      },
+      async cancel(reason) {
+        settled = true;
+        clearTimer();
+        await upstream.cancel(reason).catch(() => undefined);
+      },
+    });
+    return new Response(watchedBody, { status: response.status, statusText: response.statusText, headers: response.headers });
   }) as typeof fetch;
 }
 

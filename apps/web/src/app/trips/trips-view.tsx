@@ -7,7 +7,7 @@ import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE, scenicBufferMinutes } from
 import { Fragment, useEffect, useRef, useState, useMemo, type CSSProperties } from "react";
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, travelerDayColorVar, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
-import { buildDayTimelineTravelLeg, DayTimeline, type DayTimelineDay, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
+import { buildDayTimelineTravelLeg, DayTimeline, resolveDayRouteLabel, type DayTimelineDay, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
 import { estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
@@ -1585,9 +1585,29 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                       })
                     : null;
 
+                const tripStopNamesById: Record<string, string> = {};
+                for (const tripDay of trip.days) {
+                  for (const visit of tripDay.visits) {
+                    tripStopNamesById[visit.destination.id] = visit.destination.name;
+                  }
+                }
+                const prevTripDay = trip.days.find((item) => item.dayIndex === day.dayIndex - 1);
+                const routeLabel = resolveDayRouteLabel({
+                  dayIndex: day.dayIndex,
+                  originLabel: trip.journey?.journey.origin?.label,
+                  stops,
+                  previousDayStops: (prevTripDay?.visits ?? []).map((visit) => ({
+                    destinationId: visit.destination.id,
+                    name: visit.destination.name,
+                  })),
+                  legs: trip.journey?.plan?.legs,
+                  stopNamesById: tripStopNamesById,
+                });
+
                 const timelineDay: DayTimelineDay = {
                   dayIndex: day.dayIndex,
                   localDate: day.localDate,
+                  routeLabel,
                   transportLabel: transportLabel(trip.transport),
                   totalDistanceMeters: dayHasAnyStopLeg && dayAllLegsVerified && dayVerifiedDistance > 0 ? dayVerifiedDistance : null,
                   totalTravelSeconds: dayHasAnyStopLeg && dayAllLegsVerified && dayVerifiedDistance > 0 ? dayVerifiedSeconds : null,

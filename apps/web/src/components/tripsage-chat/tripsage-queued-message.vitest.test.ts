@@ -139,4 +139,39 @@ describe("tripsage queued message behavior (Spec 1)", () => {
     expect(CLIENT_SRC).toContain("Bỏ câu chờ:");
     expect(CLIENT_SRC).toContain("clearQueueState()");
   });
+
+  it("holds queued messages during INTERRUPTED recovery until recovery fails or completes", () => {
+    expect(
+      decideQueuePostTurnAction({
+        chatStatus: "error",
+        inputLocked: true, // recovering === true
+        legacyReadOnly: false,
+        stopRequested: false,
+        pendingAutoFlush: true,
+        queued: ["So sánh giúp mình cách đi"],
+        draft: "",
+      }),
+    ).toEqual({ type: "none" });
+
+    expect(
+      decideQueuePostTurnAction({
+        chatStatus: "error",
+        inputLocked: false, // recovery failed
+        legacyReadOnly: false,
+        stopRequested: false,
+        pendingAutoFlush: false,
+        queued: ["So sánh giúp mình cách đi"],
+        draft: "",
+      }),
+    ).toEqual({ type: "restore", draft: "So sánh giúp mình cách đi" });
+  });
+
+  it("wires panel actions ('So sánh cách đi', meals, savings) through submitOrQueuePrompt and reveals chat from drawer/expanded mode", () => {
+    expect(CLIENT_SRC).toContain("function submitOrQueuePrompt(rawText: string)");
+    expect(CLIENT_SRC).toContain("onAskAccess={() =>");
+    expect(CLIENT_SRC).toContain("submitOrQueuePrompt(");
+    expect(CLIENT_SRC).toContain('planPanelMode === "expanded"');
+    expect(CLIENT_SRC).toContain('handlePlanPanelModeChange("split")');
+    expect(CLIENT_SRC).toContain("setPlanDrawerOpen(false)");
+  });
 });

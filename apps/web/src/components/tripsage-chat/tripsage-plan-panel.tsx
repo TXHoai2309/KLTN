@@ -8,6 +8,7 @@ import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-
 import {
   buildDayTimelineTravelLeg,
   DayTimeline,
+  resolveDayRouteLabel,
   type DayTimelineDay,
   type DayTimelineNearbyItem,
   type DayTimelineStop,
@@ -518,13 +519,41 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     const allStopLegsVerified = stops.every(
       (s) => !s.travelFromPrevious || s.travelFromPrevious.verified,
     );
+    const dayPlanLegs = (proposal.journeyPlan?.legs ?? []).filter(
+      (leg) => leg.day === activePlannerDay.day,
+    );
+    const allDayPlanLegsVerified = dayPlanLegs.every((leg) => leg.route.status === "VERIFIED");
+    const stopNamesById: Record<string, string> = {};
+    for (const d of proposal.days) {
+      for (const s of d.stops) {
+        stopNamesById[s.destination.id] = s.destination.name;
+      }
+    }
+    const previousPlannerDay =
+      activePlannerDay.day > 1
+        ? proposal.days.find((d) => d.day === activePlannerDay.day - 1)
+        : undefined;
+    const routeLabel = resolveDayRouteLabel({
+      dayIndex: activePlannerDay.day,
+      originLabel: proposal.requirement.journey?.origin?.label,
+      stops,
+      previousDayStops: (previousPlannerDay?.stops ?? []).map((s) => ({
+        destinationId: s.destination.id,
+        name: s.destination.name,
+      })),
+      legs: proposal.journeyPlan?.legs,
+      stopNamesById,
+    });
 
     return {
       dayIndex: activePlannerDay.day,
       localDate: activePlannerDay.date,
+      routeLabel,
       transportLabel: transportText,
-      totalDistanceMeters: allStopLegsVerified ? activePlannerDay.distanceMeters : null,
-      totalTravelSeconds: allStopLegsVerified ? activePlannerDay.travelSeconds : null,
+      totalDistanceMeters:
+        allStopLegsVerified && allDayPlanLegsVerified ? activePlannerDay.distanceMeters : null,
+      totalTravelSeconds:
+        allStopLegsVerified && allDayPlanLegsVerified ? activePlannerDay.travelSeconds : null,
       stops,
       eveningPlan,
       estimatedCheckinTravelMinutes,
@@ -532,10 +561,11 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     };
   }, [
     activePlannerDay,
-    proposal.days.length,
+    proposal.days,
     proposal.proposalId,
     proposal.journeyPlan,
     proposal.requirement.dayRhythm?.lunchMinutes,
+    proposal.requirement.journey?.origin?.label,
     timeline,
     bySlot,
     chosenLodgings,

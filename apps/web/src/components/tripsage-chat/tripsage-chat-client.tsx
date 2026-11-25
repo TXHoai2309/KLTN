@@ -149,6 +149,12 @@ export function TripsageChatClient({
       : "",
   );
   const draftEditedRef = useRef(false);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const lastStreamActivityRef = useRef(0);
+  const internalRecoveryAbortRef = useRef(false);
+  const sentUserTurnsRef = useRef(0);
+  const prevConversationIdRef = useRef<string | null>(null);
+  const errorRef = useRef<unknown>(undefined);
   const [queued, setQueued] = useState<string[]>([]);
   const queuedRef = useRef<string[]>([]);
   const stopRequestedRef = useRef(false);
@@ -191,7 +197,18 @@ export function TripsageChatClient({
 
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/ai/chat",
-    fetch: createTripsageChatFetch(),
+    fetch: createTripsageChatFetch((...args) => fetch(...args), {
+      onChunkReceived: () => {
+        lastStreamActivityRef.current = Date.now();
+      },
+      onConversationId: id => {
+        if (!bodyRef.current.conversationId) {
+          bodyRef.current = { ...bodyRef.current, conversationId: id };
+          setActiveConversationId(prev => prev ?? id);
+          syncUrl(id);
+        }
+      },
+    }),
     prepareSendMessagesRequest: ({ messages }) => ({ body: buildTripsageChatBody({ messages, ...bodyRef.current }) }),
   }), []);
 
@@ -200,8 +217,20 @@ export function TripsageChatClient({
     // The notice text is generic; keep the real cause (name and short message only, never the request) visible for debugging.
     onError: err => console.warn("[tripsage-chat] stream error", err.name, err.message.slice(0, 200)),
     onFinish: ({ message, isAbort, isDisconnect, isError }) => {
-      if (isAbort || isDisconnect || isError) {
+      if (isAbort && internalRecoveryAbortRef.current) {
+        internalRecoveryAbortRef.current = false;
+        return;
+      }
+      if (isAbort || isDisconnect) {
         pendingAutoFlushRef.current = false;
+        return;
+      }
+      if (isError) {
+        const classified = classifyChatError(errorRef.current);
+        const canRecover = classified?.kind === "INTERRUPTED" && Boolean(bodyRef.current.conversationId);
+        if (!canRecover) {
+          pendingAutoFlushRef.current = false;
+        }
         return;
       }
       const hasAnyText = message.parts.some(part => part.type === "text" && part.text.trim().length > 0);
@@ -215,6 +244,7 @@ export function TripsageChatClient({
       }
     },
     onData: part => {
+      lastStreamActivityRef.current = Date.now();
       if (part.type === "data-status") {
         setStatus(part.data as StatusPart);
       } else if (part.type === "data-plan-progress") {
@@ -272,6 +302,8 @@ export function TripsageChatClient({
   };
   const [chosenLodgings, setChosenLodgings] = useState<ChosenLodgingMap>({});
   const lastSyncedProposalRef = useRef<string | null>(null);
+  errorRef.current = error;
+  sentUserTurnsRef.current = messages.filter(message => message.role === "user").length;
   const saveLocked = isTripSaveNavigationLocked(saveState);
   const rawNotice = chatStatus === "error" ? classifyChatError(error) : null;
   const interrupted = rawNotice?.kind === "INTERRUPTED";
@@ -433,8 +465,15 @@ export function TripsageChatClient({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
   }, [draft]);
-  // Pins belong to one conversation; savedRecord is already scoped by conversationId + proposalId.
-  useEffect(() => { setPinned([]); setPinMessage(null); setPlanProgress(null); }, [activeConversationId]);
+  // Pins belong to one conversation; skip clearing on initial draft -> conversationId assignment mid-turn.
+  useEffect(() => {
+    const prev = prevConversationIdRef.current;
+    prevConversationIdRef.current = activeConversationId;
+    if (prev === null || prev === activeConversationId) return;
+    setPinned([]);
+    setPinMessage(null);
+    setPlanProgress(null);
+  }, [activeConversationId]);
   // PARITY BR-3 & BR-4: before saving, keep any pinned ACCESS synced to the current access leg; after saving, keep the saved snapshot unchanged.
   useEffect(() => {
     if (savedTripId || !state.accessLeg?.data) return;
@@ -445,34 +484,102 @@ export function TripsageChatClient({
     });
   }, [savedTripId, state.accessLeg]);
 
-  // A cut connection does not stop the server: it finishes the turn and saves it. Poll the saved conversation and
-  // swap it in (same data as a reload) instead of leaving the user on "connection lost".
+  // A cut or stalled connection does not stop the server: it finishes the turn and saves it. Poll the saved conversation
+  // immediately and swap it in (same data as a reload) instead of leaving the user on "connection lost" or hung stream.
   useEffect(() => {
     if (!interrupted || !activeConversationId) return;
     setRecoveryFailed(false);
     const conversationId = activeConversationId;
-    const sentUserTurns = messages.filter(message => message.role === "user").length;
+    const sentUserTurns = sentUserTurnsRef.current;
     let cancelled = false;
     let attempts = 0;
     const poll = async () => {
       while (!cancelled && attempts < 20) {
         attempts += 1;
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        if (attempts > 1) {
+          await new Promise(resolve => setTimeout(resolve, 2500));
+        }
         if (cancelled) return;
         const detail = await fetchAssistantConversationDetail(conversationId).catch(() => null);
         const stored = detail?.messages ?? [];
         if (stored.at(-1)?.role === "assistant" && stored.filter(message => message.role === "user").length === sentUserTurns) {
-          setMessages(storedMessagesToUiMessages(stored));
+          const uiMessages = storedMessagesToUiMessages(stored);
+          const lastId = uiMessages.at(-1)?.id;
+          if (lastId) {
+            setFinishedTextIds(prev => {
+              if (prev.has(lastId)) return prev;
+              const next = new Set(prev);
+              next.add(lastId);
+              return next;
+            });
+          }
+          setPlanProgress(null);
+          setMessages(uiMessages);
           clearError();
           return;
         }
       }
-      if (!cancelled) setRecoveryFailed(true);
+      if (!cancelled) {
+        pendingAutoFlushRef.current = false;
+        setRecoveryFailed(true);
+      }
     };
     void poll();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interrupted, activeConversationId]);
+
+  // Safety probe: if the server already saved the finished reply while the SSE stream hung or buffered without closing,
+  // hydrate the persisted turn in-place so the traveler never has to press F5.
+  useEffect(() => {
+    if (!busy || !activeConversationId) return;
+    const conversationId = activeConversationId;
+    const startedAt = Date.now();
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const probe = async () => {
+      if (cancelled) return;
+      const elapsedMs = Date.now() - startedAt;
+      const quietMs = Date.now() - lastStreamActivityRef.current;
+      if (elapsedMs >= 8_000 || quietMs >= 5_000) {
+        const detail = await fetchAssistantConversationDetail(conversationId).catch(() => null);
+        if (cancelled) return;
+        const stored = detail?.messages ?? [];
+        const expectedUsers = sentUserTurnsRef.current;
+        if (
+          expectedUsers > 0 &&
+          stored.at(-1)?.role === "assistant" &&
+          stored.filter(message => message.role === "user").length === expectedUsers
+        ) {
+          const uiMessages = storedMessagesToUiMessages(stored);
+          const lastId = uiMessages.at(-1)?.id;
+          if (lastId) {
+            setFinishedTextIds(prev => {
+              if (prev.has(lastId)) return prev;
+              const next = new Set(prev);
+              next.add(lastId);
+              return next;
+            });
+          }
+          internalRecoveryAbortRef.current = true;
+          void stop();
+          setPlanProgress(null);
+          setMessages(uiMessages);
+          clearError();
+          return;
+        }
+      }
+      if (!cancelled) {
+        timer = setTimeout(() => void probe(), 4_000);
+      }
+    };
+    timer = setTimeout(() => void probe(), 8_000);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, activeConversationId]);
 
   // Restore any draft retained when a guest clicked sign-in from the planning invitation (ADR-35 / ADR-43).
   useEffect(() => {
@@ -607,6 +714,9 @@ export function TripsageChatClient({
   async function openConversationById(id: string, preferredSource?: "ASSISTANT" | "LEGACY") {
     if (busy || saveLocked) return;
     clearQueueState();
+    setPinned([]);
+    setPinMessage(null);
+    setPlanProgress(null);
     setLoadingConversation(true);
     setHistoryNotice(null);
     try {
@@ -760,9 +870,37 @@ export function TripsageChatClient({
       return next;
     });
     stopRequestedRef.current = false;
+    internalRecoveryAbortRef.current = false;
+    lastStreamActivityRef.current = Date.now();
     pendingAutoFlushRef.current = true;
     setPlanProgress(null);
     void sendMessage({ text });
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => {
+        if (transcriptRef.current) {
+          transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+        }
+      });
+    }
+  }
+
+  /** Triggers a panel/card prompt immediately when idle, or queues it visibly and reveals chat if busy/collapsed. */
+  function submitOrQueuePrompt(rawText: string) {
+    const text = rawText.trim();
+    if (!text || inputLocked || legacyReadOnly) return;
+    setPlanDrawerOpen(false);
+    if (isDesktopSplitViewport && planPanelMode === "expanded") {
+      handlePlanPanelModeChange("split");
+    }
+    if (busy) {
+      if (queuedRef.current.includes(text)) return;
+      const result = enqueueQueuedMessage(queuedRef.current, text, MAX_LENGTH);
+      if (!result.accepted) return;
+      queuedRef.current = result.queued;
+      setQueued(result.queued);
+      return;
+    }
+    send(text);
   }
 
   function handleStop() {
@@ -924,7 +1062,7 @@ export function TripsageChatClient({
           </div>
         </div>
 
-        <div className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn">
+        <div ref={transcriptRef} className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn">
           <div className="assistant-transcript-inner">
             <TripsageMemoryPanel enabled={memoryEnabled} />
             {historyNotice && <p role="status" className="assistant-muted">{historyNotice}</p>}
@@ -1084,7 +1222,7 @@ export function TripsageChatClient({
                             cost={cost}
                             pins={pinControl}
                             accessLeg={state.accessLeg?.data ?? null}
-                            onSelectSavingsOption={prompt => send(prompt)}
+                            onSelectSavingsOption={prompt => submitOrQueuePrompt(prompt)}
                           />
                         )}
                         {!planEntry && accessLeg && isTextDone && (
@@ -1117,7 +1255,7 @@ export function TripsageChatClient({
                               }
                               onSaved={handleTripSaved}
                               onStateChange={setSaveState}
-                              onRequestFix={prompt => send(prompt)}
+                              onRequestFix={prompt => submitOrQueuePrompt(prompt)}
                             />
                           </div>
                         )}
@@ -1345,9 +1483,15 @@ export function TripsageChatClient({
           onPanelModeChange={handlePlanPanelModeChange}
           onCloseDrawer={() => setPlanDrawerOpen(false)}
           onToggleChosenLodging={handleToggleChosenLodging}
-          onRequestMeals={day => send(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
-          onAskAccess={() => send(`So sánh giúp mình cách đi từ ${travelDays?.homeCity} ra ${travelDays?.hubName} cho cả đoàn.`)}
-          onSelectSavingsOption={prompt => send(prompt)}
+          onRequestMeals={day => submitOrQueuePrompt(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
+          onAskAccess={() =>
+            submitOrQueuePrompt(
+              travelDays
+                ? `So sánh giúp mình cách đi từ ${travelDays.homeCity} ra ${travelDays.hubName} cho cả đoàn.`
+                : "So sánh giúp mình các cách đi từ nơi xuất phát ra điểm tập kết cho cả đoàn.",
+            )
+          }
+          onSelectSavingsOption={prompt => submitOrQueuePrompt(prompt)}
           onSaved={handleTripSaved}
           onSaveStateChange={setSaveState}
         />

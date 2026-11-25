@@ -110,6 +110,8 @@ export function decideQueuePostTurnAction(args: {
 }): QueuePostTurnAction {
   if (args.queued.length === 0) return { type: "none" };
   if (args.chatStatus === "error") {
+    // Wait while recovering a stalled/interrupted stream from DB; restore to draft only if recovery finishes with an error.
+    if (args.inputLocked) return { type: "none" };
     return {
       type: "restore",
       draft: restoreQueueToDraft(args.queued, args.draft),

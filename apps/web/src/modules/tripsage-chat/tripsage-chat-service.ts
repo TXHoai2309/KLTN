@@ -786,10 +786,15 @@ export function streamTripsageChat(input: {
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
       const replyLang = detectReplyLanguage(input.latestUserText);
-      if (input.conversation) {
+      let initialConversationMetaSent = false;
+      const enqueueInitialConversationMeta = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {
+        if (initialConversationMetaSent || !input.conversation) return;
+        initialConversationMetaSent = true;
         const meta = conversationMetaPartSchema.safeParse(input.conversation);
-        if (meta.success) writer.write({ type: "data-conversation", id: "conversation", data: meta.data });
-      }
+        if (meta.success) {
+          controller.enqueue({ type: "data-conversation", id: "conversation", data: meta.data } as UIMessageChunk);
+        }
+      };
       writer.write({
         type: "data-status",
         data: { kind: "start", label: replyLang === "en" ? "Reading your request…" : "Đang đọc yêu cầu của bạn…" } satisfies TripsageChatStatus,
@@ -985,6 +990,11 @@ export function streamTripsageChat(input: {
       };
       const shaped = result.toUIMessageStream({ onError: failureText }).pipeThrough(new TransformStream<UIMessageChunk, UIMessageChunk>({
         transform(chunk, controller) {
+          if (chunk.type === "start") {
+            controller.enqueue(chunk);
+            enqueueInitialConversationMeta(controller);
+            return;
+          }
           if (!announced && chunk.type === "text-start") {
             announced = true;
             controller.enqueue({
@@ -1056,6 +1066,7 @@ export function streamTripsageChat(input: {
           controller.enqueue(chunk);
         },
         flush(controller) {
+          enqueueInitialConversationMeta(controller);
           if (timedOut()) {
             timeoutNotice(controller);
             return;

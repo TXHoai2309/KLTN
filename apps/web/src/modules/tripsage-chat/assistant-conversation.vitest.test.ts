@@ -330,7 +330,12 @@ describe("assistant conversations HTTP and chat route persistence (ticket 03)", 
     const convId = response.headers.get("x-assistant-conversation-id");
     expect(convId).toBeTruthy();
     const sse = await response.text();
-    const meta = conversationMetaPartSchema.parse(sseParts(sse).find(p => p.type === "data-conversation")!.data);
+    const parts = sseParts(sse);
+    const startIdx = parts.findIndex(p => p.type === "start");
+    const convIdx = parts.findIndex(p => p.type === "data-conversation");
+    expect(startIdx).toBeGreaterThan(-1);
+    expect(convIdx).toBeGreaterThan(startIdx);
+    const meta = conversationMetaPartSchema.parse(parts[convIdx]!.data);
     expect(meta.conversationId).toBe(convId);
 
     const detail = await store.get("owner-1", convId!);

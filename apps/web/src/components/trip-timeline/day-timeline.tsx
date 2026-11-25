@@ -116,6 +116,62 @@ export function buildDayTimelineTravelLeg(args: {
   };
 }
 
+export function formatDayRouteLabel(
+  fromLabel: string | null | undefined,
+  toLabel: string | null | undefined,
+): string | null {
+  const from = cleanPlaceDisplayName(fromLabel ?? "") || fromLabel?.trim() || "";
+  const to = cleanPlaceDisplayName(toLabel ?? "") || toLabel?.trim() || "";
+  if (!from || !to || from === to) return null;
+  return `${from} → ${to}`;
+}
+
+export function resolveDayRouteLabel(input: {
+  dayIndex: number;
+  originLabel?: string | null;
+  stops: readonly { destinationId: string; name: string }[];
+  previousDayStops?: readonly { destinationId: string; name: string }[];
+  legs?: readonly {
+    kind: "OUTBOUND" | "TRANSFER" | "RETURN";
+    day: number;
+    from: { kind: "ORIGIN" } | { kind: "ATTRACTION"; destinationId: string };
+    to: { kind: "ORIGIN" } | { kind: "ATTRACTION"; destinationId: string };
+  }[];
+  stopNamesById?: Readonly<Record<string, string>>;
+}): string | null {
+  const cleanName = (raw: string | null | undefined): string | null => {
+    const cleaned = cleanPlaceDisplayName(raw ?? "");
+    return cleaned || raw?.trim() || null;
+  };
+  const lookup: Record<string, string> = { ...(input.stopNamesById ?? {}) };
+  for (const stop of input.previousDayStops ?? []) {
+    if (!(stop.destinationId in lookup)) lookup[stop.destinationId] = stop.name;
+  }
+  for (const stop of input.stops) {
+    if (!(stop.destinationId in lookup)) lookup[stop.destinationId] = stop.name;
+  }
+  const originText = cleanName(input.originLabel);
+  const endpointLabel = (endpoint: { kind: "ORIGIN" } | { kind: "ATTRACTION"; destinationId: string }): string | null =>
+    endpoint.kind === "ORIGIN" ? (originText ?? "Điểm xuất phát") : cleanName(lookup[endpoint.destinationId]);
+
+  const dayLegs = (input.legs ?? []).filter((leg) => leg.day === input.dayIndex);
+  if (dayLegs.length > 0) {
+    const from = endpointLabel(dayLegs[0]!.from);
+    const to = endpointLabel(dayLegs.at(-1)!.to);
+    if (from && to) {
+      if (from !== to) return `${from} → ${to}`;
+      const via = cleanName(input.stops.at(-1)?.name);
+      if (via && via !== from) return `${from} → ${via} → ${to}`;
+    }
+  }
+
+  const firstStop = cleanName(input.stops[0]?.name);
+  const lastStop = cleanName(input.stops.at(-1)?.name);
+  const prevLast = cleanName(input.previousDayStops?.at(-1)?.name);
+  const startLabel = input.dayIndex === 1 ? (originText ?? firstStop) : (prevLast ?? firstStop);
+  return formatDayRouteLabel(startLabel, lastStop);
+}
+
 export interface DayTimelineStop {
   id: string;
   destinationId: string;
@@ -210,6 +266,7 @@ export interface DayTimelineEveningPlan {
 export interface DayTimelineDay {
   dayIndex: number;
   localDate?: string | null;
+  routeLabel?: string | null;
   transportLabel?: string;
   totalDistanceMeters?: number | null;
   totalTravelSeconds?: number | null;
@@ -626,8 +683,14 @@ export function DayTimeline({
           </div>
         </div>
 
-        {(day.transportLabel || day.stops.length > 0) && (
+        {(day.routeLabel || day.transportLabel || day.stops.length > 0) && (
           <div className="dt-day-meta">
+            {day.routeLabel && (
+              <span className="dt-day-route">
+                <Compass size={15} aria-hidden="true" />
+                {day.routeLabel}
+              </span>
+            )}
             {day.transportLabel && (
               <span>
                 <CarFront size={15} aria-hidden="true" />
