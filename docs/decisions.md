@@ -1290,3 +1290,33 @@ In production conversation `66a36527-9de1-4420-a464-4106c09e83d9` (Turn L11: `"o
 
 - Travelers asking `"ok lưu lịch này giúp mình luôn nhé"` can click **`Lưu chuyến`** directly inside the reply (or in the panel header/mobile sheet) while preserving the locked product invariant that saving only happens on explicit user confirmation.
 - Ineligible plans (unconfirmed assumed fields, stale itinerary after new requirements, or failed/unchecked checks) surface the exact blocking reason rather than silently failing or misleading the user.
+
+## ADR-55 — Server-owned route order, time-budget days, no stop-count pace (2026-11-24)
+
+- **Status:** Accepted by the owner (2026-11-24, "Duyệt hết, làm luôn"). Spec: [itinerary-route-time-redesign-spec.md](specs/itinerary-route-time-redesign-spec.md). Supersedes ADR-46 §2 (pace as a 2/3/4 stop cap) and the owner-approved 2026-11-07 rules for a 06:00 next-day departure and the conditional lunch break. Amends ADR-42 (the AI's day split).
+- **Date:** 2026-11-24
+
+### Context
+
+Conversation `fdf35a74-25b4-4283-b313-d096c17373f0` produced a 5-day loop that doubled back (Yên Minh → Dinh Vương → Sủng Là → Đồng Văn), ended four of five days before 13:00, and used 15 of 22 public places. The AI chose the order without coordinates, each day was capped by a stop count, visits were scheduled as early as possible from a 06:00 departure, and the flexible retry shortened every day's visits. Analysis: [17-itinerary-planning-redesign.md](analysis/17-itinerary-planning-redesign.md).
+
+### Decision
+
+1. **Route order is the server's.** For a whole-plan proposal the server takes the AI's set of stops, orders it as a round trip from the confirmed origin (cheapest insertion, 2-opt, Or-opt on an estimated mountain-road time) and re-splits the days. The AI's day split is only a tie-breaker. Must-visit stops, overnight areas (ADR-53) and traveler visit lengths (ADR-48/51) still hold. Scoped edits keep the traveler's day membership.
+2. **No stop-count pace.** `PACE_STOP_LIMIT` no longer caps stops per day; the day's time budget and the Validator do. `pace = RELAXED` now means a 17:00 day end and longer roadside buffers. The assistant does not ask for a pace.
+3. **Next-day departure 07:30** (was 06:00).
+4. **Roadside photo buffer and lunch.** Each same-trip drive of 10 minutes or more gets a buffer (motorbike 20 %, car 15 % of driving, at most 25 minutes, ×1.5 when relaxed) placed after the route leg ends and before the visit; arrivals are rounded up to 5 minutes. A lunch break is taken once a visit ends from 11:15 or the drive to the next stop passes 12:00. The route leg itself is unchanged, so the Validator's exact leg/rest checks are unchanged.
+5. **Fill free time.** When the estimated plan leaves time, the server adds unused catalogue places with the best value per added minute (well-known places first, then roadside viewpoints and interests). When a day does not fit, the least valuable non-required stop is dropped, not the day's last stop. The flexible retry shortens visits only on the days the checks name.
+6. **Data.** The destination seed in [17-destination-seed-2026-11-24.sql](analysis/17-destination-seed-2026-11-24.sql) is approved; coordinates come from OpenStreetMap and stay `locationVerified = false`.
+
+### Alternatives
+
+- Give the AI coordinates and keep it in charge of the order: rejected, an LLM does not reliably solve routing.
+- Keep the 2/3/4 cap and raise it: rejected, a count says nothing about how long the stops and drives take.
+- Put the photo buffer inside the route leg: rejected, the Validator checks leg end = start + driving + rest exactly.
+
+### Consequences
+
+- The scheduler needs no extra routing calls to order and fill: estimates are local; only the final chain is routed, as before.
+- Tests that pinned the 2/3/4 cap, the 06:00 departure or the old lunch rule were updated.
+- Save-time validation reuses the proposal's arrivals (`fixedArrivals`), so buffers are not recomputed at save.
