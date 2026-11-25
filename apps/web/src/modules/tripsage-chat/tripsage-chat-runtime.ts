@@ -3,6 +3,7 @@ import { db } from "../../services";
 import { ENV } from "../../env.server";
 import { routingRegistry } from "../destination/destination-routing-registry";
 import { retrievePlannerCandidates } from "../trip-planner/planner-candidates";
+import { loadDestinationTravelTimeLookup } from "../trip-planner/destination-travel-cache";
 import { createRuntimeRouting } from "../map/runtime-routing";
 import { createPetrolimexFuelPrice, type FuelPriceLookup } from "./tripsage-fuel-price";
 import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
@@ -38,6 +39,7 @@ export function tripsagePlanningRuntime(): TripsagePlanningDeps {
   return {
     candidates: () => retrievePlannerCandidates(db, undefined, registry.excludedIds),
     routes: createRuntimeRouting().routes,
+    travelLookup: (transport, list) => loadDestinationTravelTimeLookup(db, list, transport),
     now: () => new Date(),
   };
 }

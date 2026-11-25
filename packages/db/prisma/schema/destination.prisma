@@ -56,11 +56,32 @@ model Destination {
   cultureLinks             CultureDestination[]
   favorites                Favorite[]
   itineraryVisits          ItineraryVisit[]
+  travelTimesFrom          DestinationTravelTime[] @relation("TravelTimeFrom")
+  travelTimesTo            DestinationTravelTime[] @relation("TravelTimeTo")
 
   @@index([area])
   @@index([category])
   @@index([visibility])
   @@map("destination")
+}
+
+model DestinationTravelTime {
+  fromDestinationId String
+  toDestinationId   String
+  transport         TripTransport
+  durationSeconds   Float
+  distanceMeters    Float
+  provider          String
+  fromRevision      Int
+  toRevision        Int
+  computedAt        DateTime      @default(now())
+
+  fromDestination Destination @relation("TravelTimeFrom", fields: [fromDestinationId], references: [id], onDelete: Cascade)
+  toDestination   Destination @relation("TravelTimeTo", fields: [toDestinationId], references: [id], onDelete: Cascade)
+
+  @@id([fromDestinationId, toDestinationId, transport])
+  @@index([toDestinationId])
+  @@map("destination_travel_time")
 }
 
 model OpeningDay {

@@ -4,8 +4,10 @@ import { interestScore, isFeaturedDestination, type PlannerCandidate } from "./p
 import type { PlannerDay, TravelLeg } from "./planner-contract";
 import { balancePlannerDays } from "./planner-day-balance";
 import { dayEndMinute, MAX_STOPS_PER_DAY, scenicBufferMinutes, schedulePlannerDays, visitDuration } from "./planner-engine";
-import { haversine } from "./planner-geography";
-import { estimatedRoadKm, estimateSeconds, MAX_AVERAGE_KMH, type RouteProvider } from "./planner-routes";
+import { calibrateWindingFactor, DEFAULT_WINDING_FACTOR, estimatedRoadKm, estimateSeconds, haversine, MAX_AVERAGE_KMH } from "./planner-geography";
+import type { RouteProvider } from "./planner-routes";
+import type { TravelTimeLookup } from "./destination-travel-cache";
+import { PLANNING_WINDOW } from "./planner-engine";
 import { validatePlannerDays } from "./planner-validator";
 
 type Point = { latitude: number; longitude: number };
@@ -16,9 +18,35 @@ const EPSILON = 1e-9;
  * applies strictly shorter 2-opt and Or-opt moves (move 1–3 stops, either way round), so ties keep the given order.
  * Straight-line km is the cost; real roads are checked afterwards.
  */
-export function orderRoundTrip<T extends Point & { id: string }>(stops: readonly T[], origin: Point | null): T[] {
-  const length = (path: readonly T[]) => path.reduce((sum, stop, index) => sum + (index ? haversine(path[index - 1]!, stop) : origin ? haversine(origin, stop) : 0), 0)
-    + (origin && path.length ? haversine(path.at(-1)!, origin) : 0);
+export type OrderRoundTripOptions = {
+  transport?: TripRequirementInput["transport"];
+  travelLookup?: TravelTimeLookup;
+  windingFactor?: number;
+};
+
+/**
+ * ADR-55: a round trip through every stop (an open path without an origin). Starts from the given order and only
+ * applies strictly shorter 2-opt and Or-opt moves (move 1–3 stops, either way round), so ties keep the given order.
+ * Prefers cached real road distances (`destination_travel_time`) when supplied, falling back to straight-line/calibrated km.
+ */
+export function orderRoundTrip<T extends Point & { id: string }>(
+  stops: readonly T[],
+  origin: Point | null,
+  options?: OrderRoundTripOptions,
+): T[] {
+  const lookup = options?.travelLookup;
+  const transport = options?.transport ?? "MOTORCYCLE";
+  const windingFactor = options?.windingFactor ?? DEFAULT_WINDING_FACTOR;
+  const stepCost = (a: Point & { id?: string }, b: Point & { id?: string }) => {
+    if (lookup && a.id && b.id) {
+      const hit = lookup(a.id, b.id, transport);
+      if (hit) return hit.distanceMeters / 1000;
+    }
+    return lookup ? estimatedRoadKm(a, b, windingFactor) : haversine(a, b);
+  };
+  const length = (path: readonly T[]) =>
+    path.reduce((sum, stop, index) => sum + (index ? stepCost(path[index - 1]!, stop) : origin ? stepCost(origin, stop) : 0), 0)
+    + (origin && path.length ? stepCost(path.at(-1)!, origin) : 0);
   const path = [...stops];
   let best = path, bestLength = length(path), improved = true;
   const tryPath = (next: T[]) => {
@@ -36,7 +64,7 @@ export function orderRoundTrip<T extends Point & { id: string }>(stops: readonly
     }
   }
   // Either way round costs the same; start with the stop nearer the origin, as the form planner does.
-  return origin && best.length > 1 && haversine(origin, best[0]!) > haversine(origin, best.at(-1)!) + EPSILON ? [...best].reverse() : best;
+  return origin && best.length > 1 && stepCost(origin, best[0]!) > stepCost(origin, best.at(-1)!) + EPSILON ? [...best].reverse() : best;
 }
 
 /** ADR-55 value of a visit: well-known places first, then the traveler's interests. Ranking only. */
@@ -44,17 +72,48 @@ export function stopValue(candidate: PlannerCandidate, interests: TripRequiremen
   return 1 + (isFeaturedDestination(candidate) ? 3 : 0) + interestScore(candidate, interests);
 }
 
-/** Estimated legs in the provider shape, so the real scheduler and Validator judge day fitting. Never shown or saved. */
-function estimateProvider(transport: TripRequirementInput["transport"]): Required<RouteProvider> {
-  const leg = (from: Point, to: Point) => ({ status: "VERIFIED" as const, reason: null, durationSeconds: Math.max(60, estimateSeconds(from, to, transport)),
-    distanceMeters: Math.round(estimatedRoadKm(from, to) * 1000), provider: "STADIA_MAPS" as const });
+/** D1/D2: reads cached DB road leg first when available, falling back to calibrated estimate for day fitting. Never shown or saved. */
+function estimateProvider(
+  transport: TripRequirementInput["transport"],
+  travelLookup?: TravelTimeLookup,
+  windingFactor = DEFAULT_WINDING_FACTOR,
+): Required<RouteProvider> {
+  const leg = (from: Point & { id?: string }, to: Point & { id?: string }) => {
+    const cached = travelLookup && from.id && to.id ? travelLookup(from.id, to.id, transport) : null;
+    if (cached) {
+      return {
+        status: "VERIFIED" as const,
+        reason: null,
+        durationSeconds: Math.max(60, Math.round(cached.durationSeconds)),
+        distanceMeters: Math.round(cached.distanceMeters),
+        provider: "STADIA_MAPS" as const,
+      };
+    }
+    return {
+      status: "VERIFIED" as const,
+      reason: null,
+      durationSeconds: Math.max(60, estimateSeconds(from, to, transport, windingFactor)),
+      distanceMeters: Math.round(estimatedRoadKm(from, to, windingFactor) * 1000),
+      provider: "STADIA_MAPS" as const,
+    };
+  };
   return { route: async pair => ({ fromDestinationId: pair.from.id, toDestinationId: pair.to.id, ...leg(pair.from, pair.to) }), coordinateRoute: async pair => leg(pair.from, pair.to) };
 }
 
-type Fit = { days: PlannerCandidate[][]; violations: number; insufficient: number; idle: number };
+export const MIN_FILL_SAFETY_MARGIN_MINUTES = 45;
+type Fit = { days: PlannerCandidate[][]; violations: number; insufficient: number; idle: number; dayIdle: number[] };
 
 function splitEven(chain: readonly PlannerCandidate[], dayCount: number): PlannerCandidate[][] {
   return Array.from({ length: dayCount }, (_, index) => chain.slice(Math.round(index * chain.length / dayCount), Math.round((index + 1) * chain.length / dayCount)));
+}
+
+function dayIdleList(requirement: TripRequirementInput, days: readonly PlannerDay[]): number[] {
+  const endLimit = dayEndMinute(requirement);
+  return days.map(day => {
+    const end = day.stops.at(-1)?.departureMinute;
+    if (end == null) return Math.max(0, endLimit - PLANNING_WINDOW.startMinute);
+    return Math.max(0, endLimit - end);
+  });
 }
 
 /** Free minutes before each night (the last day is free: leaving early helps the return). */
@@ -65,23 +124,58 @@ function idleMinutes(requirement: TripRequirementInput, days: readonly PlannerDa
   }, 0);
 }
 
-/** Best day split of this chain under estimated roads, judged by the same scheduler and Validator as the real plan. */
-async function fitDays(requirement: TripRequirementInput, chain: readonly PlannerCandidate[]): Promise<Fit> {
+/** Best day split of this chain under cached DB roads (with calibrated D2 fallback), judged by the same scheduler and Validator as the real plan. */
+async function fitDays(
+  requirement: TripRequirementInput,
+  chain: readonly PlannerCandidate[],
+  travelLookup?: TravelTimeLookup,
+  windingFactor = DEFAULT_WINDING_FACTOR,
+): Promise<Fit> {
   const count = (checks: { status: string }[], status: string) => checks.filter(check => check.status === status).length;
+  const provider = estimateProvider(requirement.transport, travelLookup, windingFactor);
   if (requirement.journey) {
-    const result = await planJourney(requirement, splitEven(chain, requirement.durationDays), estimateProvider(requirement.transport), 5_000, true, undefined, true);
+    const result = await planJourney(requirement, splitEven(chain, requirement.durationDays), provider, 5_000, true, undefined, true);
     const byId = new Map(chain.map(candidate => [candidate.id, candidate]));
     const checks = validatePlannerDays(requirement, result.days, chain, result.travelOnlyDays).checks;
-    return { days: result.days.map(day => day.stops.map(stop => byId.get(stop.destination.id)!)),
+    return {
+      days: result.days.map(day => day.stops.map(stop => byId.get(stop.destination.id)!)),
       violations: count(checks, "VIOLATION") + Number(result.check.status === "VIOLATION"),
-      insufficient: count(checks, "INSUFFICIENT_DATA") + Number(result.check.status === "INSUFFICIENT_DATA"), idle: idleMinutes(requirement, result.days) };
+      insufficient: count(checks, "INSUFFICIENT_DATA") + Number(result.check.status === "INSUFFICIENT_DATA"),
+      idle: idleMinutes(requirement, result.days),
+      dayIdle: dayIdleList(requirement, result.days),
+    };
   }
-  const provider = estimateProvider(requirement.transport), routes = new Map<string, TravelLeg>();
+  const routes = new Map<string, TravelLeg>();
   for (const [index, to] of chain.entries()) if (index) routes.set(to.id, await provider.route({ from: chain[index - 1]!, to, transport: requirement.transport }, AbortSignal.abort()));
   const days = balancePlannerDays(requirement, splitEven(chain, requirement.durationDays), routes);
   const scheduled = schedulePlannerDays(requirement, days, routes);
   const checks = validatePlannerDays(requirement, scheduled, chain).checks;
-  return { days, violations: count(checks, "VIOLATION"), insufficient: count(checks, "INSUFFICIENT_DATA"), idle: idleMinutes(requirement, scheduled) };
+  return {
+    days,
+    violations: count(checks, "VIOLATION"),
+    insufficient: count(checks, "INSUFFICIENT_DATA"),
+    idle: idleMinutes(requirement, scheduled),
+    dayIdle: dayIdleList(requirement, scheduled),
+  };
+}
+
+function calibrateFromLookup(
+  candidates: readonly PlannerCandidate[],
+  transport: TripRequirementInput["transport"],
+  travelLookup?: TravelTimeLookup,
+  explicitFactor?: number,
+): number {
+  if (explicitFactor !== undefined) return explicitFactor;
+  if (!travelLookup || candidates.length < 2) return DEFAULT_WINDING_FACTOR;
+  const samples: { from: Point; to: Point; distanceMeters: number }[] = [];
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = candidates[i]!, b = candidates[j]!;
+      const hit = travelLookup(a.id, b.id, transport) ?? travelLookup(b.id, a.id, transport);
+      if (hit) samples.push({ from: a, to: b, distanceMeters: hit.distanceMeters });
+    }
+  }
+  return calibrateWindingFactor(samples, DEFAULT_WINDING_FACTOR);
 }
 
 const usableForFill = (candidate: PlannerCandidate) => !candidate.external && candidate.visibility === "VISIBLE" && candidate.minimumDurationMinutes !== null
@@ -90,9 +184,9 @@ const usableForFill = (candidate: PlannerCandidate) => !candidate.external && ca
 export type ArrangedTrip = { days: PlannerCandidate[][]; added: PlannerCandidate[]; stretched: Map<string, number> };
 
 /**
- * ADR-55: the server owns the route. Orders the chosen stops as a round trip, splits the days, fills free time with the
- * best value per added minute, then lengthens the most valuable visits of days that still end early. Estimates never
- * remove a chosen stop: only real routes can show a stop does not fit, so the caller drops after routing.
+ * ADR-55/D1/D2/D4: the server owns the route. Orders the chosen stops as a round trip, splits the days, fills free
+ * time with >= 45m margin using cached DB travel times (or calibrated estimates), then lengthens valuable visits.
+ * Estimates never remove a chosen stop: only real routes can show a stop does not fit, so the caller drops after routing.
  */
 export async function arrangeTripRoute(input: {
   requirement: TripRequirementInput;
@@ -101,29 +195,40 @@ export async function arrangeTripRoute(input: {
   excludedIds?: ReadonlySet<string>;
   fill?: boolean;
   budgetMs?: number;
+  travelLookup?: TravelTimeLookup;
+  windingFactor?: number;
 }): Promise<ArrangedTrip> {
-  const { requirement } = input;
+  const { requirement, travelLookup } = input;
   const deadline = Date.now() + (input.budgetMs ?? 2_000);
   const origin = requirement.journey?.origin?.confirmed ? requirement.journey.origin : null;
+  const windingFactor = calibrateFromLookup([...input.days.flat(), ...input.pool], requirement.transport, travelLookup, input.windingFactor);
+  const orderOpts: OrderRoundTripOptions = { transport: requirement.transport, travelLookup, windingFactor };
   const value = (candidate: PlannerCandidate) => stopValue(candidate, requirement.interests);
-  let chain = orderRoundTrip(input.days.flat(), origin);
+  let chain = orderRoundTrip(input.days.flat(), origin, orderOpts);
   const added: PlannerCandidate[] = [];
   if (!chain.length) return { days: input.days.map(day => [...day]), added, stretched: new Map() };
-  let fit = await fitDays(requirement, chain);
+  let fit = await fitDays(requirement, chain, travelLookup, windingFactor);
   // Clocks are unknown without a departure time, so fitting cannot tell what fits: order only.
   const timed = !requirement.journey || requirement.journey.departureMinute != null;
   const limit = Math.min(28, requirement.durationDays * MAX_STOPS_PER_DAY);
   const inChain = (candidate: PlannerCandidate) => chain.some(stop => stop.id === candidate.id);
-  while (input.fill && timed && !fit.violations && fit.idle >= 40 && chain.length < limit && Date.now() < deadline) {
+  const legKm = (a: Point & { id?: string }, b: Point & { id?: string }) => {
+    const hit = travelLookup && a.id && b.id ? travelLookup(a.id, b.id, requirement.transport) : null;
+    return hit ? hit.distanceMeters / 1000 : estimatedRoadKm(a, b, windingFactor);
+  };
+  const legSecs = (a: Point & { id?: string }, b: Point & { id?: string }) => {
+    const hit = travelLookup && a.id && b.id ? travelLookup(a.id, b.id, requirement.transport) : null;
+    return hit ? hit.durationSeconds : (legKm(a, b) / MAX_AVERAGE_KMH[requirement.transport]) * 3600;
+  };
+  while (input.fill && timed && !fit.violations && fit.idle >= MIN_FILL_SAFETY_MARGIN_MINUTES && chain.length < limit && Date.now() < deadline) {
     const options = input.pool.filter(candidate => usableForFill(candidate) && !inChain(candidate) && !input.excludedIds?.has(candidate.id))
       .map(candidate => {
-        let detourKm = Infinity;
+        let detourSeconds = Infinity;
         for (let at = 0; at <= chain.length; at++) {
           const before = at ? chain[at - 1]! : origin, after = at < chain.length ? chain[at]! : origin;
-          const extra = (before ? estimatedRoadKm(before, candidate) : 0) + (after ? estimatedRoadKm(candidate, after) : 0) - (before && after ? estimatedRoadKm(before, after) : 0);
-          detourKm = Math.min(detourKm, extra);
+          const extra = (before ? legSecs(before, candidate) : 0) + (after ? legSecs(candidate, after) : 0) - (before && after ? legSecs(before, after) : 0);
+          detourSeconds = Math.min(detourSeconds, extra);
         }
-        const detourSeconds = detourKm / MAX_AVERAGE_KMH[requirement.transport] * 3600;
         const minutes = detourSeconds / 60 + visitDuration(candidate)! + scenicBufferMinutes(detourSeconds, requirement);
         const roadside = detourSeconds < 600 && visitDuration(candidate)! <= 30 ? 1 : 0;
         return { candidate, ratio: (value(candidate) + roadside) / Math.max(1, minutes) };
@@ -132,9 +237,22 @@ export async function arrangeTripRoute(input: {
     let accepted = false;
     for (const option of options.slice(0, 4)) {
       if (Date.now() >= deadline) break;
-      const next = orderRoundTrip([...chain, option.candidate], origin);
-      const trial = await fitDays(requirement, next);
-      if (!trial.violations && trial.insufficient <= fit.insufficient) { chain = next; fit = trial; added.push(option.candidate); accepted = true; break; }
+      const next = orderRoundTrip([...chain, option.candidate], origin, orderOpts);
+      const trial = await fitDays(requirement, next, travelLookup, windingFactor);
+      // D4: every day whose stop list gained the new stop must retain >= 45 minutes of margin.
+      const dayKeepsMargin = trial.days.every((day, idx) => {
+        const gainedCandidate = day.some(stop => stop.id === option.candidate.id);
+        const grew = day.length > (fit.days[idx]?.length ?? 0);
+        if (!gainedCandidate && !grew) return true;
+        return (trial.dayIdle[idx] ?? 0) >= MIN_FILL_SAFETY_MARGIN_MINUTES;
+      });
+      if (!trial.violations && trial.insufficient <= fit.insufficient && trial.idle >= MIN_FILL_SAFETY_MARGIN_MINUTES && dayKeepsMargin) {
+        chain = next;
+        fit = trial;
+        added.push(option.candidate);
+        accepted = true;
+        break;
+      }
     }
     if (!accepted) break;
   }
@@ -146,7 +264,7 @@ export async function arrangeTripRoute(input: {
     // Up to 1.5× the suggested visit, at most 30 minutes more: a longer stay, not a different trip.
     for (const stop of longer) stretched.set(stop.id, Math.min(Math.round(stop.suggestedDurationMinutes! * 1.5 / 5) * 5, stop.suggestedDurationMinutes! + 30));
     const stretch = (stop: PlannerCandidate) => stretched.has(stop.id) ? { ...stop, suggestedDurationMinutes: stretched.get(stop.id)! } : stop;
-    const trial = stretched.size ? await fitDays(requirement, chain.map(stretch)) : null;
+    const trial = stretched.size ? await fitDays(requirement, chain.map(stretch), travelLookup, windingFactor) : null;
     if (trial && !trial.violations && trial.insufficient <= fit.insufficient && trial.idle < fit.idle) fit = { ...trial, days: trial.days.map(day => day.map(stop => chain.find(item => item.id === stop.id)!)) };
     else stretched.clear();
   }

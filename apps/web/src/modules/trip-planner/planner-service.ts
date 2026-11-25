@@ -7,6 +7,8 @@ import { resolvePlannerRoutes, type RouteProvider } from "./planner-routes";
 import { validatePlannerDays } from "./planner-validator";
 import { balancePlannerDays } from "./planner-day-balance";
 import { arrangeTripRoute } from "./planner-route";
+import type { TravelTimeCacheBundle } from "./destination-travel-cache";
+import type { TripTransport } from "../trip-requirement/trip-requirement-contract";
 import type { PlannerCandidate, PlannerCandidateInventory } from "./planner-candidates";
 import { journeyDrivingWarnings, optimizeJourneyForWeather, planJourneyFittingStops } from "../trip-origin/journey-planner";
 import type { ForecastOptions } from "../trip-weather/forecast";
@@ -14,7 +16,16 @@ import { optimizeScheduleForWeather, WEATHER_PREFERENCE_WARNING } from "./planne
 
 export type PlannerRepository = { candidates: () => Promise<PlannerCandidate[]>; inventory?: () => Promise<PlannerCandidateInventory>; recheck: (selected: readonly PlannerCandidate[]) => Promise<boolean> };
 type Completed = { result: PlannerResult; selected: PlannerCandidate[] };
-export function createPlannerService(deps: { repository: PlannerRepository; routes: RouteProvider; forecast?: ForecastOptions; now?: () => Date; id?: () => string; routeTimeoutMs?: number; databaseTimeoutMs?: number }) {
+export function createPlannerService(deps: {
+  repository: PlannerRepository;
+  routes: RouteProvider;
+  travelLookup?: (transport: TripTransport, candidates: readonly PlannerCandidate[]) => Promise<TravelTimeCacheBundle | null>;
+  forecast?: ForecastOptions;
+  now?: () => Date;
+  id?: () => string;
+  routeTimeoutMs?: number;
+  databaseTimeoutMs?: number;
+}) {
   const entries = new Map<string, { hash: string; expires: number; promise: Promise<Completed> }>();
   const admissions = new Map<string, number[]>();
   let active = 0;
@@ -48,8 +59,16 @@ export function createPlannerService(deps: { repository: PlannerRepository; rout
     const promise = (async (): Promise<Completed> => {
       const inventory = deps.repository.inventory ? await dbCall(deps.repository.inventory) : null;
       const candidates = inventory ? inventory.candidates : await dbCall(deps.repository.candidates);
-      // ADR-55: the picked places are ordered as a loop, fitted to the days and topped up by estimated free time.
-      const selectedDays = (await arrangeTripRoute({ requirement, days: selectPlannerDays(requirement, candidates), pool: candidates, fill: true })).days;
+      // ADR-55/D1: the picked places are ordered as a loop, fitted to days using cached DB travel times when available.
+      const cachedTravel = deps.travelLookup ? await deps.travelLookup(requirement.transport, candidates).catch(() => null) : null;
+      const selectedDays = (await arrangeTripRoute({
+        requirement,
+        days: selectPlannerDays(requirement, candidates),
+        pool: candidates,
+        fill: true,
+        travelLookup: cachedTravel?.lookup,
+        windingFactor: cachedTravel?.windingFactor,
+      })).days;
       const pairs = plannerRoutePairs(selectedDays, requirement.transport);
       const journey = requirement.journey ? await planJourneyFittingStops(requirement, selectedDays, deps.routes, deps.routeTimeoutMs) : null;
       let selected = journey?.selected ?? selectedDays.flat();

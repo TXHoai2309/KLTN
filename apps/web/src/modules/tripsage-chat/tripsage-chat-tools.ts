@@ -6,11 +6,12 @@ import { formatDistanceKm } from "../../lib/traveler-number-format";
 import { isUsablePlanningCandidate, scheduleSelection } from "../assistant-planning/planning-engine";
 import { selectPlannerDays } from "../trip-planner/planner-engine";
 import { arrangeTripRoute, orderRoundTrip, stopValue } from "../trip-planner/planner-route";
+import type { TravelTimeCacheBundle } from "../trip-planner/destination-travel-cache";
 import { planningSelectionSchema } from "../assistant-planning/planning-contract";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { EXTERNAL_PLACE_ID_PREFIX, externalPlannerCandidate, isSchedulablePlaceId, type PlannerCandidate } from "../trip-planner/planner-candidates";
 import type { RouteProvider } from "../trip-planner/planner-routes";
-import { INTEREST_VALUES, PACE_VALUES, tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
+import { INTEREST_VALUES, PACE_VALUES, tripRequirementInputSchema, type TripTransport } from "../trip-requirement/trip-requirement-contract";
 import { QUESTION_BY_FIELD } from "../trip-requirement/trip-clarification-rules";
 import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
@@ -81,7 +82,205 @@ export type TripsageChatToolName = (typeof TRIPSAGE_CHAT_TOOL_NAMES)[number];
 export const TRIPSAGE_CHAT_TURN_LIMITS = { maxSteps: 16, totalMs: 280_000, maxProposals: 2, maxPlacesCalls: 4, maxWebSearchCalls: 1, maxFetchPageCalls: 1 } as const;
 
 export type OriginLookup = (query: string, signal?: AbortSignal) => Promise<OriginSearchOutcome>;
-export type TripsagePlanningDeps = { candidates: () => Promise<PlannerCandidate[]>; routes: RouteProvider; now?: () => Date };
+export type TripsagePlanningDeps = {
+  candidates: () => Promise<PlannerCandidate[]>;
+  routes: RouteProvider;
+  travelLookup?: (transport: TripTransport, candidates: readonly PlannerCandidate[]) => Promise<TravelTimeCacheBundle | null>;
+  now?: () => Date;
+};
+
+export type OvertimeRepairOutcome = {
+  result: PlannerResult;
+  droppedChosenStops: string[];
+  droppedSuggestedStops: string[];
+  trimmedApplied: boolean;
+  compactApplied: boolean;
+};
+
+/**
+ * D3 exact overtime resolution order:
+ * 1) Drop server-added filler stops (`addedStopIds`) on violating days;
+ * 2) Drop lowest-value non-required, non-protected-overnight stops on violating days;
+ * 3) Iteratively subtract 15 minutes from the longest visit on violating days (not below minDuration, keeping user overrides);
+ * 4) Apply COMPACT rest mode last (and relaxed overnight boundary repartitioning only if it strictly lowers violations).
+ */
+export async function repairOvertimeItinerary(input: {
+  initialResult: PlannerResult;
+  needs: Parameters<typeof scheduleSelection>[0];
+  chosen: PlannerCandidate[];
+  routes: RouteProvider;
+  now: Date;
+  scheduleOpts?: { allowBoundaryRepartition?: boolean };
+  addedStopIds: ReadonlySet<string>;
+  requiredIds: ReadonlySet<string>;
+  protectedOvernightIds: ReadonlySet<string>;
+  overrides: Readonly<Record<string, number>>;
+  deadlineMs?: number;
+  onProgress?: (detail: string) => void;
+  scheduler?: typeof scheduleSelection;
+}): Promise<OvertimeRepairOutcome> {
+  const runScheduler = input.scheduler ?? scheduleSelection;
+  const violationChecks = (r: PlannerResult) => r.checks.filter(check => check.status === "VIOLATION").length;
+  const violationIssues = (r: PlannerResult) =>
+    r.checks.filter(check => check.status === "VIOLATION").reduce((sum, check) => sum + Math.max(1, check.issues.length), 0);
+  const isBetter = (next: PlannerResult, cur: PlannerResult) =>
+    violationChecks(next) < violationChecks(cur)
+    || (violationChecks(next) === violationChecks(cur) && violationIssues(next) < violationIssues(cur));
+  const isNoWorse = (next: PlannerResult, cur: PlannerResult) =>
+    violationChecks(next) <= violationChecks(cur) && violationIssues(next) <= violationIssues(cur);
+  const resolveBadDays = (r: PlannerResult) => {
+    const named = new Set(
+      r.checks
+        .filter(check => check.status === "VIOLATION")
+        .flatMap(check => check.issues.map(issue => issue.day))
+        .filter((day): day is number => day !== null),
+    );
+    if (named.size > 0) return named;
+    return new Set(r.days.map(day => day.day));
+  };
+
+  let rawResult = input.initialResult;
+  let currentDays = rawResult.days.map(day => day.stops.map(stop => stop.destination.id));
+  let currentChosen = [...input.chosen];
+  const chosenById = new Map(input.chosen.map(c => [c.id, c]));
+  const interests = input.needs.requirement.interests ?? [];
+  const keepValue = (id: string) => {
+    const candidate = chosenById.get(id);
+    return candidate ? stopValue(candidate, interests) : 0;
+  };
+
+  const droppedSuggestedStops: string[] = [];
+  const droppedChosenStops: string[] = [];
+  let trimmedApplied = false;
+  let compactApplied = false;
+  let stepCounter = 2;
+  const deadline = input.deadlineMs ?? (Date.now() + 25_000);
+
+  // Step 1: Drop server-added filler stops on violating days first, preserving user/AI picks and full durations.
+  for (let round = 0; round < 6 && violationChecks(rawResult) > 0 && Date.now() < deadline; round++) {
+    const badDays = resolveBadDays(rawResult);
+    let droppedAny = false;
+    const nextDays = currentDays.map((day, index) => {
+      if (!badDays.has(index + 1)) return day;
+      let at = -1;
+      day.forEach((id, pos) => {
+        if (input.addedStopIds.has(id) && (at < 0 || keepValue(id) <= keepValue(day[at]!))) at = pos;
+      });
+      if (at < 0) return day;
+      droppedAny = true;
+      return day.filter((_, pos) => pos !== at);
+    });
+    if (!droppedAny || nextDays.every(day => day.length === 0)) break;
+    const removedIds = currentDays.flat().filter(id => !nextDays.flat().includes(id));
+    input.onProgress?.(`đợt ${stepCounter}/${Math.max(5, stepCounter)}`);
+    stepCounter += 1;
+    const attempt = await runScheduler(input.needs, { days: nextDays }, currentChosen, input.routes, input.now, undefined, undefined, input.scheduleOpts).catch(() => null);
+    if (!attempt) break;
+    if (isNoWorse(attempt, rawResult)) {
+      rawResult = attempt;
+      currentDays = attempt.days.map(day => day.stops.map(stop => stop.destination.id));
+      droppedSuggestedStops.push(...removedIds);
+    } else {
+      break;
+    }
+  }
+
+  // Step 2: Drop lowest-value non-required, non-protected-overnight stops on violating days.
+  for (let round = 0; round < 8 && violationChecks(rawResult) > 0 && Date.now() < deadline; round++) {
+    const badDays = resolveBadDays(rawResult);
+    let droppedAny = false;
+    const nextDays = currentDays.map((day, index) => {
+      if (!badDays.has(index + 1)) return day;
+      let at = -1;
+      day.forEach((id, pos) => {
+        if (!input.requiredIds.has(id) && !input.protectedOvernightIds.has(id) && (at < 0 || keepValue(id) <= keepValue(day[at]!))) {
+          at = pos;
+        }
+      });
+      if (at < 0) return day;
+      droppedAny = true;
+      return day.filter((_, pos) => pos !== at);
+    });
+    if (!droppedAny || nextDays.every(day => day.length === 0)) break;
+    const removedIds = currentDays.flat().filter(id => !nextDays.flat().includes(id));
+    input.onProgress?.(`đợt ${stepCounter}/${Math.max(5, stepCounter)}`);
+    stepCounter += 1;
+    const attempt = await runScheduler(input.needs, { days: nextDays }, currentChosen, input.routes, input.now, undefined, undefined, input.scheduleOpts).catch(() => null);
+    if (!attempt) break;
+    currentDays = nextDays;
+    if (isNoWorse(attempt, rawResult)) {
+      rawResult = attempt;
+      for (const id of removedIds) {
+        if (input.addedStopIds.has(id)) droppedSuggestedStops.push(id);
+        else droppedChosenStops.push(id);
+      }
+    }
+  }
+
+  // Step 3: Trim 15 minutes per round from the longest non-user-overridden visit on violating days (never below minDuration).
+  for (let round = 0; round < 8 && violationChecks(rawResult) > 0 && Date.now() < deadline; round++) {
+    const badDays = resolveBadDays(rawResult);
+    const idsToTrim = new Set<string>();
+    for (const day of rawResult.days) {
+      if (!badDays.has(day.day)) continue;
+      let longestId: string | null = null;
+      let longestDur = 0;
+      for (const stop of day.stops) {
+        const candidate = currentChosen.find(c => c.id === stop.destination.id);
+        if (!candidate || input.overrides[candidate.id] !== undefined) continue;
+        const curDur = candidate.suggestedDurationMinutes ?? stop.visitDurationMinutes;
+        const minDur = candidate.minimumDurationMinutes ?? curDur;
+        if (curDur > minDur && curDur > longestDur) {
+          longestDur = curDur;
+          longestId = candidate.id;
+        }
+      }
+      if (longestId) idsToTrim.add(longestId);
+    }
+    if (idsToTrim.size === 0) break;
+    const nextChosen = currentChosen.map(c => {
+      if (!idsToTrim.has(c.id)) return c;
+      const curDur = c.suggestedDurationMinutes ?? 60;
+      const minDur = c.minimumDurationMinutes ?? curDur;
+      return { ...c, suggestedDurationMinutes: Math.max(minDur, curDur - 15) };
+    });
+    input.onProgress?.(`đợt ${stepCounter}/${Math.max(5, stepCounter)}`);
+    stepCounter += 1;
+    const attempt = await runScheduler(input.needs, { days: currentDays }, nextChosen, input.routes, input.now, undefined, undefined, input.scheduleOpts).catch(() => null);
+    if (!attempt) break;
+    currentChosen = nextChosen;
+    if (isNoWorse(attempt, rawResult)) {
+      rawResult = attempt;
+      trimmedApplied = true;
+    }
+  }
+
+  // Step 4: Use COMPACT rest mode last (only when violations persist after steps 1-3).
+  if (violationChecks(rawResult) > 0 && Date.now() < deadline) {
+    const flexNeeds = { ...input.needs, requirement: { ...input.needs.requirement, restMode: "COMPACT" as const } };
+    input.onProgress?.(`đợt ${stepCounter}/${Math.max(5, stepCounter)}`);
+    const compactAttempt = await runScheduler(flexNeeds, { days: currentDays }, currentChosen, input.routes, input.now, undefined, undefined, input.scheduleOpts).catch(() => null);
+    if (compactAttempt && isBetter(compactAttempt, rawResult)) {
+      rawResult = compactAttempt;
+      compactApplied = true;
+    }
+    if (violationChecks(rawResult) > 0 && input.scheduleOpts) {
+      const repartitioned = await runScheduler(flexNeeds, { days: currentDays }, currentChosen, input.routes, input.now, undefined, undefined, { allowBoundaryRepartition: true }).catch(() => null);
+      if (repartitioned && isBetter(repartitioned, rawResult)) {
+        rawResult = repartitioned;
+        compactApplied = true;
+      }
+    }
+  }
+
+  return {
+    result: rawResult,
+    droppedChosenStops,
+    droppedSuggestedStops,
+    trimmedApplied,
+    compactApplied,
+  };
+}
 /** `journey` comes from the signed-in request or server-built `confirmOrigin`, never from the model. */
 export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerary: (result: PlannerResult) => void; maxProposals?: number; journey?: TripJourney | null;
   /** Trip info recorded by the conversation (request context, updated by `recordTripInfo` in this turn). It, not model input, drives scheduling. */ tripInfo?: TripsageTripInfo | null;
@@ -702,9 +901,19 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       try {
         const usable = await ensureShortCodes();
         context.emitPlanProgress?.({ step: "SELECT", state: "done" });
-        // ADR-55: the order around the loop from the trip's origin, so the model can describe days in road order.
+        // ADR-55/D1: the order around the loop from the trip's origin using cached DB road distances when available.
         const loopOrigin = currentJourney?.origin?.confirmed ? currentJourney.origin : null;
-        const routeOrder = new Map(orderRoundTrip(usable, loopOrigin).map((c, index) => [c.id, index + 1]));
+        const transport = tripInfo.transport ?? "MOTORCYCLE";
+        const travelCache = context.planning.travelLookup
+          ? await context.planning.travelLookup(transport, usable).catch(() => null)
+          : null;
+        const routeOrder = new Map(
+          orderRoundTrip(usable, loopOrigin, {
+            transport,
+            travelLookup: travelCache?.lookup,
+            windingFactor: travelCache?.windingFactor,
+          }).map((c, index) => [c.id, index + 1]),
+        );
         return {
           ok: true as const,
           count: usable.length,
@@ -1099,6 +1308,9 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const pickedIds = resolvedSelection.days.flat();
         const chosenById = new Map(chosen.map(c => [c.id, c]));
         const reshuffleOfShown = shownIds.length > 0 && shownIds.length === pickedIds.length && pickedIds.every(id => shownIds.includes(id));
+        const travelCache = context.planning.travelLookup
+          ? await context.planning.travelLookup(requirement.transport, chosen).catch(() => null)
+          : null;
         let addedStops: string[] = [];
         if (effectiveOvernightAreas.length === 0 && !reshuffleOfShown && pickedIds.length > 0 && pickedIds.every(id => chosenById.has(id))) {
           const arranged = await arrangeTripRoute({
@@ -1108,6 +1320,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             // A place the traveler just removed is never added back.
             excludedIds: new Set(shownIds.filter(id => !pickedIds.includes(id))),
             fill: shownIds.length === 0 || pickedIds.length >= shownIds.length,
+            travelLookup: travelCache?.lookup,
+            windingFactor: travelCache?.windingFactor,
           }).catch(() => null);
           if (arranged) {
             resolvedSelection = { days: arranged.days.map(day => day.map(c => c.id)) };
@@ -1122,19 +1336,12 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         context.emitPlanProgress?.({ step: "VALIDATE", state: "running", detail: "đợt 1/5" });
         let rawResult = await scheduleSelection(needs, resolvedSelection, chosen, context.planning.routes, now(), undefined, undefined, scheduleOpts);
         let flexApplied = false;
-        let droppedStops: string[] = [];
+        let compactApplied = false;
+        let trimmedApplied = false;
+        let droppedChosenStops: string[] = [];
+        let droppedSuggestedStops: string[] = [];
+        const addedSet = new Set(addedStops);
         if (violations(rawResult) > 0) {
-          context.emitPlanProgress?.({ step: "VALIDATE", state: "running", detail: "đợt 2/5" });
-          // ADR-55: shorten visits only on the days the checks name (all days when no day is named).
-          const firstBadDays = new Set(rawResult.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.map(issue => issue.day)).filter((day): day is number => day !== null));
-          const shortenIds = new Set(rawResult.days.filter(day => firstBadDays.has(day.day)).flatMap(day => day.stops.map(stop => stop.destination.id)));
-          const trimmed = chosen.map(c => (shortenIds.size === 0 || shortenIds.has(c.id)) && !overrides[c.id] && c.minimumDurationMinutes && c.suggestedDurationMinutes && c.minimumDurationMinutes < c.suggestedDurationMinutes ? { ...c, suggestedDurationMinutes: c.minimumDurationMinutes } : c);
-          const retry = await scheduleSelection({ ...needs, requirement: { ...requirement, restMode: "COMPACT" as const } }, resolvedSelection, trimmed, context.planning.routes, now(), undefined, undefined, scheduleOpts).catch(() => null);
-          if (retry && violations(retry) < violations(rawResult)) { rawResult = retry; flexApplied = true; }
-          // Still infeasible: drop the last non-required stop of each day the checks name, one per round, and keep any plan
-          // that is no worse. The Validator still decides; this only removes stops that cannot fit (like form planning does).
-          const flexNeeds = { ...needs, requirement: { ...requirement, restMode: "COMPACT" as const } };
-          const required = new Set(requiredDestinationIds);
           const protectedOvernightEnds = new Set(
             effectiveOvernightAreas
               .filter(c => c.afterDay >= 1 && c.afterDay < resolvedSelection.days.length)
@@ -1145,47 +1352,41 @@ export function createTripsageChatTools(context: TripsageToolContext) {
               })
               .filter((id): id is string => Boolean(id)),
           );
-          const stopsDeadline = Date.now() + 25_000;
-          // The checks name days of the scheduled plan, which may have moved day boundaries.
-          let days = rawResult.days.map(day => day.stops.map(stop => stop.destination.id));
-          const keepValue = (id: string) => { const c = chosenById.get(id); return c ? stopValue(c, requirement.interests) : 0; };
-          for (let round = 0; round < 8 && violations(rawResult) > 0 && Date.now() < stopsDeadline; round++) {
-            const badDays = new Set(rawResult.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.map(issue => issue.day)).filter((day): day is number => day !== null));
-            let changed = false;
-            const next = days.map((day, index) => {
-              if (!badDays.has(index + 1)) return day;
-              // ADR-55: drop the least valuable stop (the later one on a tie), not simply the day's last stop.
-              let at = -1;
-              day.forEach((id, position) => { if (!required.has(id) && !protectedOvernightEnds.has(id) && (at < 0 || keepValue(id) <= keepValue(day[at]!))) at = position; });
-              if (at < 0) return day;
-              changed = true;
-              return day.filter((_, position) => position !== at);
-            });
-            if (!changed || next.every(day => day.length === 0)) break;
-            const roundNumber = round + 3;
-            context.emitPlanProgress?.({ step: "VALIDATE", state: "running", detail: `đợt ${roundNumber}/${Math.max(5, roundNumber)}` });
-            const attempt = await scheduleSelection(flexNeeds, { days: next }, trimmed, context.planning.routes, now(), undefined, undefined, scheduleOpts).catch(() => null);
-            if (!attempt) break;
-            days = next;
-            if (violations(attempt) <= violations(rawResult)) { rawResult = attempt; flexApplied = true; droppedStops = resolvedSelection.days.flat().filter(id => !next.flat().includes(id)); }
-          }
-          // If still infeasible with fixed boundaries, try repartitioned fallback only when it strictly lowers violations.
-          if (violations(rawResult) > 0 && scheduleOpts) {
-            const repartitioned = await scheduleSelection(flexNeeds, { days }, trimmed, context.planning.routes, now(), undefined, undefined, { allowBoundaryRepartition: true }).catch(() => null);
-            if (repartitioned && violations(repartitioned) < violations(rawResult)) {
-              rawResult = repartitioned;
-              flexApplied = true;
-            }
-          }
+          const repaired = await repairOvertimeItinerary({
+            initialResult: rawResult,
+            needs,
+            chosen,
+            routes: context.planning.routes,
+            now: now(),
+            scheduleOpts,
+            addedStopIds: addedSet,
+            requiredIds: new Set(requiredDestinationIds),
+            protectedOvernightIds: protectedOvernightEnds,
+            overrides,
+            onProgress: detail => context.emitPlanProgress?.({ step: "VALIDATE", state: "running", detail }),
+          });
+          rawResult = repaired.result;
+          droppedChosenStops = repaired.droppedChosenStops;
+          droppedSuggestedStops = repaired.droppedSuggestedStops;
+          trimmedApplied = repaired.trimmedApplied;
+          compactApplied = repaired.compactApplied;
+          flexApplied = trimmedApplied || compactApplied;
         }
+        const droppedSuggestedSet = new Set(droppedSuggestedStops);
+        const survivingAddedStops = addedStops.filter(id => !droppedSuggestedSet.has(id));
         const cleanStopName = (id: string) => {
           const rawName = all.find(c => c.id === id)?.name ?? id;
           return cleanPlaceDisplayName(rawName) || rawName;
         };
+        const flexMessage = compactApplied
+          ? "Đã nới lịch cho vừa: rút ngắn giờ nghỉ dọc đường còn 10 phút/lần và tối ưu thời lượng tham quan ở ngày bị quá giờ."
+          : "Đã rút gọn nhẹ thời lượng tham quan (từng bước 15 phút, không dưới mức tối thiểu) ở ngày bị quá giờ.";
+        const droppedStops = [...droppedChosenStops, ...droppedSuggestedStops];
         const flexNotes: PlannerResult["warnings"] = [
-          ...(flexApplied ? [{ code: "FLEX_SCHEDULE", day: null, destinationId: null, message: "Đã nới lịch cho vừa: nghỉ dọc đường 10 phút mỗi lần thay vì 15 phút và rút thời gian tham quan về mức tối thiểu ở ngày bị quá giờ." }] : []),
-          ...(droppedStops.length ? [{ code: "STOPS_DROPPED", day: null, destinationId: null, message: `Đã bớt ${droppedStops.length} điểm để lịch vừa thời gian trong ngày: ${droppedStops.map(cleanStopName).join(", ")}.` }] : []),
-          ...(addedStops.length ? [{ code: "STOPS_ADDED", day: null, destinationId: null, message: `Đã thêm ${addedStops.length} điểm gần tuyến để tận dụng thời gian trống: ${addedStops.map(cleanStopName).join(", ")}.` }] : []),
+          ...(flexApplied ? [{ code: "FLEX_SCHEDULE", day: null, destinationId: null, message: flexMessage }] : []),
+          ...(droppedChosenStops.length ? [{ code: "STOPS_DROPPED", day: null, destinationId: null, message: `Đã bớt ${droppedChosenStops.length} điểm trong lịch chọn để vừa thời gian trong ngày: ${droppedChosenStops.map(cleanStopName).join(", ")}.` }] : []),
+          ...(droppedSuggestedStops.length ? [{ code: "SUGGESTED_STOPS_DROPPED", day: null, destinationId: null, message: `Đã lược ${droppedSuggestedStops.length} điểm gợi ý thêm do đường thực tế dài hơn ước tính: ${droppedSuggestedStops.map(cleanStopName).join(", ")}.` }] : []),
+          ...(survivingAddedStops.length ? [{ code: "STOPS_ADDED", day: null, destinationId: null, message: `Đã thêm ${survivingAddedStops.length} điểm gần tuyến để tận dụng thời gian trống: ${survivingAddedStops.map(cleanStopName).join(", ")}.` }] : []),
           ...all.filter(c => overrides[c.id] && c.minimumDurationMinutes && overrides[c.id]! < c.minimumDurationMinutes).map(c => ({ code: "USER_SHORT_VISIT", day: null, destinationId: c.id, message: `Bạn chọn ở ${cleanPlaceDisplayName(c.name) || c.name} ${overrides[c.id]} phút, ngắn hơn mức gợi ý tối thiểu ${c.minimumDurationMinutes} phút.` })),
         ];
         if (flexNotes.length) rawResult = { ...rawResult, warnings: [...flexNotes, ...rawResult.warnings].slice(0, 80) };
@@ -1289,14 +1490,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
           ...(nearbySummary && nearbySummary.eveningAnchors > 0 ? { nearbySummary } : {}),
-          ...(droppedStops.length ? { droppedStops: `Đã bỏ bớt ${droppedStops.length} điểm để kịp giờ (${droppedStops.map(cleanStopName).join(", ")}). Hãy nói tự nhiên theo góc nhìn người dùng kèm tên điểm cụ thể (ví dụ 'Mình bỏ bớt ${droppedStops.slice(0, 2).map(cleanStopName).join(" và ")} để kịp giờ; muốn giữ thì thêm 1 ngày'); KHÔNG dùng từ 'hệ thống đã lược' và KHÔNG gọi proposeItinerary lại trong lượt này.` } : {}),
-          ...(flexApplied ? { flexApplied: "Đã rút ngắn giờ nghỉ dọc đường còn 10 phút/lần và tối ưu thời lượng tham quan để kịp giờ trong ngày. Chỉ nhắc ngắn gọn tự nhiên nếu cần." } : {}),
+          ...(droppedChosenStops.length ? { droppedStops: `Đã bỏ bớt ${droppedChosenStops.length} điểm để kịp giờ (${droppedChosenStops.map(cleanStopName).join(", ")}). Hãy nói tự nhiên theo góc nhìn người dùng kèm tên điểm cụ thể (ví dụ 'Mình bỏ bớt ${droppedChosenStops.slice(0, 2).map(cleanStopName).join(" và ")} để kịp giờ; muốn giữ thì thêm 1 ngày'); KHÔNG dùng từ 'hệ thống đã lược' và KHÔNG gọi proposeItinerary lại trong lượt này.` } : droppedStops.length ? { droppedStops: `Đã bỏ bớt ${droppedStops.length} điểm gợi ý thêm để kịp giờ (${droppedStops.map(cleanStopName).join(", ")}).` } : {}),
+          ...(droppedSuggestedStops.length ? { droppedSuggestedStops: droppedSuggestedStops.map(cleanStopName) } : {}),
+          ...(flexApplied ? { flexApplied: flexMessage } : {}),
           // Without the reasons the model re-proposes blindly; tell it which day broke which rule so one repair is enough.
           ...(result.checks.some(check => check.status === "VIOLATION") ? {
             problems: result.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.slice(0, 6).map(issue => ({ check: check.key, day: issue.day ?? null, code: issue.code, message: issue.message }))),
             repairHint: "Có vi phạm. Đọc problems rồi chỉnh đúng ngày bị nêu (máy chủ đã thử bớt điểm kém nổi bật nhất; nếu vẫn chưa đạt thì thay điểm xa nhất của ngày đó bằng điểm gần tuyến hơn) và gọi proposeItinerary lại một lần; đừng đổi các ngày không bị nêu. Nếu vẫn không đạt, nói thẳng với người dùng nguyên nhân và đề xuất thêm ngày hoặc đổi điểm xuất phát.",
           } : {}),
-          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận. Máy chủ đã sắp thứ tự và chia ngày theo tuyến đường; giới thiệu đúng thứ tự trong lịch.${addedStops.length ? ` Máy chủ đã thêm ${addedStops.map(cleanStopName).join(", ")} để lấp thời gian trống.` : ""}${unmetOvernightNote}${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi song song trong cùng một bước searchHotels (stays gồm các khu nghỉ đêm, gộp đêm liên tiếp cùng điểm cuối ngày) cùng estimateCosts / planAccessLeg (nếu không phụ thuộc nhau) để panel cập nhật nhanh." : " Có thể gọi song song các công cụ độc lập như searchPlaces (chỗ nghỉ) và estimateCosts trong cùng một bước."}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
+          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận. Máy chủ đã sắp thứ tự và chia ngày theo tuyến đường; giới thiệu đúng thứ tự trong lịch.${survivingAddedStops.length ? ` Máy chủ đã thêm ${survivingAddedStops.map(cleanStopName).join(", ")} để lấp thời gian trống.` : ""}${unmetOvernightNote}${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi song song trong cùng một bước searchHotels (stays gồm các khu nghỉ đêm, gộp đêm liên tiếp cùng điểm cuối ngày) cùng estimateCosts / planAccessLeg (nếu không phụ thuộc nhau) để panel cập nhật nhanh." : " Có thể gọi song song các công cụ độc lập như searchPlaces (chỗ nghỉ) và estimateCosts trong cùng một bước."}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
       } catch (error) {
         // A plan the server rejected for its input (wrong day count, unknown id) is a correction, not one of the turn's tries.
         if (error instanceof AppError && error.code === "INVALID_AI_PLAN") {
