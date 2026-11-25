@@ -1320,3 +1320,30 @@ Conversation `fdf35a74-25b4-4283-b313-d096c17373f0` produced a 5-day loop that d
 - The scheduler needs no extra routing calls to order and fill: estimates are local; only the final chain is routed, as before.
 - Tests that pinned the 2/3/4 cap, the 06:00 departure or the old lunch rule were updated.
 - Save-time validation reuses the proposal's arrivals (`fixedArrivals`), so buffers are not recomputed at save.
+
+## ADR-56: Queued assistant messages and trip-review fixes from c6be04d7
+
+- Status: Accepted
+- Date: 2026-11-25
+- Specs: [assistant-queued-message-spec.md](specs/assistant-queued-message-spec.md), [trip-review-lessons-c6be04d7-spec.md](specs/trip-review-lessons-c6be04d7-spec.md)
+
+### Context
+
+Live review of conversation `c6be04d7` and assistant UX testing surfaced two approved sets of changes: allowing travelers to queue follow-up messages while the assistant is busy responding, and addressing 13 trip-planning accuracy, cost consistency, whole-trip date, visual fallback, duration, and timeline presentation gaps (D1–D13).
+
+### Decision
+
+Adopt both [assistant-queued-message-spec.md](specs/assistant-queued-message-spec.md) and the 6 owner-approved product/technical choices from [trip-review-lessons-c6be04d7-spec.md](specs/trip-review-lessons-c6be04d7-spec.md):
+
+1. **Real travel-time cache table (`destination_travel_time`)**: Add table `destination_travel_time` keyed by `(fromDestinationId, toDestinationId, transport)` with Stadia duration, distance, provider, source/target destination revisions, and timestamp. Populate it via a manual script (never inside request handlers) with `--dry-run` and bounded concurrency (max 3), fallback to median winding-factor calibration (`2.0` default, `[1.5, 3.5]` clamped).
+2. **Server-calculated cost inputs (`estimateCosts`) & auto-recompute**: Narrow AI inputs on `estimateCosts` to tier choices (`lodgingTier`, `mealTier`, `rental`) plus optional extras; compute nights, meal days/meals, vehicles, rental days, and whole-trip `perPersonPerDay` server-side. Automatically recompute costs when the itinerary or access leg changes.
+3. **Whole-trip date boundaries (`tripStartDate`, `tripEndDate`)**: Add `tripStartDate` and `tripEndDate` to `tripInfoSchema`, derived from access-leg travel dates when available, with one clarifying two-choice prompt if sightseeing `durationDays` conflicts with the full travel span.
+4. **Revised attraction durations (D10) & large-group adjustment**: Apply updated suggested/minimum durations for Hang Lùng Khúy (`120/75`), Sông Nho Quế (`180/120`), and Lùng Tám (`60/45`) via an idempotent SQL script in `docs/analysis/` (DEV first, PROD run separately after approval), and apply `+15%` suggested visit duration (rounded to 5 minutes) for groups of `>= 6` travelers on stops with `suggestedDurationMinutes >= 45` (excluding short photo stops and without relaxing minimum durations or Validator checks).
+5. **Phased implementation order**: Land queued messages, D12–D13 display updates, D1–D4 routing/overtime fixes, D5–D6 cost computation, D7 whole-trip dates, and D8–D11 visuals/diversity/durations/validation scope as sequential commits.
+6. **Airport transfer reference & check-in rule**: Record Nội Bài ↔ Mỹ Đình at 60 minutes reference transit time and standard 2-hour pre-flight airport arrival for outbound/return schedule breakdowns and connection warnings.
+
+### Consequences
+
+- Database schema gains `destination_travel_time` via Prisma migration plus manual DEV seeding before PROD rollout.
+- Server cost logic becomes deterministic from itinerary and access-leg state, eliminating AI miscounts across travel days and vehicles.
+- Existing `estimateCosts`, overtime trimming, estimation winding-factor, and timeline tests that pinned superseded defaults must be updated with comments explaining the spec change.
