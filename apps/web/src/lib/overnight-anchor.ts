@@ -1,4 +1,4 @@
-import { OVERNIGHT_TOWN_CENTERS, resolveOvernightAreaLabel } from "./traveler-display-clean";
+import { cleanAreaDisplayLabel, OVERNIGHT_TOWN_CENTERS, resolveOvernightAreaLabel } from "./traveler-display-clean";
 
 /** Minimum straight-line distance (km) from a day's last stop to the town center before adding an overnight detour. */
 export const OVERNIGHT_CHECKIN_DETOUR_MIN_KM = 1.0;
@@ -52,18 +52,35 @@ export function resolveOvernightAnchorTown(stop: {
     return null;
   }
 
+  const cleanedArea = cleanAreaDisplayLabel(stop.area);
+  const explicitTownEntry = cleanedArea
+    ? Object.entries(OVERNIGHT_TOWN_CENTERS).find(
+        ([town]) => town.toLocaleLowerCase("vi") === cleanedArea.toLocaleLowerCase("vi"),
+      )
+    : undefined;
+
   let bestArea: string | null = null;
   let bestCenter: { latitude: number; longitude: number } | null = null;
   let bestDistanceKm = Number.POSITIVE_INFINITY;
-  for (const [town, center] of Object.entries(OVERNIGHT_TOWN_CENTERS)) {
-    const km = distanceBetweenKm(
+
+  if (explicitTownEntry) {
+    bestArea = explicitTownEntry[0];
+    bestCenter = explicitTownEntry[1];
+    bestDistanceKm = distanceBetweenKm(
       { latitude: stop.latitude, longitude: stop.longitude },
-      center,
+      bestCenter,
     );
-    if (Number.isFinite(km) && km < bestDistanceKm) {
-      bestDistanceKm = km;
-      bestArea = town;
-      bestCenter = center;
+  } else {
+    for (const [town, center] of Object.entries(OVERNIGHT_TOWN_CENTERS)) {
+      const km = distanceBetweenKm(
+        { latitude: stop.latitude, longitude: stop.longitude },
+        center,
+      );
+      if (Number.isFinite(km) && km < bestDistanceKm) {
+        bestDistanceKm = km;
+        bestArea = town;
+        bestCenter = center;
+      }
     }
   }
 

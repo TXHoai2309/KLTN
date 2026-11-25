@@ -122,8 +122,9 @@ describe("Ticket 03: tone rules & document source scoping", () => {
   });
 
   it("Point 3: resolves short D1/D2 destination codes on first try (0 INVALID_AI_PLAN) and forbids internal-mechanics jargon in persona & fallback notes", async () => {
+    // ADR-57 (D1): bỏ mẫu câu ép thêm 1 ngày mặc định; chuyển sang lưu ý nhẹ khi trễ giờ về.
     expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("TUYỆT ĐỐI KHÔNG nhắc cơ chế hay thuật ngữ nội bộ");
-    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("Mình bỏ bớt Cột cờ Lũng Cú và Sủng Là để kịp giờ");
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("TUYỆT ĐỐI KHÔNG chặn cứng lưu chuyến");
 
     // 1. Short codes D1, D2 returned by listDestinations succeed on 1st proposeItinerary call with 0 INVALID_AI_PLAN
     const shortCodeRun = await runTurn("Lập lịch 1 ngày, điểm đầu chơi 45 phút thôi", [

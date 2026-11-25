@@ -34,7 +34,7 @@ export type TripSaveDependencies = {
 };
 
 const destinationSelect = {
-  id: true, latitude: true, longitude: true, minimumDurationMinutes: true,
+  id: true, area: true, latitude: true, longitude: true, minimumDurationMinutes: true,
   openingDays: { select: { dayOfWeek: true, status: true, intervals: { select: { opensAtMinute: true, closesAtMinute: true } } } },
 } satisfies Prisma.DestinationSelect;
 type CanonicalDestination = Prisma.DestinationGetPayload<{ select: typeof destinationSelect }>;

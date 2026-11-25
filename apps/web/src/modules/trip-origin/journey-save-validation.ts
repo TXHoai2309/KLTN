@@ -14,6 +14,7 @@ import { AppError } from "@/server/http/app-error";
 
 export type JourneyDestination = {
   id: string; latitude: number; longitude: number; minimumDurationMinutes: number | null;
+  area?: string | null;
   /** Ticket 09: a place outside the KLTN catalogue, resolved by the server (never client data). The Validator reports it as unchecked. */
   external?: true;
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
@@ -56,7 +57,7 @@ export function journeySaveInput(proposal: TripProposal, destinations: ReadonlyM
       ...row,
       name: row.id,
       description: "",
-      area: "",
+      area: row.area ?? "",
       address: null,
       category: "",
       image: null,
