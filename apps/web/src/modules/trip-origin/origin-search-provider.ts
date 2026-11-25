@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { vietnamCoverageAt } from "./vietnam-coverage";
-import type { OriginSearchResult } from "./origin-search-contract";
+import { deduplicateOriginResults, type OriginSearchResult } from "./origin-search-contract";
 
 const row = z.object({ display_name: z.string().min(1).max(2000), lat: z.string().max(32), lon: z.string().max(32) });
 const responseSchema = z.array(row).max(10);
@@ -53,7 +53,7 @@ export async function searchNominatim(query: string, config: OriginSearchConfig,
       const label = item.display_name.normalize("NFC").replace(/[\u0000-\u001f\u007f]/gu, " ").trim().slice(0, 300);
       if (label && !results.some(result => result.latitude === latitude && result.longitude === longitude)) results.push({ label, latitude, longitude, source: "NOMINATIM", confirmed: false });
     }
-    return results.slice(0, 5);
+    return deduplicateOriginResults(results).slice(0, 5);
   } catch { return null; }
   finally { signal.removeEventListener("abort", cancel); cancel(); }
 }

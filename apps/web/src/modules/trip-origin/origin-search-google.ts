@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { readBounded, GOOGLE_PLACES_SEARCH_ENDPOINT } from "../tripsage-chat/tripsage-places";
-import { originSearchRequestSchema, type OriginSearchOutcome, type OriginSearchResult } from "./origin-search-contract";
+import { deduplicateOriginResults, originSearchRequestSchema, type OriginSearchOutcome, type OriginSearchResult } from "./origin-search-contract";
 import { vietnamCoverageAt } from "./vietnam-coverage";
 
 const responseSchema = z.object({ places: z.array(z.object({
@@ -40,7 +40,8 @@ export function createGoogleOriginSearch(deps: { apiKey: () => string | undefine
           const { latitude, longitude } = place.location;
           if (label && !results.some(p => p.latitude === latitude && p.longitude === longitude)) results.push({ label, latitude, longitude, source: "GOOGLE_PLACES", confirmed: false });
         }
-        return { status: results.length ? "RESULTS" : "NO_RESULTS", results: results.slice(0, 5), cached: false };
+        const deduped = deduplicateOriginResults(results).slice(0, 5);
+        return { status: deduped.length ? "RESULTS" : "NO_RESULTS", results: deduped, cached: false };
       } catch { return { status: "UNAVAILABLE" }; }
     };
     try { return await Promise.race([run(), interrupted]); }

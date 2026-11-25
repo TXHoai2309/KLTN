@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { AppError } from "../../server/http/app-error";
+import { cleanOriginCandidateLabel } from "../trip-origin/origin-search-contract";
 import { originSelectionSchema } from "../trip-origin/trip-origin-contract";
 import { DAILY_DRIVING_WARNING_HOURS } from "../trip-origin/journey-planner";
 import { driveWithRest, restProfileOf, type RestMode } from "../trip-origin/rest-policy";
@@ -191,7 +192,45 @@ function clausesOf(rawText: string): string[] {
 }
 
 function labelSegments(label: string): string[] {
-  return label.split(/[,()\-–]+/u).map(foldVietnamese).filter(seg => seg.length >= 4);
+  return cleanOriginCandidateLabel(label).split(/[,()\-–]+/u).map(foldVietnamese).filter(seg => seg.length >= 4);
+}
+
+function extractLeadingCandidateTag(label: string): string | null {
+  const match = /^\s*(?:\(([a-z0-9]{1,3})\)|\[([a-z0-9]{1,3})\])(?=\s|$)/iu.exec(label);
+  const raw = match?.[1] ?? match?.[2];
+  return raw ? raw.toLowerCase() : null;
+}
+
+/**
+ * Protects a specific confirmed city origin (e.g. "Bến Xe Giáp Bát, Hà Nội") from being
+ * silently overwritten by fixed hub `hub:HA_NOI` ("Hà Nội (bến xe Mỹ Đình)") unless the traveler
+ * explicitly asks to switch hubs or travel via Mỹ Đình.
+ */
+export function shouldPreserveConfirmedSpecificOrigin(input: {
+  currentOrigin?: { label: string; confirmed?: boolean } | null;
+  assumedFields?: readonly string[] | null;
+  targetHubId: string;
+  latestUserText: string;
+}): boolean {
+  const cur = input.currentOrigin;
+  if (!cur?.confirmed || input.assumedFields?.includes("origin")) return false;
+  const targetHub = FIXED_HUB_CANDIDATES.find(hub => hub.id === input.targetHubId);
+  if (!targetHub) return false;
+  if (FIXED_HUB_CANDIDATES.some(hub => hub.label === cur.label)) return false;
+  const targetCity = targetHub.id === "hub:HA_NOI" ? "Hà Nội" : "Hà Giang";
+  if (!sameOriginPlace(cur.label, targetCity)) return false;
+  const folded = foldVietnamese(input.latestUserText);
+  const explicitOriginChoice =
+    /\b(?:ha\s*noi|hanoi|my\s*dinh|ben\s*xe\s*phia\s*nam|tap\s*ket)\b/u.test(folded)
+    && (
+      SWITCH_AWAY_NEGATION.test(folded)
+      || HUB_CHOICE_CUE.test(folded)
+      || /\b(?:xuat\s+phat|bat\s+dau|khoi\s+hanh)\b/u.test(folded)
+    );
+  if (explicitOriginChoice) {
+    return false;
+  }
+  return true;
 }
 
 const ORIGIN_CUE = String.raw`(?:xuat\s+phat(?:\s+(?:tu|o|tai))?|bat\s+dau(?:\s+(?:tu|o|tai))?|khoi\s+hanh(?:\s+(?:tu|o|tai))?|tu\s+(?:lai|chay)(?:\s+(?:o\s+to|xe(?:\s+may)?))?\s+tu|di\s+tu|dang\s+o|song\s+o|nha(?:\s+minh)?\s+o|o|tai|tu)`;
@@ -229,10 +268,12 @@ export function namesOrAgreesOrigin(latestUserText: string, query: string): bool
 
 /** Same place as an origin already confirmed earlier in the conversation. */
 export function sameOriginPlace(confirmedLabel: string, query: string): boolean {
-  const label = foldVietnamese(confirmedLabel);
-  const primary = foldVietnamese(confirmedLabel.split(/[,()\-–]+/u)[0] ?? "");
-  const place = foldVietnamese(query);
-  const queryPrimary = foldVietnamese(query.split(/[,()\-–]+/u)[0] ?? "");
+  const cleanConfirmed = cleanOriginCandidateLabel(confirmedLabel);
+  const cleanQuery = cleanOriginCandidateLabel(query);
+  const label = foldVietnamese(cleanConfirmed);
+  const primary = foldVietnamese(cleanConfirmed.split(/[,()\-–]+/u)[0] ?? "");
+  const place = foldVietnamese(cleanQuery);
+  const queryPrimary = foldVietnamese(cleanQuery.split(/[,()\-–]+/u)[0] ?? "");
   if (place.length < 3) return false;
   return label.includes(place) || (primary.length >= 3 && place.includes(primary)) || (queryPrimary.length >= 3 && label.includes(queryPrimary));
 }
@@ -240,7 +281,7 @@ export function sameOriginPlace(confirmedLabel: string, query: string): boolean 
 export function statesSoleOrigin(latestUserText: string, candidate: { label: string }): boolean {
   const folded = foldVietnamese(latestUserText);
   if (!folded || folded.length > 500 || hasHardNegation(latestUserText, folded) || hasContrastOrUncertainty(latestUserText, folded)) return false;
-  const full = foldVietnamese(candidate.label.split(/[,()\-–]+/u)[0] ?? "");
+  const full = foldVietnamese(cleanOriginCandidateLabel(candidate.label).split(/[,()\-–]+/u)[0] ?? "");
   const names = [...new Set([full, full.replace(ADMIN_PREFIX, "")])].filter(name => name.length >= 4);
   return names.some(name => {
     if (folded === name) return true;
@@ -278,7 +319,16 @@ export function permitsOriginConfirmation(
   if (options.fromPreviousTurn) {
     if (SWITCH_AWAY_NEGATION.test(folded)) return false;
     if (pool.length === 1) {
+      if (folded.length >= 4 && label.startsWith(folded)) return true;
       return clausesOf(latestUserText).some(clause => AGREEMENT_CLAUSE.test(clause) || BARE_AFFIRMATION.test(clause));
+    }
+    if (folded.length >= 4 && label.startsWith(folded) && !pool.some(other => other.id !== candidate.id && foldVietnamese(other.label).startsWith(folded))) {
+      return true;
+    }
+    const myTag = extractLeadingCandidateTag(candidate.label);
+    const replyTag = extractLeadingCandidateTag(latestUserText);
+    if (myTag && replyTag === myTag && !pool.some(other => other.id !== candidate.id && extractLeadingCandidateTag(other.label) === myTag)) {
+      return true;
     }
     const index = pool.findIndex(item => item.id === candidate.id);
     if (index >= 0 && index < INDEX_PATTERNS.length && INDEX_PATTERNS[index]!.test(folded)) return true;

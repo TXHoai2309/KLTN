@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { originSearchRequestSchema, type OriginSearchOutcome, type OriginSearchResult } from "./origin-search-contract";
+import { deduplicateOriginResults, originSearchRequestSchema, type OriginSearchOutcome, type OriginSearchResult } from "./origin-search-contract";
 import { vietnamCoverageAt } from "./vietnam-coverage";
 
 const responseSchema = z.object({ features: z.array(z.object({
@@ -39,7 +39,8 @@ export function createStadiaOriginSearch(deps: { apiKey: () => Promise<string | 
         // Origin selections persist as JSON; legacy NOMINATIM remains readable.
         if (label && !results.some(r => r.latitude === latitude && r.longitude === longitude)) results.push({ label, latitude, longitude, source: "STADIA", confirmed: false });
       }
-      return { status: results.length ? "RESULTS" : "NO_RESULTS", results: results.slice(0, 5), cached: false };
+      const deduped = deduplicateOriginResults(results).slice(0, 5);
+      return { status: deduped.length ? "RESULTS" : "NO_RESULTS", results: deduped, cached: false };
     } catch { return { status: "UNAVAILABLE" }; }
   };
 }

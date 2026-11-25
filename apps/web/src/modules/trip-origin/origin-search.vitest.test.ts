@@ -134,4 +134,21 @@ describe("explicit search HTTP", () => {
     expect((await originSearchResponse(request({ query: "x".repeat(3000) }), deps)).status).toBe(413);
     expect(search).not.toHaveBeenCalled();
   });
+
+  it("D6: collapses nearby same-name map nodes such as (A) Bến Xe Giáp Bát within 2 km into one clean candidate", async () => {
+    const res = await searchNominatim(
+      "Bến xe Giáp Bát",
+      config,
+      new AbortController().signal,
+      async () =>
+        Response.json([
+          { display_name: "(A) Bến Xe Giáp Bát, Đường Giải Phóng, Hoàng Mai, Hà Nội", lat: "20.9801", lon: "105.8415" },
+          { display_name: "Bến Xe Giáp Bát, Phường Giáp Bát, Quận Hoàng Mai, Hà Nội", lat: "20.9809", lon: "105.8421" },
+          { display_name: "Cổng Bến Xe Giáp Bát, Giải Phóng, Hà Nội", lat: "20.9805", lon: "105.8419" },
+        ]),
+    );
+    expect(res).toHaveLength(1);
+    expect(res![0]!.label).not.toMatch(/^\(A\)\s*/u);
+    expect(res![0]!.label).toContain("Bến Xe Giáp Bát");
+  });
 });

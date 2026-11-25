@@ -40,6 +40,7 @@ import {
   namesOrAgreesOrigin,
   permitsOriginConfirmation,
   sameOriginPlace,
+  shouldPreserveConfirmedSpecificOrigin,
   statesSoleOrigin,
   wantsDirectDriveFromHome,
   type SignedOriginCandidate,
@@ -48,7 +49,7 @@ import {
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { blockingAssumedFields, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, originSelectionSchema, type OriginSelection, type TripJourney } from "../trip-origin/trip-origin-contract";
-import type { OriginSearchOutcome } from "../trip-origin/origin-search-contract";
+import { cleanOriginCandidateLabel, deduplicateOriginResults, type OriginSearchOutcome } from "../trip-origin/origin-search-contract";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 import type { HotelLookup } from "./tripsage-serpapi-hotels";
 import type { FlightLookup } from "./tripsage-serpapi-flights";
@@ -796,7 +797,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       returnDeadlineMinute: nextJourney.returnDeadlineMinute,
       defaulted,
       missing: missingTripInfo(info, nextJourney).map(m => m.field),
-      note: "Đã xác nhận điểm xuất phát. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này.",
+      note: "Đã xác nhận điểm xuất phát. Nếu đã biết số ngày (kể cả chưa có ngày đi cụ thể — proposeItinerary tự dùng ngày gợi ý gần nhất kèm nút 'Đổi ngày'), hãy gọi listDestinations và proposeItinerary NGAY trong lượt này; không dừng chỉ để hỏi chốt ngày.",
     };
   };
 
@@ -809,6 +810,22 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const already = currentJourney?.origin;
       if (already?.confirmed && !tripInfo.assumedFields?.includes("origin") && sameOriginPlace(already.label, query)) {
         return { ok: true as const, alreadyConfirmed: true, label: already.label, note: "Điểm xuất phát này ĐÃ được xác nhận trước đó. Không hỏi lại, không gọi confirmOrigin; tiếp tục việc người dùng yêu cầu (lập lịch, tra vé...) ngay trong lượt này." };
+      }
+      const latest = context.latestUserText ?? "";
+      // D6 anti-loop: if the previous turn offered valid origin candidates and the user just tapped/selected one, confirm it directly instead of re-searching the provider.
+      if (context.originCandidates?.status === "VALID" && context.originCandidates.candidates.length > 0 && !/(?:kh[oô]ng|sai|nh[aầ]m|ch[oọ]n\s+l[aạ]i|đ[oổ]i\s+sang|n[oơ]i\s+kh[aá]c)/iu.test(latest)) {
+        const prevPool = context.originCandidates.candidates;
+        const prevMatch = prevPool.find(cand =>
+          permitsOriginConfirmation(latest, cand, prevPool, { fromPreviousTurn: true })
+          || (sameOriginPlace(cand.label, query) && !prevPool.some(other => other.id !== cand.id && sameOriginPlace(other.label, query))),
+        );
+        if (prevMatch) {
+          const confirmed = applyConfirmedOrigin(prevMatch);
+          if (confirmed.ok) {
+            await syncCostIfTracked();
+            return { ...confirmed, confirmedFromPreviousCandidates: true as const, note: "Điểm xuất phát đã được xác nhận từ lựa chọn người dùng vừa chọn; không hỏi lại. Nếu đã biết số ngày (kể cả khi chưa có ngày đi cụ thể), hãy lập lịch NGAY trong lượt này." };
+          }
+        }
       }
       if (originSearches >= 3) return { ok: false as const, code: "ORIGIN_SEARCH_LIMIT", message: "Đã đạt số lần tìm điểm xuất phát tối đa trong lượt này." };
       originSearches += 1;
@@ -828,7 +845,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         if (outcome.status === "UNAVAILABLE") {
           return { ok: false as const, code: "ORIGIN_SEARCH_UNAVAILABLE", message: "Dịch vụ tìm điểm xuất phát chưa sẵn sàng. Mời người dùng chọn điểm tập kết cố định (Hà Nội hoặc TP Hà Giang).", fixedHubs: fixedHubPublic };
         }
-        const supported = outcome.results.filter(result => vietnamCoverageAt(result) === "SUPPORTED").slice(0, MAX_ORIGIN_CANDIDATES);
+        const supported = deduplicateOriginResults(outcome.results.filter(result => vietnamCoverageAt(result) === "SUPPORTED")).slice(0, MAX_ORIGIN_CANDIDATES);
         if (!supported.length) {
           return { ok: true as const, count: 0, candidates: [], fixedHubs: fixedHubPublic, note: "Không tìm thấy địa điểm hợp lệ trong lãnh thổ Việt Nam. Hỏi người dùng ghi rõ quận/huyện, tỉnh/thành hoặc chọn một điểm tập kết cố định." };
         }
@@ -837,19 +854,18 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         }
         signedList = supported.map((result, index) => ({
           id: `oc-${originSearches}-${index + 1}`,
-          label: result.label,
+          label: supported.length === 1 ? (cleanOriginCandidateLabel(result.label) || result.label) : result.label,
           latitude: result.latitude,
           longitude: result.longitude,
           source: result.source,
         }));
       }
       // The traveler typed one place and the search found exactly that one: no second round-trip (ADR-46).
-      const latest = context.latestUserText ?? "";
       if (signedList.length === 1 && (statesSoleOrigin(latest, signedList[0]!) || namesOrAgreesOrigin(latest, query))) {
         const confirmed = applyConfirmedOrigin(signedList[0]!);
         if (confirmed.ok) {
           await syncCostIfTracked();
-          return { ...confirmed, note: "Điểm xuất phát đã được xác nhận vì người dùng vừa nêu đúng địa điểm này; không hỏi lại. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này." };
+          return { ...confirmed, note: "Điểm xuất phát đã được xác nhận vì người dùng vừa nêu đúng địa điểm này; không hỏi lại. Nếu đã biết số ngày (kể cả chưa chốt ngày đi cụ thể), hãy lập lịch NGAY trong lượt này." };
         }
       }
       const token = context.signOriginCandidates?.(signedList) ?? null;
@@ -886,6 +902,20 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       if (!found) {
         const hub = FIXED_HUB_CANDIDATES.find(item => item.id === candidateId);
         if (hub) {
+          if (shouldPreserveConfirmedSpecificOrigin({
+            currentOrigin: currentJourney?.origin,
+            assumedFields: tripInfo.assumedFields,
+            targetHubId: hub.id,
+            latestUserText: context.latestUserText ?? "",
+          })) {
+            return {
+              ok: true as const,
+              alreadyConfirmed: true as const,
+              preservedSpecificOrigin: true as const,
+              originLabel: currentJourney!.origin!.label,
+              note: "Điểm xuất phát cụ thể đã được xác nhận trước đó đang được giữ nguyên (không đổi về điểm tập kết chung). Hãy tiếp tục lập lịch ngay nếu đã đủ số ngày.",
+            };
+          }
           found = hub;
           // If the previous turn proposed an Assumed draft from fixed hub Hà Nội, agreement confirms it directly.
           const confirmingAssumedHub = hub.id === ASSUMED_DRAFT_HUB_ID && (tripInfo.assumedFields?.includes("origin") ?? false);
@@ -902,7 +932,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const latestText = context.latestUserText ?? "";
       // Agreement or naming the place is enough, also for a fixed hub the assistant just proposed (no second confirmation round).
       if (!permitsOriginConfirmation(latestText, found, pool, { fromPreviousTurn, hubOffered: context.hubOffered })
-        && !((fromPreviousTurn || pool.length === 1 || FIXED_HUB_CANDIDATES.includes(found)) && namesOrAgreesOrigin(latestText, found.label.split(/[,(]/u)[0]!))) {
+        && !((fromPreviousTurn || pool.length === 1 || FIXED_HUB_CANDIDATES.includes(found)) && namesOrAgreesOrigin(latestText, (cleanOriginCandidateLabel(found.label) || found.label).split(/[,(]/u)[0]!))) {
         return { ok: false as const, code: "ORIGIN_CONFIRMATION_REQUIRED", message: "Người dùng chưa đồng ý hoặc chưa chọn rõ điểm xuất phát này trong tin nhắn mới nhất. Hãy nêu rõ nhãn địa điểm và chờ người dùng trả lời đồng ý." };
       }
       const confirmed = applyConfirmedOrigin(found);

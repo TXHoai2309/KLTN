@@ -428,4 +428,72 @@ describe("one-turn origin confirmation (ADR-46)", () => {
     expect(parts(multiTurn.sse).some(p => p.type === "data-origin-candidates")).toBe(true);
     expect(parts(multiTurn.sse).some(p => p.type === "data-journey")).toBe(false);
   });
+
+  it("D6 (d1ada90d): deduplicates nearby Bến xe Giáp Bát nodes in findOrigin and confirms in Turn 1 without looping", async () => {
+    const duplicateBusStationLookup: OriginLookup = vi.fn(async () => ({
+      status: "RESULTS" as const,
+      cached: false,
+      results: [
+        { label: "(A) Bến Xe Giáp Bát, Đường Giải Phóng, Giáp Bát, Hoàng Mai, Hà Nội", latitude: 20.9801, longitude: 105.8415, source: "NOMINATIM" as const, confirmed: false as const },
+        { label: "Bến Xe Giáp Bát, Phường Giáp Bát, Quận Hoàng Mai, Hà Nội", latitude: 20.9808, longitude: 105.842, source: "NOMINATIM" as const, confirmed: false as const },
+      ],
+    }));
+    const turn = await chat(
+      "từ bến xe giáp bát (hà nội), ưu tiên trải nghiệm khám phá nhiều, đi 5 ngày",
+      [
+        { tool: "findOrigin", input: { query: "Bến xe Giáp Bát, Hà Nội" } },
+        { tool: "proposeItinerary", input: { selection: { days: [["a"], ["b"]] } } },
+        { text: "Đã chốt Bến xe Giáp Bát và lập lịch." },
+      ],
+      {},
+      { originSearch: () => duplicateBusStationLookup },
+    );
+    const turnParts = parts(turn.sse);
+    expect(turnParts.some(p => p.type === "data-origin-candidates")).toBe(false);
+    const journey = journeyPartSchema.parse(turnParts.find(p => p.type === "data-journey")!.data).journey;
+    expect(journey.origin?.confirmed).toBe(true);
+    expect(journey.origin?.label).toContain("Bến Xe Giáp Bát");
+    expect(journey.origin?.label).not.toMatch(/^\(A\)\s*/u);
+  });
+
+  it("D6: resolves short prefix '(A) Bến Xe Giáp Bát' clicks from prior candidates without looping findOrigin, and protects confirmed specific origin from hub:HA_NOI", async () => {
+    const distinctCandidates: SignedOriginCandidate[] = [
+      { id: "oc-1-1", label: "(A) Bến Xe Giáp Bát, Đường Giải Phóng, Hoàng Mai, Hà Nội, 10000, Việt Nam", latitude: 20.9801, longitude: 105.8415, source: "NOMINATIM" },
+      { id: "oc-1-2", label: "(B) Bến Xe Giáp Bát, Quận Hai Bà Trưng, Hà Nội, Việt Nam", latitude: 21.01, longitude: 105.86, source: "NOMINATIM" },
+    ];
+    expect(permitsOriginConfirmation("(A) Bến Xe Giáp Bát", distinctCandidates[0]!, distinctCandidates, { fromPreviousTurn: true })).toBe(true);
+    expect(permitsOriginConfirmation("(A) Bến Xe Giáp Bát", distinctCandidates[1]!, distinctCandidates, { fromPreviousTurn: true })).toBe(false);
+
+    const token = signOriginCandidates({ userId: USER_ID, candidates: distinctCandidates, secret: SECRET, nowMs: planningNow.getTime() })!;
+    const spyLookup = vi.fn<OriginLookup>();
+    // Even if model calls findOrigin again instead of confirmOrigin on tap "(A) Bến Xe Giáp Bát", server confirms directly without re-querying.
+    const turn2 = await chat(
+      "(A) Bến Xe Giáp Bát",
+      [
+        { tool: "findOrigin", input: { query: "(A) Bến Xe Giáp Bát" } },
+        { tool: "proposeItinerary", input: { selection: { days: [["a"], ["b"]] } } },
+        { text: "Đã chốt Bến Xe Giáp Bát." },
+      ],
+      { originCandidatesToken: token },
+      { originSearch: () => spyLookup },
+    );
+    expect(spyLookup).not.toHaveBeenCalled();
+    const turn2Parts = parts(turn2.sse);
+    expect(turn2Parts.some(p => p.type === "data-origin-candidates")).toBe(false);
+    const confirmedJourney = journeyPartSchema.parse(turn2Parts.find(p => p.type === "data-journey")!.data).journey;
+    expect(confirmedJourney.origin?.label).toContain("Bến Xe Giáp Bát");
+
+    // Subsequent confirmOrigin("hub:HA_NOI") during a non-origin turn preserves Bến Xe Giáp Bát instead of reverting to Mỹ Đình.
+    const turn3 = await chat(
+      "Đúng, đi 28/12/2026",
+      [
+        { tool: "confirmOrigin", input: { candidateId: "hub:HA_NOI" } },
+        { text: "Giữ nguyên điểm xuất phát Bến Xe Giáp Bát." },
+      ],
+      { journey: confirmedJourney },
+    );
+    expect(turn3.response.status).toBe(200);
+    expect(JSON.stringify(turn3.model.doStreamCalls[1]!.prompt)).toContain("preservedSpecificOrigin");
+    expect(parts(turn3.sse).some(p => p.type === "data-journey")).toBe(false);
+  });
 });

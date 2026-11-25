@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { haversine } from "../trip-planner/planner-geography";
 import { originSelectionSchema } from "./trip-origin-contract";
 
 export const ORIGIN_SEARCH_REVISION = "origin-search-v1" as const;
@@ -17,3 +18,66 @@ export type OriginSearchOutcome =
   | { status: "RESULTS" | "NO_RESULTS"; results: OriginSearchResult[]; cached: boolean }
   | { status: "BUSY"; retryAfterSeconds: number }
   | { status: "UNAVAILABLE" };
+
+/** Distance (km) within which near-identical search hits of the same physical place collapse into one candidate. */
+export const ORIGIN_DUPLICATE_RADIUS_KM = 2;
+const LEADING_PLATFORM_TAG_RE = /^(?:\([a-z0-9]{1,3}\)|\[[a-z0-9]{1,3}\])\s*/iu;
+
+function foldOriginName(value: string): string {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[\p{M}\p{Cf}]/gu, "")
+    .replace(/đ/gu, "d")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+/** Removes noisy platform prefixes like "(A) " at the very start of a candidate display label. */
+export function cleanOriginCandidateLabel(label: string): string {
+  return label.replace(LEADING_PLATFORM_TAG_RE, "").replace(/\s+/gu, " ").trim();
+}
+
+function originPrimaryKey(label: string): string {
+  const firstSegment = (label.split(",")[0] ?? label).trim();
+  return foldOriginName(cleanOriginCandidateLabel(firstSegment));
+}
+
+/**
+ * D6: Collapses multiple map nodes/gates belonging to the same landmark or station within `<= 2 km`
+ * (e.g., OSM nodes `(A) Bến Xe Giáp Bát` and `Bến Xe Giáp Bát`) into one canonical candidate.
+ */
+export function deduplicateOriginResults<T extends { label: string; latitude: number; longitude: number }>(
+  results: readonly T[],
+): T[] {
+  const clusters: { representative: T; merged: boolean }[] = [];
+  for (const item of results) {
+    const itemKey = originPrimaryKey(item.label);
+    const match = clusters.find(({ representative }) => {
+      if (representative.latitude === item.latitude && representative.longitude === item.longitude) return true;
+      if (haversine(representative, item) > ORIGIN_DUPLICATE_RADIUS_KM) return false;
+      const repKey = originPrimaryKey(representative.label);
+      if (!repKey || !itemKey) return false;
+      return (
+        repKey === itemKey
+        || (Math.min(repKey.length, itemKey.length) >= 6 && (repKey.includes(itemKey) || itemKey.includes(repKey)))
+      );
+    });
+    if (!match) {
+      clusters.push({ representative: item, merged: false });
+      continue;
+    }
+    match.merged = true;
+    const repHasTag = LEADING_PLATFORM_TAG_RE.test(match.representative.label);
+    const itemHasTag = LEADING_PLATFORM_TAG_RE.test(item.label);
+    if (repHasTag && !itemHasTag) {
+      match.representative = item;
+    }
+  }
+  return clusters.map(({ representative, merged }) => {
+    if (!merged) return representative;
+    const cleaned = cleanOriginCandidateLabel(representative.label);
+    return cleaned && cleaned !== representative.label ? { ...representative, label: cleaned } : representative;
+  });
+}
