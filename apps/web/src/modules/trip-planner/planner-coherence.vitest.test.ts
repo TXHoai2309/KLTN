@@ -37,8 +37,9 @@ describe("planner route coherence", () => {
 
   it("selects a compact subset rather than starting at an ID-first outlier", () => {
     const rows = [
-      candidate("a-outlier", { latitude: 22, longitude: 104 }),
-      ...[0, 1, 2].map(index => candidate(`z-${index}`, { latitude: 23 + index / 100, longitude: 105 })),
+      // ADR-55: a day is bounded by its clock; three 150-minute visits leave no time for a far outlier.
+      candidate("a-outlier", { latitude: 22, longitude: 104, suggestedDurationMinutes: 150 }),
+      ...[0, 1, 2].map(index => candidate(`z-${index}`, { latitude: 23 + index / 100, longitude: 105, suggestedDurationMinutes: 150 })),
     ];
     const selected = selectPlannerDays({ ...requirement, durationDays: 1, interests: [] }, rows).flat();
     expect(selected).toHaveLength(3);

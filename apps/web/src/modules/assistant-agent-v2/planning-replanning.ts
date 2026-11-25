@@ -19,7 +19,7 @@ import { replanningClarification } from "./planning-response";
 
 export const boundedOperationSchema = planningOperationSchema.extend({
   kind: z.enum(["REMOVE", "ADD", "REPLACE", "MOVE", "REPLAN_DAY"]),
-  position: z.number().int().min(1).max(4).nullable(),
+  position: z.number().int().min(1).max(8).nullable(),
   criteria: z.object({ culture: z.boolean(), anchorName: z.string().min(1).max(200).nullable(), closer: z.boolean() }).strict().nullable(),
 }).strict();
 export const boundedEditSchema = z.object({ operations: z.array(boundedOperationSchema).min(1).max(4) }).strict();

@@ -4,7 +4,7 @@ import { AppError } from "../../server/http/app-error";
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import { assertTripRequirementClear } from "../trip-requirement/trip-clarification-server";
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
-import { plannerRoutePairs, schedulePlannerDays, visitDuration, openingFor, PACE_STOP_LIMIT } from "../trip-planner/planner-engine";
+import { plannerRoutePairs, schedulePlannerDays, visitDuration, openingFor, MAX_STOPS_PER_DAY } from "../trip-planner/planner-engine";
 import { resolvePlannerRoutes, type RouteProvider } from "../trip-planner/planner-routes";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
@@ -46,7 +46,8 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
   if (problems.length) throw new AppError("INVALID_AI_PLAN", `Lựa chọn điểm chưa hợp lệ (chưa tới bộ kiểm tra): ${problems.join(" ")}`, 422);
   if (needs.requiredDestinationIds.some(id => !ids.includes(id))) throw new AppError("MANDATORY_DESTINATION_MISSING", "Đề xuất chưa đáp ứng điểm bắt buộc. Hãy điều chỉnh nhu cầu hoặc tạo lại.", 422);
   if (ids.some(id => needs.excludedDestinationIds?.includes(id))) throw new AppError("EXCLUDED_DESTINATION", "Đề xuất còn chứa điểm bạn đã yêu cầu bỏ. Vui lòng tạo lại.", 422);
-  if (selection.data.days.some(day => day.length > PACE_STOP_LIMIT[requirement.pace ?? "MODERATE"])) throw new AppError("PACE_LIMIT", "Đề xuất vượt nhịp độ đã xác nhận. Hãy tạo lại hoặc đổi nhu cầu.", 422);
+  // ADR-55: no stop-count pace; time and the Validator bound a day. This only bounds the payload.
+  if (selection.data.days.some(day => day.length > MAX_STOPS_PER_DAY)) throw new AppError("PACE_LIMIT", `Mỗi ngày tối đa ${MAX_STOPS_PER_DAY} điểm; hãy bớt điểm hoặc thêm ngày.`, 422);
   return selection.data.days.map(day => day.map(id => eligible.get(id)!));
 }
 
@@ -229,7 +230,7 @@ export async function generatePlanningProposal(input: { needs: PlanningNeeds; ca
     } catch (error) {
       if (!result && !input.edit && attempt === 0 && error instanceof AppError && (error.code === "PACE_LIMIT" || error.code === "INVALID_AI_PLAN")) {
         selectionNote = error.code === "PACE_LIMIT"
-          ? `Lần trước có ngày vượt nhịp độ: mỗi ngày tối đa ${PACE_STOP_LIMIT[requirement.pace ?? "MODERATE"]} điểm.`
+          ? `Lần trước có ngày quá ${MAX_STOPS_PER_DAY} điểm.`
           : `Lần trước cấu trúc chưa hợp lệ: đúng ${requirement.durationDays} ngày, không lặp điểm, chỉ dùng ID trong danh sách.`;
         continue;
       }

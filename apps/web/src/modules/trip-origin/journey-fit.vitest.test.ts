@@ -31,7 +31,8 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
   it("drops only as many auto-selected stops as needed and discloses it", async () => {
     const result = await propose(pool, 3, 420);
     expect(result.status).toBe("PROPOSAL_READY");
-    expect(layout(result)).toEqual([2, 3, 3]);
+    // ADR-55: days are bounded by time, not a 3-stop pace.
+    expect(layout(result)).toEqual([2, 4, 3]);
     expect(result.warnings.map(w => w.code)).toContain("JOURNEY_STOPS_REDUCED");
     expect(result.eligibleForFinalConfirmation).toBe(true);
   });
@@ -39,14 +40,15 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
     const result = await propose(pool, 3, 780);
     expect(result.status).toBe("PROPOSAL_READY");
     expect(result.days[0]?.journeyDayKind).toBe("OUTBOUND_ONLY");
-    expect(layout(result)).toEqual([0, 3, 3]);
+    expect(layout(result)).toEqual([0, 4, 3]);
   });
   it("reuses evidence: re-planning after a drop only requests legs it has not seen", async () => {
     const routes = providers();
     await propose(pool, 3, 420, routes);
     const pairs = routes.route.mock.calls.map(([pair]) => `${pair.from.id}>${pair.to.id}`);
     expect(new Set(pairs).size).toBe(pairs.length);
-    expect(routes.coordinateRoute.mock.calls.length).toBeLessThanOrEqual(6);
+    // Each distinct first/last stop needs its own origin legs; more drops (time-bounded days pick more) mean a few more.
+    expect(routes.coordinateRoute.mock.calls.length).toBeLessThanOrEqual(10);
   });
   it("recognises well-known names that start a word with Đ", () => {
     expect(isFeaturedDestination({ name: "Phố cổ Đồng Văn" })).toBe(true);
@@ -62,13 +64,13 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
   });
   it("does not trim when route evidence is missing", async () => {
     const result = await propose(pool, 3, 420, providers({ status: "INSUFFICIENT_DATA", reason: "UNAVAILABLE", durationSeconds: null, distanceMeters: null, provider: null }));
-    expect(layout(result).reduce((a, b) => a + b)).toBe(9);
+    expect(layout(result).reduce((a, b) => a + b)).toBe(15);
     expect(result.warnings.map(w => w.code)).not.toContain("JOURNEY_STOPS_REDUCED");
   });
   it("reports a truthful failure when even one stop cannot fit", async () => {
     const result = await propose(pool, 1, 420, providers(verified(50_000)));
     expect(result.status).toBe("NO_FEASIBLE_ITINERARY");
-    expect(layout(result)).toEqual([3]);
+    expect(layout(result)[0]).toBeGreaterThan(0);
   });
   it("keeps well-known stops when trimming and when there are more places than slots", async () => {
     const featured = candidate("lc", { name: "Cột cờ Lũng Cú", latitude: 22.8, longitude: 105 });
@@ -80,8 +82,9 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
   it("leaves 60 minutes for lunch only between visits", async () => {
     const result = await propose(pool.slice(0, 6), 2, 420, providers(verified(1800)));
     const gaps = result.days.flatMap(day => day.stops.slice(0, -1).map((stop, index) => ({ from: stop.departureMinute!, gap: day.stops[index + 1]!.arrivalMinute! - stop.departureMinute! })));
-    expect(gaps.filter(item => item.from >= 690 && item.from <= 840).map(item => item.gap)).toContain(90);
-    expect(gaps.filter(item => item.from < 690).every(item => item.gap === 30)).toBe(true);
+    // ADR-55: 60 min lunch + 30 min drive + 5 min roadside photo buffer (CAR, 15 % of 30 min, rounded to 5).
+    expect(gaps.filter(item => item.from >= 675 && item.from <= 840).map(item => item.gap)).toContain(95);
+    expect(gaps.filter(item => item.from < 675).every(item => item.gap === 35)).toBe(true);
   });
   it("warns about a long driving day without blocking the plan", async () => {
     const result = await propose(pool.slice(0, 6), 2, 300, providers(verified(30_000)));

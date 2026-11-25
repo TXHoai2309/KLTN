@@ -35,7 +35,8 @@ describe("one-day authoritative origin routing/scheduling", () => {
   ] as const)("%s %i driving minutes includes %i rest minutes before endpoint", async (transport, driving, rest) => {
     const result = await service(provider(driving * 60, 0)).propose("owner", `rest-${transport}-${driving}`, { ...base, transport });
     expect(result.journeyPlan?.legs[0]).toMatchObject({ kind: "OUTBOUND", from: { kind: "ORIGIN" }, to: { kind: "ATTRACTION", destinationId: "a" }, restMinutes: rest, endMinute: 360 + driving + rest });
-    expect(result.days[0]?.stops[0]?.arrivalMinute).toBe(Math.max(480, 360 + driving + rest));
+    // ADR-55: arrivals sit on a 5-minute grid (rounded up, so the leg still fits).
+    expect(result.days[0]?.stops[0]?.arrivalMinute).toBe(Math.ceil(Math.max(480, 360 + driving + rest) / 5) * 5);
     expect(result.eligibleForFinalConfirmation).toBe(true);
     expect(plannerResultSchema.safeParse(result).success).toBe(true);
   });

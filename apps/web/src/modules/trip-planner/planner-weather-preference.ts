@@ -156,7 +156,7 @@ function generateUnlockedPermutations(
     stops.reduce((acc, c, idx) => acc + (c.isOutdoor ? idx * 10 : 0), 0);
 
   return perms
-    .sort((a, b) => outdoorEarliness(a) - outdoorEarliness(b) || daySpreadScore(a) - daySpreadScore(b))
+    .sort((a, b) => daySpreadScore(a) - daySpreadScore(b) || outdoorEarliness(a) - outdoorEarliness(b))
     .slice(0, MAX_PERMUTATIONS_PER_DAY);
 }
 
@@ -249,6 +249,8 @@ export async function optimizeScheduleForWeather(input: WeatherPreferenceInput):
         if (!bestDays[i]!.length && !bestDays[j]!.length) continue;
         swapAttempts++;
         const candidateDays = bestDays.map((d, idx) => (idx === i ? [...bestDays[j]!] : idx === j ? [...bestDays[i]!] : [...d]));
+        // ADR-55: swapping whole days must keep the loop (at most 5 % longer as the crow flies).
+        if (daySpreadScore(candidateDays.flat()) > daySpreadScore(baselineDays.flat()) * 1.05 + 1e-6) continue;
         await tryCandidate(candidateDays);
       }
     }

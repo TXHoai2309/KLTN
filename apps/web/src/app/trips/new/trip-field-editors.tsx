@@ -611,10 +611,10 @@ export type PaceEditorProps = CommonEditorProps & {
 };
 
 const PACE_META: Record<string, { Icon: LucideIcon; spots: string }> = {
-  RELAXED: { Icon: Leaf, spots: "1–2 điểm/ngày" },
-  LEISURELY: { Icon: Leaf, spots: "1–2 điểm/ngày" },
-  MODERATE: { Icon: Gauge, spots: "2–3 điểm/ngày" },
-  PACKED: { Icon: Compass, spots: "3–4 điểm/ngày" },
+  RELAXED: { Icon: Leaf, spots: "Nghỉ sớm, dừng lâu hơn" },
+  LEISURELY: { Icon: Leaf, spots: "Nghỉ sớm, dừng lâu hơn" },
+  MODERATE: { Icon: Gauge, spots: "Cả ngày, đến 18:00" },
+  PACKED: { Icon: Compass, spots: "Cả ngày, đến 18:00" },
 };
 
 export function PaceEditor({

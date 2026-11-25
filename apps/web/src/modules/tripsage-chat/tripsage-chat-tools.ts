@@ -5,6 +5,7 @@ import { cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
 import { formatDistanceKm } from "../../lib/traveler-number-format";
 import { isUsablePlanningCandidate, scheduleSelection } from "../assistant-planning/planning-engine";
 import { selectPlannerDays } from "../trip-planner/planner-engine";
+import { arrangeTripRoute, orderRoundTrip, stopValue } from "../trip-planner/planner-route";
 import { planningSelectionSchema } from "../assistant-planning/planning-contract";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { EXTERNAL_PLACE_ID_PREFIX, externalPlannerCandidate, isSchedulablePlaceId, type PlannerCandidate } from "../trip-planner/planner-candidates";
@@ -140,7 +141,7 @@ export function missingTripInfo(input: { transport?: string | null; durationDays
 }
 
 const proposeInputSchema = z.object({
-  selection: planningSelectionSchema.optional().describe("days[i] là danh sách id điểm đến (lấy từ listDestinations, hoặc scheduleId từ searchPlaces của cùng lượt) của ngày i+1; số ngày phải đúng bằng số ngày đã ghi; tối đa 4 điểm mỗi ngày."),
+  selection: planningSelectionSchema.optional().describe("days[i] là danh sách id điểm đến (lấy từ listDestinations, hoặc scheduleId từ searchPlaces của cùng lượt) của ngày i+1; số ngày phải đúng bằng số ngày đã ghi; tối đa 8 điểm mỗi ngày. Máy chủ tự sắp thứ tự và chia lại ngày theo tuyến đường; cách chia ngày của bạn chỉ là gợi ý."),
   visitMinutes: z.record(z.string().min(1).max(160), z.number().int().min(15).max(600)).optional().describe("CHỈ khi người dùng tự nói muốn ở một điểm bao lâu: id điểm → số phút (ví dụ 30). Được phép ngắn hơn gợi ý; hệ thống sẽ ghi chú điều đó."),
 }).strict();
 
@@ -701,12 +702,16 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       try {
         const usable = await ensureShortCodes();
         context.emitPlanProgress?.({ step: "SELECT", state: "done" });
+        // ADR-55: the order around the loop from the trip's origin, so the model can describe days in road order.
+        const loopOrigin = currentJourney?.origin?.confirmed ? currentJourney.origin : null;
+        const routeOrder = new Map(orderRoundTrip(usable, loopOrigin).map((c, index) => [c.id, index + 1]));
         return {
           ok: true as const,
           count: usable.length,
-          note: "Ưu tiên dùng mã ngắn code (D1, D2…) trong proposeItinerary.selection.days và visitMinutes; mỗi điểm chỉ xuất hiện đúng 1 lần trong cả lịch.",
+          note: "Ưu tiên dùng mã ngắn code (D1, D2…) trong proposeItinerary.selection.days và visitMinutes; mỗi điểm chỉ xuất hiện đúng 1 lần trong cả lịch. routeOrder là thứ tự trên vòng đường từ nơi xuất phát; máy chủ tự sắp thứ tự, chia ngày và có thể thêm điểm khi ngày còn trống.",
           destinations: usable.map((c, idx) => ({
             code: `D${idx + 1}`,
+            routeOrder: routeOrder.get(c.id),
             id: c.id,
             name: cleanPlaceDisplayName(c.name) || c.name,
             area: c.area,
@@ -1041,7 +1046,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const arrangedDays = effectiveOvernightAreas.length > 0
           ? arrangeSelectionForOvernightAreas(rawResolvedDays, effectiveOvernightAreas, usableById, usableBase)
           : rawResolvedDays;
-        const resolvedSelection = { days: arrangedDays };
+        let resolvedSelection = { days: arrangedDays };
         autoSelection = () => {
           const picked = selectPlannerDays(requirement, usableBase).map(day => day.map(candidate => candidate.id));
           return effectiveOvernightAreas.length > 0
@@ -1069,7 +1074,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           /(?:\b\d+(?:[.,]\d+)?\s*(?:phút|phut|p\b|giờ|gio|tiếng|tieng|h\b)|\bnửa\s*(?:tiếng|tieng|giờ|gio)\b)/i.test(text),
         );
         const overrides: Record<string, number> = {};
-        const chosen = Object.keys(rawOverrides).length
+        let chosen = Object.keys(rawOverrides).length
           ? all.map(c => {
               const requested = rawOverrides[c.id];
               if (requested === undefined) return c;
@@ -1088,6 +1093,28 @@ export function createTripsageChatTools(context: TripsageToolContext) {
               };
             })
           : all;
+        // ADR-55: the server orders the loop, splits the days and fills free time. Re-proposing the plan already shown with the
+        // same places keeps the traveler's arrangement; explicit overnight areas keep their own arranger (ADR-53).
+        const shownIds = latestDays?.flat() ?? [];
+        const pickedIds = resolvedSelection.days.flat();
+        const chosenById = new Map(chosen.map(c => [c.id, c]));
+        const reshuffleOfShown = shownIds.length > 0 && shownIds.length === pickedIds.length && pickedIds.every(id => shownIds.includes(id));
+        let addedStops: string[] = [];
+        if (effectiveOvernightAreas.length === 0 && !reshuffleOfShown && pickedIds.length > 0 && pickedIds.every(id => chosenById.has(id))) {
+          const arranged = await arrangeTripRoute({
+            requirement,
+            days: resolvedSelection.days.map(day => day.map(id => chosenById.get(id)!)),
+            pool: chosen.filter(isUsablePlanningCandidate),
+            // A place the traveler just removed is never added back.
+            excludedIds: new Set(shownIds.filter(id => !pickedIds.includes(id))),
+            fill: shownIds.length === 0 || pickedIds.length >= shownIds.length,
+          }).catch(() => null);
+          if (arranged) {
+            resolvedSelection = { days: arranged.days.map(day => day.map(c => c.id)) };
+            addedStops = arranged.added.map(c => c.id);
+            if (arranged.stretched.size) chosen = chosen.map(c => arranged.stretched.has(c.id) && overrides[c.id] === undefined ? { ...c, suggestedDurationMinutes: arranged.stretched.get(c.id)! } : c);
+          }
+        }
         const violations = (r: PlannerResult) => r.checks.filter(check => check.status === "VIOLATION").length;
         // Point 1: when explicit overnight constraints exist, disable boundary repartitioning first so planJourney
         // cannot shift the requested overnight stop out of its day (e.g. L4 Day 2 Đồng Văn).
@@ -1098,7 +1125,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         let droppedStops: string[] = [];
         if (violations(rawResult) > 0) {
           context.emitPlanProgress?.({ step: "VALIDATE", state: "running", detail: "đợt 2/5" });
-          const trimmed = chosen.map(c => !overrides[c.id] && c.minimumDurationMinutes && c.suggestedDurationMinutes && c.minimumDurationMinutes < c.suggestedDurationMinutes ? { ...c, suggestedDurationMinutes: c.minimumDurationMinutes } : c);
+          // ADR-55: shorten visits only on the days the checks name (all days when no day is named).
+          const firstBadDays = new Set(rawResult.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.map(issue => issue.day)).filter((day): day is number => day !== null));
+          const shortenIds = new Set(rawResult.days.filter(day => firstBadDays.has(day.day)).flatMap(day => day.stops.map(stop => stop.destination.id)));
+          const trimmed = chosen.map(c => (shortenIds.size === 0 || shortenIds.has(c.id)) && !overrides[c.id] && c.minimumDurationMinutes && c.suggestedDurationMinutes && c.minimumDurationMinutes < c.suggestedDurationMinutes ? { ...c, suggestedDurationMinutes: c.minimumDurationMinutes } : c);
           const retry = await scheduleSelection({ ...needs, requirement: { ...requirement, restMode: "COMPACT" as const } }, resolvedSelection, trimmed, context.planning.routes, now(), undefined, undefined, scheduleOpts).catch(() => null);
           if (retry && violations(retry) < violations(rawResult)) { rawResult = retry; flexApplied = true; }
           // Still infeasible: drop the last non-required stop of each day the checks name, one per round, and keep any plan
@@ -1116,13 +1146,17 @@ export function createTripsageChatTools(context: TripsageToolContext) {
               .filter((id): id is string => Boolean(id)),
           );
           const stopsDeadline = Date.now() + 25_000;
-          let days = resolvedSelection.days.map(day => [...day]);
+          // The checks name days of the scheduled plan, which may have moved day boundaries.
+          let days = rawResult.days.map(day => day.stops.map(stop => stop.destination.id));
+          const keepValue = (id: string) => { const c = chosenById.get(id); return c ? stopValue(c, requirement.interests) : 0; };
           for (let round = 0; round < 8 && violations(rawResult) > 0 && Date.now() < stopsDeadline; round++) {
             const badDays = new Set(rawResult.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.map(issue => issue.day)).filter((day): day is number => day !== null));
             let changed = false;
             const next = days.map((day, index) => {
               if (!badDays.has(index + 1)) return day;
-              const at = day.findLastIndex(id => !required.has(id) && !protectedOvernightEnds.has(id));
+              // ADR-55: drop the least valuable stop (the later one on a tie), not simply the day's last stop.
+              let at = -1;
+              day.forEach((id, position) => { if (!required.has(id) && !protectedOvernightEnds.has(id) && (at < 0 || keepValue(id) <= keepValue(day[at]!))) at = position; });
               if (at < 0) return day;
               changed = true;
               return day.filter((_, position) => position !== at);
@@ -1149,8 +1183,9 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           return cleanPlaceDisplayName(rawName) || rawName;
         };
         const flexNotes: PlannerResult["warnings"] = [
-          ...(flexApplied ? [{ code: "FLEX_SCHEDULE", day: null, destinationId: null, message: "Đã nới lịch cho vừa: nghỉ dọc đường 10 phút mỗi lần thay vì 15 phút và rút thời gian tham quan về mức tối thiểu." }] : []),
+          ...(flexApplied ? [{ code: "FLEX_SCHEDULE", day: null, destinationId: null, message: "Đã nới lịch cho vừa: nghỉ dọc đường 10 phút mỗi lần thay vì 15 phút và rút thời gian tham quan về mức tối thiểu ở ngày bị quá giờ." }] : []),
           ...(droppedStops.length ? [{ code: "STOPS_DROPPED", day: null, destinationId: null, message: `Đã bớt ${droppedStops.length} điểm để lịch vừa thời gian trong ngày: ${droppedStops.map(cleanStopName).join(", ")}.` }] : []),
+          ...(addedStops.length ? [{ code: "STOPS_ADDED", day: null, destinationId: null, message: `Đã thêm ${addedStops.length} điểm gần tuyến để tận dụng thời gian trống: ${addedStops.map(cleanStopName).join(", ")}.` }] : []),
           ...all.filter(c => overrides[c.id] && c.minimumDurationMinutes && overrides[c.id]! < c.minimumDurationMinutes).map(c => ({ code: "USER_SHORT_VISIT", day: null, destinationId: c.id, message: `Bạn chọn ở ${cleanPlaceDisplayName(c.name) || c.name} ${overrides[c.id]} phút, ngắn hơn mức gợi ý tối thiểu ${c.minimumDurationMinutes} phút.` })),
         ];
         if (flexNotes.length) rawResult = { ...rawResult, warnings: [...flexNotes, ...rawResult.warnings].slice(0, 80) };
@@ -1199,7 +1234,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
               : ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Đi máy bay ra Hà Nội"],
           );
         } else if (result.checks.some(check => check.status === "VIOLATION")) {
-          context.emitQuickReplies?.(statedDate?.tentative ? ["Đổi ngày", "Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"] : ["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"]);
+          context.emitQuickReplies?.(statedDate?.tentative ? ["Đổi ngày", "Bớt điểm", "Đi thong thả hơn", "Giữ bản nháp này"] : ["Bớt điểm", "Đi thong thả hơn", "Giữ bản nháp này"]);
         } else if (statedDate?.tentative) {
           context.emitQuickReplies?.(["Đổi ngày", "Xem bảng chi phí", "Đổi nhịp đi"]);
         }
@@ -1259,9 +1294,9 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           // Without the reasons the model re-proposes blindly; tell it which day broke which rule so one repair is enough.
           ...(result.checks.some(check => check.status === "VIOLATION") ? {
             problems: result.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.slice(0, 6).map(issue => ({ check: check.key, day: issue.day ?? null, code: issue.code, message: issue.message }))),
-            repairHint: "Có vi phạm. Đọc problems rồi chỉnh đúng ngày bị nêu (thường bớt 1-2 điểm của ngày đó, nhất là ngày cuối nếu phải chạy xe về xa) và gọi proposeItinerary lại một lần; đừng đổi các ngày không bị nêu. Nếu vẫn không đạt, nói thẳng với người dùng nguyên nhân và đề xuất thêm ngày hoặc đổi điểm xuất phát.",
+            repairHint: "Có vi phạm. Đọc problems rồi chỉnh đúng ngày bị nêu (máy chủ đã thử bớt điểm kém nổi bật nhất; nếu vẫn chưa đạt thì thay điểm xa nhất của ngày đó bằng điểm gần tuyến hơn) và gọi proposeItinerary lại một lần; đừng đổi các ngày không bị nêu. Nếu vẫn không đạt, nói thẳng với người dùng nguyên nhân và đề xuất thêm ngày hoặc đổi điểm xuất phát.",
           } : {}),
-          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${unmetOvernightNote}${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi song song trong cùng một bước searchHotels (stays gồm các khu nghỉ đêm, gộp đêm liên tiếp cùng điểm cuối ngày) cùng estimateCosts / planAccessLeg (nếu không phụ thuộc nhau) để panel cập nhật nhanh." : " Có thể gọi song song các công cụ độc lập như searchPlaces (chỗ nghỉ) và estimateCosts trong cùng một bước."}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
+          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận. Máy chủ đã sắp thứ tự và chia ngày theo tuyến đường; giới thiệu đúng thứ tự trong lịch.${addedStops.length ? ` Máy chủ đã thêm ${addedStops.map(cleanStopName).join(", ")} để lấp thời gian trống.` : ""}${unmetOvernightNote}${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi song song trong cùng một bước searchHotels (stays gồm các khu nghỉ đêm, gộp đêm liên tiếp cùng điểm cuối ngày) cùng estimateCosts / planAccessLeg (nếu không phụ thuộc nhau) để panel cập nhật nhanh." : " Có thể gọi song song các công cụ độc lập như searchPlaces (chỗ nghỉ) và estimateCosts trong cùng một bước."}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
       } catch (error) {
         // A plan the server rejected for its input (wrong day count, unknown id) is a correction, not one of the turn's tries.
         if (error instanceof AppError && error.code === "INVALID_AI_PLAN") {

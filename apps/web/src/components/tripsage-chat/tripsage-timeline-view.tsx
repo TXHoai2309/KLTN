@@ -42,7 +42,9 @@ const SUGGESTION_LABEL: Record<TimelineSuggestion["kind"], string> = { MEAL: "Ă
 /** Older answers wrote only the source label into `detail`; the footnote already states it once. */
 const SOURCE_ONLY_DETAIL = /^\s*(gợi ý\s+)?ngoài danh mục[\s,.;·-]*(chưa (được )?kiểm tra)?[\s.]*$/iu;
 
-const time = (item: TimelineItem) => item.startMinute === null && item.endMinute === null ? "" : item.endMinute === null || item.kind === "DEPART" ? clockLabel(item.startMinute) : item.startMinute === null ? `→ ${clockLabel(item.endMinute)}` : `${clockLabel(item.startMinute)}–${clockLabel(item.endMinute)}`;
+const clockOf = (item: TimelineItem) => item.startMinute === null && item.endMinute === null ? "" : item.endMinute === null || item.kind === "DEPART" ? clockLabel(item.startMinute) : item.startMinute === null ? `→ ${clockLabel(item.endMinute)}` : `${clockLabel(item.startMinute)}–${clockLabel(item.endMinute)}`;
+/** ADR-55: visit clocks are planning estimates on a 5-minute grid, so they read as "about". */
+const time = (item: TimelineItem) => (item.kind === "VISIT" && item.startMinute !== null ? `~${clockOf(item)}` : clockOf(item));
 
 /** Nearby activity suggestions (ACTIVITY and EVENING with a place) render as one compact list per slot. */
 const isNearbyActivity = (suggestion: TimelineSuggestion) => (suggestion.kind === "ACTIVITY" || suggestion.kind === "EVENING") && Boolean(suggestion.place);

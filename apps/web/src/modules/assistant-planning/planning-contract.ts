@@ -23,7 +23,7 @@ export const planningNeedsSchema = z.object({
 }).strict();
 export type PlanningNeeds = z.infer<typeof planningNeedsSchema>;
 export const EMPTY_PLANNING_NEEDS: PlanningNeeds = { requirement: {}, requiredDestinationIds: [], preferredDestinationIds: [], destinationNames: {} };
-export const planningSelectionSchema = z.object({ days: z.array(z.array(id).max(4)).min(1).max(14) }).strict();
+export const planningSelectionSchema = z.object({ days: z.array(z.array(id).max(28)).min(1).max(14) }).strict();
 export type PlanningSelection = z.infer<typeof planningSelectionSchema>;
 export const planningUnresolvedSchema = z.object({ name: z.string().max(160), required: z.boolean(), remove: z.boolean().default(false), choices: z.array(z.object({ id, name: z.string().max(200) }).strict()).max(8) }).strict();
 export const planningEditSchema = z.object({ kind: z.enum(["ADD", "REMOVE", "REPLACE", "REPLAN_DAY"]), day: z.number().int().min(1).max(14), targetId: id.nullable(), destinationId: id.nullable(), required: z.boolean().optional() }).strict();

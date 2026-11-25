@@ -56,17 +56,18 @@ describe("Ticket 08b: external place scheduling at the chat route", () => {
     const model = scripted([search, propose([["a", EXT]]), { text: "Bạn xem lịch nhé." }]);
     const result = itinerary(await run(model));
     const stops = result.days[0]!.stops;
-    expect(stops.map(s => s.destination.id)).toEqual(["a", EXT]);
-    const external = stops[1]!;
+    // ADR-55: the server orders the loop; the external place lies nearer the (assumed) origin, so it may come first.
+    expect(stops.map(s => s.destination.id).sort()).toEqual(["a", EXT].sort());
+    const external = stops.find(s => s.destination.id === EXT)!;
     expect(external.destination).toMatchObject({ external: true, name: "Quán Cà Phê Mèo", latitude: 22.8123, longitude: 104.9876 });
-    expect(stops[0]!.destination).not.toHaveProperty("external");
+    expect(stops.find(s => s.destination.id === "a")!.destination).not.toHaveProperty("external");
     expect(external.visitDurationMinutes).toBe(60);
     expect(external.scheduleState).toBe("PLANNED");
     expect(external.departureMinute! - external.arrivalMinute!).toBe(60);
     expect(external.validationStatus).toBe("INSUFFICIENT_DATA");
     // Routing is by coordinates through the existing provider.
-    expect(routeSpy.mock.calls.some(([pair]) => pair.to.id === EXT && pair.to.latitude === 22.8123 && pair.to.longitude === 104.9876)).toBe(true);
-    expect(external.inbound).toMatchObject({ status: "VERIFIED", fromDestinationId: "a", toDestinationId: EXT });
+    expect(routeSpy.mock.calls.some(([pair]) => [pair.from, pair.to].some(place => place.id === EXT && place.latitude === 22.8123 && place.longitude === 104.9876))).toBe(true);
+    expect(stops[1]!.inbound).toMatchObject({ status: "VERIFIED", fromDestinationId: stops[0]!.destination.id, toDestinationId: stops[1]!.destination.id });
   });
 
   it("never reports PASS for the unverified parts, keeps real checks, and blocks Save", async () => {

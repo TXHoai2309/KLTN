@@ -66,7 +66,7 @@ describe("itinerary summary", () => {
     const stop = { id: "a", name: "A", arrivalMinute: 1, departureMinute: 2 };
     expect(tripsageItinerarySummarySchema.safeParse({ days: [{ day: 1, stops: [stop] }] }).success).toBe(true);
     for (const bad of [
-      { days: [{ day: 1, stops: [{ ...stop, latitude: 1 }] }] }, { days: [{ day: 1, stops: Array(5).fill(stop) }] }, { days: Array.from({ length: 15 }, (_, i) => ({ day: i + 1, stops: [] })) },
+      { days: [{ day: 1, stops: [{ ...stop, latitude: 1 }] }] }, { days: [{ day: 1, stops: Array(9).fill(stop) }] }, { days: Array.from({ length: 15 }, (_, i) => ({ day: i + 1, stops: [] })) },
       { days: [{ day: 1, stops: [{ ...stop, name: "x".repeat(201) }] }] }, { days: [{ day: 1, stops: [{ ...stop, arrivalMinute: 5000 }] }] }, { days: [], extra: 1 },
     ]) expect(tripsageItinerarySummarySchema.safeParse(bad).success).toBe(false);
   });

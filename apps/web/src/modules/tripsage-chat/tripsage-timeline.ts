@@ -7,12 +7,13 @@ import {
   type OvernightAreaContext,
 } from "../../lib/traveler-display-clean";
 import type { PlannerResult } from "../trip-planner/planner-contract";
+import { LUNCH, scenicBufferMinutes, takesLunchAfter } from "../trip-planner/planner-engine";
 
 /**
  * Client-safe day timeline (ADR-42 §2). Built by the server from a scheduled itinerary; every clock time comes from
  * the planner. Suggestions attach to `slotId`s and never change a time or become a visit.
  */
-export const LUNCH_WINDOW = { fromMinute: 690, toMinute: 840 } as const;
+export const LUNCH_WINDOW = { fromMinute: LUNCH.fromMinute, toMinute: LUNCH.toMinute } as const;
 export const DEFAULT_LUNCH_MINUTES = 60;
 /** Days finishing before 16:00 show afternoon free time instead of placing "Nghỉ đêm" in the morning/midday. */
 export const EARLY_DAY_END_MINUTE = 960;
@@ -34,7 +35,7 @@ export const timelinePartSchema = z.object({
       address: z.string().trim().min(1).max(300).optional(),
       googleMapsUrl: z.string().url().max(2000).optional(),
       placeId: z.string().min(1).max(300).optional(),
-    }).strict()).max(20),
+    }).strict()).max(40),
   }).strict()).min(1).max(14),
 }).strict();
 export type TimelinePart = z.infer<typeof timelinePartSchema>;
@@ -170,17 +171,20 @@ export function timelineSlotIds(visitsPerDay: readonly number[]): Set<string> {
   return ids;
 }
 
-/** Mirrors the planner's lunch rule: the first visit ending 11:30–14:00 with a later visit that leaves room for lunch. */
+const driveMinutes = (seconds: number | null | undefined) => (seconds == null ? null : Math.ceil(seconds / 60));
+
+/** Mirrors the planner's lunch rule (ADR-55): the first visit after which the planner took lunch, with room left for it. */
 function lunchAfter(
-  stops: readonly { departureMinute: number | null; arrivalMinute: number | null }[],
+  stops: readonly { departureMinute: number | null; arrivalMinute: number | null; inbound?: { durationSeconds: number | null } | null }[],
   lunchMinutes: number = DEFAULT_LUNCH_MINUTES,
 ): { afterIndex: number; fromMinute: number; toMinute: number; durationMinutes: number } | null {
   for (let index = 0; index < stops.length - 1; index++) {
     const departure = stops[index]!.departureMinute;
-    const nextArrival = stops[index + 1]!.arrivalMinute;
-    if (departure === null || departure < LUNCH_WINDOW.fromMinute || departure > LUNCH_WINDOW.toMinute) continue;
-    if (nextArrival !== null && nextArrival < departure + lunchMinutes) continue;
-    return { afterIndex: index, fromMinute: departure, toMinute: departure + lunchMinutes, durationMinutes: lunchMinutes };
+    const next = stops[index + 1]!;
+    const drive = driveMinutes(next.inbound?.durationSeconds);
+    if (!takesLunchAfter(departure, drive)) continue;
+    if (next.arrivalMinute !== null && next.arrivalMinute < departure! + lunchMinutes + (drive ?? 0)) continue;
+    return { afterIndex: index, fromMinute: departure!, toMinute: departure! + lunchMinutes, durationMinutes: lunchMinutes };
   }
   return null;
 }
@@ -229,17 +233,13 @@ export function resolveDayLunchBreak(input: {
     const dep = stops[i]!.departureMinute;
     const next = stops[i + 1]!;
     const nextArr = next.arrivalMinute;
-    if (dep === null || dep < LUNCH_WINDOW.fromMinute || dep > LUNCH_WINDOW.toMinute) continue;
-    if (nextArr !== null && nextArr < dep + lunchMinutes) continue;
-    if (journeyPlan) {
-      const leg = journeyPlan.legs.find(
-        (item) => item.kind === "TRANSFER" && item.to.kind === "ATTRACTION" && item.to.destinationId === next.destinationId,
-      );
-      if (leg && leg.endMinute != null && nextArr !== null && nextArr - leg.endMinute < lunchMinutes) {
-        continue;
-      }
-    }
-    return { afterStopIndex: i, fromMinute: dep, toMinute: dep + lunchMinutes, durationMinutes: lunchMinutes };
+    const leg = journeyPlan?.legs.find(
+      (item) => item.kind === "TRANSFER" && item.to.kind === "ATTRACTION" && item.to.destinationId === next.destinationId,
+    );
+    if (!takesLunchAfter(dep, driveMinutes(leg?.route.durationSeconds))) continue;
+    if (nextArr !== null && nextArr < dep! + lunchMinutes) continue;
+    if (leg && leg.endMinute != null && nextArr !== null && nextArr - leg.endMinute < lunchMinutes) continue;
+    return { afterStopIndex: i, fromMinute: dep!, toMinute: dep! + lunchMinutes, durationMinutes: lunchMinutes };
   }
   return null;
 }
@@ -311,7 +311,9 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
       day.stops.forEach((stop, index) => {
         if (index > 0 && stop.inbound) {
           const minutes = stop.inbound.durationSeconds === null ? null : Math.ceil(stop.inbound.durationSeconds / 60);
-          items.push({ slotId: `d${day.day}-drive-${index}`, kind: "DRIVE", startMinute: null, endMinute: stop.arrivalMinute, label: minutes === null ? "Di chuyển (chưa có dữ liệu tuyến)" : `Di chuyển khoảng ${minutes} phút` });
+          // ADR-55: the planner leaves roadside photo time on journey plans; say so instead of hiding it in the clock.
+          const photo = result.journeyPlan ? scenicBufferMinutes(stop.inbound.durationSeconds, result.requirement) : 0;
+          items.push({ slotId: `d${day.day}-drive-${index}`, kind: "DRIVE", startMinute: null, endMinute: stop.arrivalMinute, label: minutes === null ? "Di chuyển (chưa có dữ liệu tuyến)" : photo ? `Di chuyển khoảng ${minutes} phút, thêm ~${photo} phút dừng chụp ảnh dọc đường` : `Di chuyển khoảng ${minutes} phút` });
         }
         const description = formatVisitDescription(stop.destination.description);
         const externalPrefix = "ext:gplace:";

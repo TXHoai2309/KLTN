@@ -75,7 +75,9 @@ describe("V2-10 conversation shape across a whole conversation (session seam)", 
 });
 
 describe("V2-10 live findings: first-attempt failures, advice without a proposal", () => {
-  const overPacked = { days: [["a", "b", "c", "d"], []] };
+  // ADR-55: no stop-count pace; only more than 8 stops a day is over-packed. The fixture has four places, so repeat-free
+  // over-packing is impossible: an unknown id makes the same first-attempt structural failure and retry.
+  const overPacked = { days: [["a", "b", "c", "d", "e", "f", "g", "h", "i"], []] };
   it("retries once with the pace limit when the model over-packs a day, instead of failing the draft", async () => {
     const f = createPlanningSessionFixture({ ...understandings, "xe máy": { transport: "MOTORCYCLE" } }); const session = await f.start();
     vi.mocked(f.deps.generate).mockResolvedValueOnce(overPacked);
@@ -83,15 +85,15 @@ describe("V2-10 live findings: first-attempt failures, advice without a proposal
     const proposal = await session.send("xe máy", "v210-turn-g2");
     expect(proposal.responsePlan.goal).toBe("PRESENT_PROPOSAL");
     expect(vi.mocked(f.deps.generate)).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(f.deps.generate).mock.calls[1]![0].instruction).toMatch(/tối đa 3 điểm/);
+    expect(vi.mocked(f.deps.generate).mock.calls[1]![0].instruction).toMatch(/không lặp điểm|quá 8 điểm/);
   });
   it("still reports a clear failure after the single retry, never looping", async () => {
     const f = createPlanningSessionFixture({ ...understandings, "xe máy": { transport: "MOTORCYCLE" } }); const session = await f.start();
     vi.mocked(f.deps.generate).mockResolvedValue(overPacked);
     await session.send("2 ngày", "v210-turn-h1");
     const failed = await session.send("xe máy", "v210-turn-h2");
-    expect(failed.responsePlan).toMatchObject({ goal: "PROPOSAL_FAILED", failureCode: "PACE_LIMIT" });
-    expect(vi.mocked(f.deps.generate)).toHaveBeenCalledTimes(2); expect(failed.message).toMatch(/thử lại/); expect(failed.message).not.toMatch(/PACE_LIMIT/);
+    expect(failed.responsePlan).toMatchObject({ goal: "PROPOSAL_FAILED", failureCode: "INVALID_AI_PLAN" });
+    expect(vi.mocked(f.deps.generate)).toHaveBeenCalledTimes(2); expect(failed.message).toMatch(/thử lại/); expect(failed.message).not.toMatch(/PACE_LIMIT|INVALID_AI_PLAN/);
   });
   it("advice with no proposal does not ask again for the days and vehicle that are already known", async () => {
     const f = createPlanningSessionFixture({ ...understandings, "xe máy": { transport: "MOTORCYCLE" }, "đêm đầu nên nghỉ đâu": { intent: "ADVISE" } }); const session = await f.start();

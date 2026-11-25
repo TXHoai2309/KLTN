@@ -86,7 +86,7 @@ describe("Itinerary Journey UI (Tickets 03, 04, 05)", () => {
       expect(html).toContain("Nghỉ tối");
       expect(html).toContain("16:43");
       expect(html).toContain("đến sáng hôm sau");
-      expect(renderToStaticMarkup(createElement(ItineraryBreakfast))).toContain("05:30 – 06:00, khởi hành 06:00");
+      expect(renderToStaticMarkup(createElement(ItineraryBreakfast))).toContain("07:00 – 07:30, khởi hành 07:30");
       expect(html).toContain("chưa chọn nơi nghỉ");
     });
   });

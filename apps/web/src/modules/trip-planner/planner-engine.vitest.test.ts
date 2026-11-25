@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { plannerResultSchema, plannerRequestSchema } from "./planner-contract";
-import { dateForDay, weekdayOf, selectPlannerDays, schedulePlannerDays, plannerRoutePairs } from "./planner-engine";
+import { dateForDay, dayEndMinute, weekdayOf, selectPlannerDays, schedulePlannerDays, plannerRoutePairs } from "./planner-engine";
 import { validatePlannerDays } from "./planner-validator";
 import { resolvePlannerRoutes, missingLeg } from "./planner-routes";
 import { createPlannerService } from "./planner-service";
@@ -19,7 +19,7 @@ describe("US28 contract and deterministic engine", () => {
   it.each(["BUS", "DRIVE", "", null])("rejects unsupported transport %s", transport => { expect(plannerRequestSchema.safeParse({requirement:{...requirement,transport}}).success).toBe(false); });
   it.each([{companions:{type:"SOLO",groupSize:2}},{interests:["OTHER"]},{pace:"FAST"},{mobilityConstraints:{flags:["FAKE"]}},{startDate:"2027-02-30"}])("reuses optional requirement rules %j", change => { expect(tripRequirementInputSchema.safeParse({...requirement,...change}).success).toBe(false); });
   it("distributes stops across actual days without duplicates and is stable", () => { const selected=selectPlannerDays(requirement,candidates);expect(selected.map(d=>d.length)).toEqual([3,3]);expect(selected).toEqual(selectPlannerDays(requirement,[...candidates].reverse()));expect(new Set(selected.flat().map(c=>c.id)).size).toBe(6); });
-  it.each([["RELAXED",2],["MODERATE",3],["PACKED",4]] as const)("uses bounded preliminary pace %s", (pace,count) => { expect(selectPlannerDays({...requirement,durationDays:1,pace},candidates)[0]).toHaveLength(count); });
+  it.each(["RELAXED","MODERATE","PACKED"] as const)("ADR-55: pace %s no longer caps stops; the day's clock does", pace => { expect(selectPlannerDays({...requirement,durationDays:1,pace},candidates)[0]!.length).toBeGreaterThan(4); expect(dayEndMinute({pace,dayRhythm:undefined})).toBe(pace==="RELAXED"?1020:1080); });
   it("never exceeds the 28-stop/27-route budget or invents stops for empty days", () => { const selected=selectPlannerDays({...requirement,durationDays:14,pace:"PACKED"},Array.from({length:64},(_,i)=>candidate(`candidate-${i}`)));expect(selected).toHaveLength(14);expect(selected.flat()).toHaveLength(28);expect(plannerRoutePairs(selected,"CAR")).toHaveLength(27);expect(selectPlannerDays({...requirement,durationDays:14},[])).toEqual(Array.from({length:14},()=>[])); });
   it("uses Vietnam calendar, leap dates and relative days without a weekday assumption", () => { expect(dateForDay(null,1)).toBeNull();expect(dateForDay("2028-02-28",1)).toBe("2028-02-29");expect(dateForDay("2027-12-31",1)).toBe("2028-01-01");expect(weekdayOf("2027-01-01")).toBe("FRIDAY"); });
   it("filters hidden, missing duration, impossible duration and malformed coordinates", () => { const rows=[candidate("valid"),candidate("hidden",{visibility:"HIDDEN"}),candidate("no-duration",{suggestedDurationMinutes:null,minimumDurationMinutes:null}),candidate("long",{suggestedDurationMinutes:601}),candidate("coord",{latitude:NaN})];expect(selectPlannerDays({...requirement,durationDays:1},rows).flat().map(c=>c.id)).toEqual(["valid"]); });

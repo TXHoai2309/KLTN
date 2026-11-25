@@ -7,6 +7,8 @@ import { fixtureNeeds, fixtureRoutes, planningCandidate, planningNow } from "../
 import { AppError } from "../../server/http/app-error";
 import { COMPLETE_JOURNEY_FIXTURE } from "../../modules/trip-origin/trip-origin-fixtures";
 
+// ADR-55: no stop-count pace; a day is full at 8 stops, so adding one more is the deterministic edit failure.
+const FULL_DAY = [["a", "d", "e", "f", "g", "h", "i", "j"]];
 const shortOriginLeg = { status: "VERIFIED", reason: null, durationSeconds: 600, distanceMeters: 1000, provider: "STADIA_MAPS" } as const;
 function setup(needs: PlanningNeeds = fixtureNeeds, initialDays = [["a"]], baseRoutes = fixtureRoutes) {
   // Only a complete origin round trip can be saved; these flows are about dialogue, not the journey.
@@ -25,7 +27,7 @@ function setup(needs: PlanningNeeds = fixtureNeeds, initialDays = [["a"]], baseR
       workspace = { ...workspace, version: workspace.version + 1, needs: { ...request.needs, requirement: tripRequirementInputSchema.parse(request.needs.requirement) } }; return workspace;
     }
     if (request.action === "GENERATE") {
-      const result = await generatePlanningProposal({ needs: workspace.needs, candidates: ["a", "b", "c", "d"].map(id => planningCandidate(id)), previous: request.previous, edit: request.edit, instruction: request.instruction, routes, generate, now: planningNow, recheck: async () => true }).catch(error => { if (error instanceof AppError) throw new PlanningClientError(error.message, error.status, error.code); throw error; });
+      const result = await generatePlanningProposal({ needs: workspace.needs, candidates: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"].map(id => planningCandidate(id)), previous: request.previous, edit: request.edit, instruction: request.instruction, routes, generate, now: planningNow, recheck: async () => true }).catch(error => { if (error instanceof AppError) throw new PlanningClientError(error.message, error.status, error.code); throw error; });
       workspace = { ...workspace, version: workspace.version + 1 }; return { ...result, version: workspace.version };
     }
     if (request.action === "SAVE") return save();
@@ -159,10 +161,10 @@ describe("Chat-first planning with real scheduler and validation", () => {
   });
   it("a pace-limit failure retains the old itinerary without claiming the new point was added", async () => {
     const needs = { ...fixtureNeeds, requirement: { ...fixtureNeeds.requirement, pace: "RELAXED" as const } };
-    const { client, operation } = setup(needs, [["a", "d"]]); await client.start(null); await client.generate();
+    const { client, operation } = setup(needs, FULL_DAY); await client.start(null); await client.generate();
     operation("ADD"); await client.analyze("Thêm điểm ngày 1"); await client.chooseOption(0);
-    expect(client.getSnapshot().generated).toBeNull(); expect(client.getSnapshot().editingFrom?.selection.days).toEqual([["a", "d"]]);
-    expect(client.getSnapshot().error).toContain("nhịp độ"); expect(client.getSnapshot().savedTripId).toBeNull();
+    expect(client.getSnapshot().generated).toBeNull(); expect(client.getSnapshot().editingFrom?.selection.days).toEqual(FULL_DAY);
+    expect(client.getSnapshot().error).toContain("tối đa 8 điểm"); expect(client.getSnapshot().savedTripId).toBeNull();
   });
   it("locks duplicate selection while checking the chosen itinerary", async () => {
     const { client, operation, call } = setup(); await client.start(null); await client.generate();
@@ -178,7 +180,7 @@ describe("Chat-first planning with real scheduler and validation", () => {
   });
   it("canceling a failed edit clears the edit and restores requirements before another generation", async () => {
     const needs = { ...fixtureNeeds, requirement: { ...fixtureNeeds.requirement, pace: "RELAXED" as const } };
-    const { client, operation, analysis, call } = setup(needs, [["a", "d"]]); await client.start(null); await client.generate();
+    const { client, operation, analysis, call } = setup(needs, FULL_DAY); await client.start(null); await client.generate();
     operation("ADD"); await client.analyze("Thêm điểm ngày 1"); await client.chooseOption(0);
     expect(client.getSnapshot().uncertain).toBe(false);
     await client.analyze("Không đổi nữa"); expect(client.getSnapshot().draft.preferredDestinationIds).toEqual([]);
@@ -187,7 +189,7 @@ describe("Chat-first planning with real scheduler and validation", () => {
     analysis({ needs: { ...needs, requirement: { ...needs.requirement, startDate: "2026-11-03" } } });
     await client.analyze("Đổi ngày đi thành 2026-11-03"); await client.analyze("Đồng ý");
     expect(JSON.parse(call.mock.calls.at(-1)![0]).edit).toBeUndefined();
-    expect(client.getSnapshot().generated?.selection.days).toEqual([["a", "d"]]);
+    expect(client.getSnapshot().generated?.selection.days).toEqual(FULL_DAY);
   });
   it("canceling a needs correction restores the current proposal without applying the correction", async () => {
     const { client, analysis } = setup(); await client.start(null); await client.generate();
@@ -199,7 +201,7 @@ describe("Chat-first planning with real scheduler and validation", () => {
   });
   it("retries an uncertain rollback with its original body/key without creating an itinerary", async () => {
     const needs = { ...fixtureNeeds, requirement: { ...fixtureNeeds.requirement, pace: "RELAXED" as const } };
-    const { client, operation, call, generate } = setup(needs, [["a", "d"]]); await client.start(null); await client.generate();
+    const { client, operation, call, generate } = setup(needs, FULL_DAY); await client.start(null); await client.generate();
     operation("ADD"); await client.analyze("Thêm điểm ngày 1"); await client.chooseOption(0);
     call.mockRejectedValueOnce(new Error("rollback response lost")); await client.analyze("Không đổi nữa");
     const rollback = call.mock.calls.at(-1); expect(client.getSnapshot().uncertain).toBe(true);
@@ -208,7 +210,7 @@ describe("Chat-first planning with real scheduler and validation", () => {
   });
   it("keeps durable rollback through further needs corrections after a failed edit", async () => {
     const needs = { ...fixtureNeeds, requirement: { ...fixtureNeeds.requirement, pace: "RELAXED" as const } };
-    const { client, operation, analysis, call } = setup(needs, [["a", "d"]]); await client.start(null); await client.generate();
+    const { client, operation, analysis, call } = setup(needs, FULL_DAY); await client.start(null); await client.generate();
     operation("ADD"); await client.analyze("Thêm điểm ngày 1"); await client.chooseOption(0);
     analysis({ needs: { ...needs, requirement: { ...needs.requirement, startDate: "2026-11-03" } } }); await client.analyze("Đổi ngày khởi hành");
     await client.analyze("Không đổi nữa");

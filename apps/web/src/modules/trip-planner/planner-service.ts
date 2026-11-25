@@ -6,6 +6,7 @@ import { plannerRoutePairs, schedulePlannerDays, selectPlannerDays } from "./pla
 import { resolvePlannerRoutes, type RouteProvider } from "./planner-routes";
 import { validatePlannerDays } from "./planner-validator";
 import { balancePlannerDays } from "./planner-day-balance";
+import { arrangeTripRoute } from "./planner-route";
 import type { PlannerCandidate, PlannerCandidateInventory } from "./planner-candidates";
 import { journeyDrivingWarnings, optimizeJourneyForWeather, planJourneyFittingStops } from "../trip-origin/journey-planner";
 import type { ForecastOptions } from "../trip-weather/forecast";
@@ -47,7 +48,8 @@ export function createPlannerService(deps: { repository: PlannerRepository; rout
     const promise = (async (): Promise<Completed> => {
       const inventory = deps.repository.inventory ? await dbCall(deps.repository.inventory) : null;
       const candidates = inventory ? inventory.candidates : await dbCall(deps.repository.candidates);
-      const selectedDays = selectPlannerDays(requirement, candidates);
+      // ADR-55: the picked places are ordered as a loop, fitted to the days and topped up by estimated free time.
+      const selectedDays = (await arrangeTripRoute({ requirement, days: selectPlannerDays(requirement, candidates), pool: candidates, fill: true })).days;
       const pairs = plannerRoutePairs(selectedDays, requirement.transport);
       const journey = requirement.journey ? await planJourneyFittingStops(requirement, selectedDays, deps.routes, deps.routeTimeoutMs) : null;
       let selected = journey?.selected ?? selectedDays.flat();

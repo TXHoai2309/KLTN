@@ -125,7 +125,7 @@ const minute = z.number().int().min(0).max(1440).nullable();
 export const tripsageItinerarySummarySchema = z.object({
   days: z.array(z.object({
     day: z.number().int().min(1).max(MAX_DURATION_DAYS),
-    stops: z.array(z.object({ id: z.string().min(1).max(320), name: z.string().min(1).max(200), arrivalMinute: minute, departureMinute: minute }).strict()).max(4),
+    stops: z.array(z.object({ id: z.string().min(1).max(320), name: z.string().min(1).max(200), arrivalMinute: minute, departureMinute: minute }).strict()).max(8),
   }).strict()).max(MAX_DURATION_DAYS),
   /** Routed distance of the whole trip, for the fuel estimate only (never a validation input). */
   distanceKm: z.number().min(0).max(10_000).nullable().optional(),

@@ -6,13 +6,13 @@ import type { PlannerCandidate } from "./planner-candidates";
 import { plannerRouteGeometry } from "./planner-route-geometry";
 import { journeyRouteSchema, type JourneyRoute } from "../trip-origin/journey-route-contract";
 import type { MapsProvider } from "../map/maps-provider";
+import { MAX_AVERAGE_KMH } from "./planner-geography";
+export { estimatedRoadKm, estimateSeconds, MAX_AVERAGE_KMH } from "./planner-geography";
 
 export type RoutePair = { from: PlannerCandidate; to: PlannerCandidate; transport: TripTransport };
 export type CoordinateRoutePair = { from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number }; transport: TripTransport };
 export type RouteProvider = { route: (pair: RoutePair, signal: AbortSignal) => Promise<TravelLeg>; coordinateRoute?: (pair: CoordinateRoutePair, signal: AbortSignal) => Promise<JourneyRoute> };
 export const ROUTING_DEADLINE_MS = 40_000;
-/** Owner-approved 2026-11-07. Provider free-flow times gave 76-91 km/h on Hà Giang mountain roads. */
-export const MAX_AVERAGE_KMH: Record<TripTransport, number> = { CAR: 50, MOTORCYCLE: 40 };
 export function cappedDurationSeconds(durationSeconds: number, distanceMeters: number | null | undefined, transport: TripTransport): number {
   return distanceMeters == null ? durationSeconds : Math.max(durationSeconds, Math.ceil(distanceMeters / 1000 / MAX_AVERAGE_KMH[transport] * 3600));
 }

@@ -1,10 +1,11 @@
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
-import { dateForDay, MORNING_DEPARTURE_MINUTE, PACE_STOP_LIMIT, PLANNING_WINDOW, schedulePlannerDays, visitDuration } from "../trip-planner/planner-engine";
+import { dateForDay, dayEndMinute, EARLIEST_DEPARTURE_MINUTE, MAX_STOPS_PER_DAY, MORNING_DEPARTURE_MINUTE, schedulePlannerDays, visitDuration } from "../trip-planner/planner-engine";
+import { OVERNIGHT_TOWN_CENTERS } from "../../lib/traveler-display-clean";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { travelLegSchema, type PlannerCheck, type PlannerDay, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { isFeaturedDestination } from "../trip-planner/planner-candidates";
-import { missingLeg, resolveBoundedRoutes, ROUTING_DEADLINE_MS, type CoordinateRoutePair, type RouteProvider, type RoutePair } from "../trip-planner/planner-routes";
+import { estimateSeconds, missingLeg, resolveBoundedRoutes, ROUTING_DEADLINE_MS, type CoordinateRoutePair, type RouteProvider, type RoutePair } from "../trip-planner/planner-routes";
 import { optimizeScheduleForWeather } from "../trip-planner/planner-weather-preference";
 import type { ForecastOptions } from "../trip-weather/forecast";
 import { journeyRouteSchema, type JourneyPlan, type JourneyRoute } from "./journey-route-contract";
@@ -42,7 +43,7 @@ export async function planJourney(requirement: TripRequirementInput, selected: r
   const original = scheduleJourneyEvidence(requirement, selected, transfer, outbound, returning, fixedArrivals);
   if (!allowBoundaryRepartition || selected.length < 2 || evidence.some(route => route.status !== "VERIFIED")) return original;
   const partitions = [selected.map(day => [...day])];
-  const cap = PACE_STOP_LIMIT[requirement.pace ?? "MODERATE"];
+  const cap = MAX_STOPS_PER_DAY;
   // Bounded alternative day boundaries on the SAME directed chain. No extra
   // routing, visit removal, mode/day-count change or lodging coordinates.
   const moveFirst = (days: PlannerCandidate[][]) => {
@@ -66,21 +67,27 @@ export async function planJourney(requirement: TripRequirementInput, selected: r
       + checked.checks.reduce((sum, check) => sum + (check.status === "VIOLATION" ? 100 : check.status === "INSUFFICIENT_DATA" ? 10 : 0), 0)
       + result.days.filter(day => day.journeyDayKind === "EMPTY").length * 100;
   };
-  let best = original, bestScore = score(original), bestIdle = idleBeforeLastDay(original.days, original.journeyPlan);
+  let best = original, bestScore = score(original), bestIdle = idleBeforeLastDay(requirement, original.days, original.journeyPlan);
   for (const partition of partitions.slice(1)) {
     const result = scheduleJourneyEvidence(requirement, partition, transfer, outbound, returning);
-    const resultScore = score(result), resultIdle = idleBeforeLastDay(result.days, result.journeyPlan);
+    const resultScore = score(result), resultIdle = idleBeforeLastDay(requirement, result.days, result.journeyPlan);
     if (resultScore < bestScore || (preferFullDays && resultScore === bestScore && resultIdle < bestIdle)) { best = result; bestScore = resultScore; bestIdle = resultIdle; }
   }
   return best;
 }
 
 /** Squared so one empty afternoon costs more than several short gaps. The last day is free: leaving early helps the return. */
-const idleCost = (endMinute: number) => Math.max(0, PLANNING_WINDOW.endMinute - endMinute) ** 2;
-function idleBeforeLastDay(days: readonly PlannerDay[], plan: JourneyPlan): number {
+const idleCost = (requirement: TripRequirementInput, endMinute: number) => Math.max(0, dayEndMinute(requirement) - endMinute) ** 2;
+/** ADR-55: a night should end near a town with lodging. Same squared scale as idleCost: 3 idle minutes per minute beyond 20. */
+export function townCost(requirement: TripRequirementInput, stop: { latitude: number; longitude: number }): number {
+  const minutes = Math.min(...Object.values(OVERNIGHT_TOWN_CENTERS).map(town => estimateSeconds(stop, town, requirement.transport) / 60));
+  return (Math.max(0, minutes - 20) * 3) ** 2;
+}
+function idleBeforeLastDay(requirement: TripRequirementInput, days: readonly PlannerDay[], plan: JourneyPlan): number {
   return days.slice(0, -1).reduce((sum, day) => {
-    const end = day.stops.at(-1)?.departureMinute ?? (day.day === 1 ? plan.legs.find(leg => leg.kind === "OUTBOUND")?.endMinute : null);
-    return end == null ? sum : sum + idleCost(end);
+    const last = day.stops.at(-1);
+    const end = last?.departureMinute ?? (day.day === 1 ? plan.legs.find(leg => leg.kind === "OUTBOUND")?.endMinute : null);
+    return (end == null ? sum : sum + idleCost(requirement, end)) + (last ? townCost(requirement, last.destination) : 0);
   }, 0);
 }
 
@@ -97,7 +104,7 @@ function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly P
     if (!count) {
       if (dayIndex === 0 && offset === 0) {
         const arrival = journey.departureMinute! + Math.ceil(outbound.durationSeconds! / 60) + driveWithRest(outbound.durationSeconds!, 0, restProfileOf(requirement)).restMinutes;
-        return { cost: 0, load: isLast ? 0 : idleCost(arrival) };
+        return { cost: 0, load: isLast ? 0 : idleCost(requirement, arrival) };
       }
       if (!isLast || offset !== stops.length) return { cost: 100, load: 0 };
       return { cost: journey.returnDepartureMinute == null ? 10 : returnCost(returnMinutes(journey.returnDepartureMinute, 0)), load: 0 };
@@ -123,7 +130,7 @@ function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly P
     const departure = scheduled.at(-1)!.departureMinute;
     return {
       cost: scheduled.filter(stop => stop.scheduleState !== "PLANNED").length * 100 + (isLast && departure !== null ? returnCost(returnMinutes(departure, driven)) : 0),
-      load: isLast || departure === null ? 0 : idleCost(departure),
+      load: isLast || departure === null ? 0 : idleCost(requirement, departure) + townCost(requirement, today.at(-1)!),
     };
   };
   type Plan = { days: PlannerCandidate[][]; cost: number; load: number };
@@ -244,9 +251,12 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
     const day = days.find(day => day.stops.some(stop => stop.destination.id === current.id))!;
     const previousStop = days.flatMap(day => day.stops).find(stop => stop.destination.id === previous.id)!;
     const sameDay = day.stops.some(stop => stop.destination.id === previous.id);
-    const start = sameDay ? previousStop.departureMinute : MORNING_DEPARTURE_MINUTE;
     const route = transfer.get(current.id)!;
     const rest = rests.get(current.id) ?? null;
+    // A day's first drive starts at 07:30, or earlier when the (saved) arrival needs it; never before 06:00.
+    const arrival = day.stops.find(stop => stop.destination.id === current.id)?.arrivalMinute ?? null;
+    const latest = arrival === null || route.status !== "VERIFIED" || rest === null ? MORNING_DEPARTURE_MINUTE : arrival - Math.ceil(route.durationSeconds! / 60) - rest;
+    const start = sameDay ? previousStop.departureMinute : Math.max(EARLIEST_DEPARTURE_MINUTE, Math.min(MORNING_DEPARTURE_MINUTE, latest));
     legs.push({ kind: "TRANSFER", day: day.day, from: { kind: "ATTRACTION", destinationId: previous.id }, to: { kind: "ATTRACTION", destinationId: current.id },
       route: { status: route.status, reason: route.reason, durationSeconds: route.durationSeconds, distanceMeters: route.distanceMeters, provider: route.provider, ...(route.geometry ? { geometry: route.geometry } : {}) },
       startMinute: start, endMinute: start === null || route.status !== "VERIFIED" || rest === null ? null : start + Math.ceil(route.durationSeconds! / 60) + rest, restMinutes: rest });

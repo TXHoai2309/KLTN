@@ -236,7 +236,7 @@ describe("chat request currentItinerary context", () => {
   it("rejects wrong shape, coordinates, oversized lists and names with 400", async () => {
     const stop = ITINERARY.days[0]!.stops[0]!;
     for (const bad of [
-      { days: [{ day: 1, stops: [{ ...stop, latitude: 1 }] }] }, { days: [{ day: 1, stops: Array(5).fill(stop) }] },
+      { days: [{ day: 1, stops: [{ ...stop, latitude: 1 }] }] }, { days: [{ day: 1, stops: Array(9).fill(stop) }] },
       { days: [{ day: 1, stops: [{ ...stop, name: "x".repeat(500) }] }] }, "x", { days: "a" },
     ]) {
       const { response } = await call({ currentItinerary: bad });

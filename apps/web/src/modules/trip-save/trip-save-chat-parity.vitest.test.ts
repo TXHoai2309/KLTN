@@ -122,7 +122,8 @@ describe("Bug 1 — chat vs save validation parity (ADR-51)", () => {
     expect(chatResult.days[1]!.stops[0]!.visitDurationMinutes).toBe(30);
     expect(chatResult.days[1]!.stops[0]!.userChosenDuration).toBe(true);
     expect(chatResult.days[1]!.stops[0]!.departureMinute).toBe(510);
-    expect(chatResult.days[1]!.stops[1]!.arrivalMinute).toBe(567);
+    // ADR-55: + roadside photo buffer, arrival rounded up to 5 minutes.
+    expect(chatResult.days[1]!.stops[1]!.arrivalMinute).toBe(580);
 
     const saveProposal = toSaveProposal(chatResult);
     expect(saveProposal).not.toBeNull();

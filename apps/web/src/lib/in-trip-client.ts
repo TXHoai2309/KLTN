@@ -79,7 +79,7 @@ const positionedVisitSchema = z.object({
   dayIndex: z.number().int().min(1),
   startMinute: z.number().int().min(0).max(1439),
   plannedDurationMinutes: z.number().int().min(1).max(1440),
-  order: z.number().int().min(1).max(4),
+  order: z.number().int().min(1).max(8),
 }).strict();
 
 const editDiffSchema = z.object({

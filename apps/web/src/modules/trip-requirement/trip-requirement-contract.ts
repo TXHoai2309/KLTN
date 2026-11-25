@@ -137,9 +137,9 @@ export const INTEREST_OPTIONS = [
 ] as const satisfies readonly TripOption<TripInterest>[];
 
 export const PACE_OPTIONS = [
-  { value: "RELAXED", label: "Thư thả", description: "Ít điểm dừng hơn và có nhiều thời gian nghỉ." },
-  { value: "MODERATE", label: "Vừa phải", description: "Cân bằng giữa tham quan và thời gian nghỉ." },
-  { value: "PACKED", label: "Nhiều trải nghiệm", description: "Ưu tiên nhiều điểm dừng trong ngày." },
+  { value: "RELAXED", label: "Thư thả", description: "Kết thúc ngày sớm hơn (17:00) và dừng nghỉ, chụp ảnh lâu hơn." },
+  { value: "MODERATE", label: "Vừa phải", description: "Tham quan cả ngày đến khoảng 18:00." },
+  { value: "PACKED", label: "Nhiều trải nghiệm", description: "Tham quan cả ngày đến khoảng 18:00." },
 ] as const satisfies readonly TripOption<TripPace>[];
 
 export const MOBILITY_CONSTRAINT_OPTIONS = [

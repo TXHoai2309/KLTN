@@ -123,7 +123,10 @@ describe("suggestions attached to the timeline (ticket 02)", () => {
     const result = fed(3);
     for (const reason of ["TOO_FAR_22KM_LIMIT_5KM", "LODGING_NEEDS_PLACE", "UNKNOWN_PLACE", "USE_OVERNIGHT_SLOT", "SLOT_NOT_FOUND"]) expect(result).toContain(reason);
     // A suggestion never becomes a visit or changes a time.
-    expect(itineraryOf(all).days.flatMap(day => day.stops).map(s => s.destination.id)).toEqual(["a", "b"]);
+    // (The server may add catalogue places to free time, ADR-55; never a suggested place.)
+    const visits = itineraryOf(all).days.flatMap(day => day.stops).map(s => s.destination.id);
+    expect(visits).toEqual(expect.arrayContaining(["a", "b"]));
+    expect(visits.some(id => id.includes("ChIJ"))).toBe(false);
   });
 
   it("uses the browser's current itinerary for slots when nothing was proposed this turn", async () => {

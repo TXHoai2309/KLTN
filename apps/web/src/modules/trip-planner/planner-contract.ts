@@ -41,7 +41,7 @@ export const travelLegSchema = z.object({
 });
 export type TravelLeg = z.infer<typeof travelLegSchema>;
 export const plannerStopSchema = z.object({
-  order: z.number().int().min(1).max(4), destination: plannerDestinationSchema,
+  order: z.number().int().min(1).max(8), destination: plannerDestinationSchema,
   arrivalMinute: minute.nullable(), departureMinute: minute.nullable(), visitDurationMinutes: z.number().int().min(1).max(10080),
   /** Present only when the traveler explicitly chose this visit's duration (ADR-48/ADR-51). */
   userChosenDuration: z.literal(true).optional(),
@@ -52,7 +52,7 @@ export type PlannerStop = z.infer<typeof plannerStopSchema>;
 export const plannerDaySchema = z.object({
   journeyDayKind: z.enum(["VISITS", "OUTBOUND_ONLY", "RETURN_ONLY", "EMPTY"]).optional(),
   day: z.number().int().min(1).max(14), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-  stops: z.array(plannerStopSchema).max(4), distanceMeters: z.number().nonnegative().nullable(), travelSeconds: z.number().nonnegative().nullable(),
+  stops: z.array(plannerStopSchema).max(8), distanceMeters: z.number().nonnegative().nullable(), travelSeconds: z.number().nonnegative().nullable(),
 }).strict();
 export type PlannerDay = z.infer<typeof plannerDaySchema>;
 const issueSchema = z.object({ code: z.string().max(80), message: z.string().max(500), day: z.number().int().min(1).max(14).nullable(), destinationId: id.nullable() }).strict();

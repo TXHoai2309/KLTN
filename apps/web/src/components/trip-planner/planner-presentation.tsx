@@ -4,7 +4,7 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatVietnameseDate } from "@/lib/date-only";
-import { BREAKFAST_MINUTES, LUNCH, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
+import { BREAKFAST_MINUTES, LUNCH, MORNING_DEPARTURE_MINUTE, takesLunchAfter } from "@/modules/trip-planner/planner-engine";
 import type { JourneyPlan } from "@/modules/trip-origin/journey-route-contract";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import {
@@ -49,7 +49,8 @@ import type {
 export function lunchBreakAfter(plan: JourneyPlan | null | undefined, nextDestinationId: string, departureMinute: number | null, nextArrivalMinute: number | null): { from: number; to: number } | null {
   const leg = plan?.legs.find(item => item.kind === "TRANSFER" && item.to.kind === "ATTRACTION" && item.to.destinationId === nextDestinationId);
   if (!leg || leg.endMinute == null || departureMinute === null || nextArrivalMinute === null) return null;
-  if (departureMinute < LUNCH.fromMinute || departureMinute > LUNCH.toMinute || nextArrivalMinute - leg.endMinute < LUNCH.minutes) return null;
+  const drive = leg.route.durationSeconds == null ? null : Math.ceil(leg.route.durationSeconds / 60);
+  if (!takesLunchAfter(departureMinute, drive) || nextArrivalMinute - leg.endMinute < LUNCH.minutes) return null;
   return { from: departureMinute, to: departureMinute + LUNCH.minutes };
 }
 
