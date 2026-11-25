@@ -30,6 +30,10 @@ The single floating entry owned by the application layout. Its mounted panel kee
 
 ## Conversational trip planning
 
+**Queued message (tin nhắn chờ gửi)**:
+Câu người đi gõ trong lúc trợ lý còn đang trả lời. Chưa thuộc cuộc trò chuyện cho tới khi được gửi; các câu chờ được gộp thành một tin gửi ngay khi câu trả lời hiện tại kết thúc bình thường, và chỉ tồn tại trong phiên đang mở.
+_Avoid_: Tin đã gửi, tin nháp.
+
 **Conversational trip planning (lập hành trình trong hội thoại)**:
 Creating a new itinerary through a conversation, including reviewing needs, revising a proposal and explicitly saving the resulting trip.
 _Avoid_: Travel Q&A, editing an already-saved trip.
@@ -61,6 +65,14 @@ _Avoid_: Hidden destination, unavailable destination.
 **Exact departure date (ngày khởi hành cụ thể)**:
 The single calendar date intended for the start of the traveler's trip, including its day, month and year.
 _Avoid_: Indicative departure window, number of trip days.
+
+**Whole-trip dates (ngày cả chuyến)**:
+The full calendar date range from leaving home (`tripStartDate`) to returning home (`tripEndDate`), encompassing both any transit access days and the Hà Giang sightseeing days (`startDate`, `durationDays`) within that span.
+_Avoid_: Sightseeing dates alone when separate travel days exist.
+
+**Destination travel time (thời gian di chuyển giữa điểm)**:
+Verified road distance and driving duration cached between two catalog destinations for a given transport mode, used when ordering routes and fitting days prior to live final validation.
+_Avoid_: Straight-line distance estimate, final Validator PASS proof.
 
 **Trip origin (nơi xuất phát)**:
 Địa điểm người đi bắt đầu hành trình, bao gồm chặng từ đó đến khu vực tham quan Hà Giang. Nơi xuất phát khác với điểm tham quan đầu tiên và vị trí hiện tại khi đang đi.
