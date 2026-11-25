@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { FileText, Menu, MessageSquare, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles, Square } from "lucide-react";
+import { FileText, Menu, MessageSquare, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles, Square, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { createIdempotencyKey } from "@/lib/mutation-client";
@@ -76,6 +76,14 @@ import { TripsagePlanSummaryCard } from "./tripsage-plan-summary-card";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
 import { TripsageSaveSection } from "./tripsage-save-section";
 import { parseSourcesPart, TripsageSourcesView } from "./tripsage-sources-view";
+import {
+  decideQueuePostTurnAction,
+  enqueueQueuedMessage,
+  evaluateComposerLength,
+  formatQueuedPreview,
+  removeQueuedMessage,
+  restoreQueueToDraft,
+} from "./tripsage-chat-queue";
 
 /**
  * Lifts the answer's closing question out of the prose so it sits right above its quick-reply buttons.
@@ -141,6 +149,10 @@ export function TripsageChatClient({
       : "",
   );
   const draftEditedRef = useRef(false);
+  const [queued, setQueued] = useState<string[]>([]);
+  const queuedRef = useRef<string[]>([]);
+  const stopRequestedRef = useRef(false);
+  const pendingAutoFlushRef = useRef(false);
   const [status, setStatus] = useState<StatusPart | null>(null);
   const [planProgress, setPlanProgress] = useState<PlanProgressSnapshot | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -188,7 +200,10 @@ export function TripsageChatClient({
     // The notice text is generic; keep the real cause (name and short message only, never the request) visible for debugging.
     onError: err => console.warn("[tripsage-chat] stream error", err.name, err.message.slice(0, 200)),
     onFinish: ({ message, isAbort, isDisconnect, isError }) => {
-      if (isAbort || isDisconnect || isError) return;
+      if (isAbort || isDisconnect || isError) {
+        pendingAutoFlushRef.current = false;
+        return;
+      }
       const hasAnyText = message.parts.some(part => part.type === "text" && part.text.trim().length > 0);
       if (!hasAnyText) {
         setFinishedTextIds(prev => {
@@ -263,7 +278,14 @@ export function TripsageChatClient({
   const recovering = interrupted && !!activeConversationId && !recoveryFailed;
   const notice = recovering ? null : rawNotice;
   const busy = chatStatus === "submitted" || chatStatus === "streaming";
-  const locked = busy || saveLocked || loadingConversation || recovering;
+  const inputLocked = saveLocked || loadingConversation || recovering;
+  const locked = busy || inputLocked;
+  const composerLength = evaluateComposerLength({
+    busy,
+    queued,
+    draft,
+    maxLength: MAX_LENGTH,
+  });
 
   const { turns: resultTurns, latestBudgetMessageId } = useMemo(() => readTripsageResultTurns(messages), [messages]);
   const state = useMemo(() => readConversationState(messages, data => parseItineraryPart(data) !== null), [messages]);
@@ -574,8 +596,16 @@ export function TripsageChatClient({
     return () => { clearTimeout(timer); listFetch.current?.abort(); };
   }, [searchQuery, identity]);
 
+  function clearQueueState() {
+    queuedRef.current = [];
+    setQueued([]);
+    pendingAutoFlushRef.current = false;
+    stopRequestedRef.current = false;
+  }
+
   async function openConversationById(id: string, preferredSource?: "ASSISTANT" | "LEGACY") {
     if (busy || saveLocked) return;
+    clearQueueState();
     setLoadingConversation(true);
     setHistoryNotice(null);
     try {
@@ -623,6 +653,7 @@ export function TripsageChatClient({
 
   function startNewChat() {
     if (busy || saveLocked) return;
+    clearQueueState();
     setLegacyReadOnly(null);
     setActiveConversationId(null);
     setHistoryNotice(null);
@@ -727,17 +758,69 @@ export function TripsageChatClient({
       }
       return next;
     });
+    stopRequestedRef.current = false;
+    pendingAutoFlushRef.current = true;
     setPlanProgress(null);
     void sendMessage({ text });
+  }
+
+  function handleStop() {
+    stopRequestedRef.current = true;
+    pendingAutoFlushRef.current = false;
+    if (queuedRef.current.length > 0) {
+      const restored = restoreQueueToDraft(queuedRef.current, draft);
+      queuedRef.current = [];
+      setQueued([]);
+      if (restored) {
+        draftEditedRef.current = true;
+        setDraft(restored);
+      }
+    }
+    void stop();
   }
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || locked || legacyReadOnly) return;
+    if (!text || inputLocked || legacyReadOnly) return;
+    if (busy) {
+      const result = enqueueQueuedMessage(queuedRef.current, text, MAX_LENGTH);
+      if (!result.accepted) return;
+      queuedRef.current = result.queued;
+      setQueued(result.queued);
+      setDraft("");
+      return;
+    }
+    if (text.length > MAX_LENGTH) return;
     setDraft("");
     send(text);
   }
+
+  useEffect(() => {
+    const action = decideQueuePostTurnAction({
+      chatStatus,
+      inputLocked,
+      legacyReadOnly: Boolean(legacyReadOnly),
+      stopRequested: stopRequestedRef.current,
+      pendingAutoFlush: pendingAutoFlushRef.current,
+      queued: queuedRef.current,
+      draft,
+    });
+    if (action.type === "none") return;
+    queuedRef.current = [];
+    setQueued([]);
+    pendingAutoFlushRef.current = false;
+    stopRequestedRef.current = false;
+    if (action.type === "restore") {
+      draftEditedRef.current = true;
+      setDraft(action.draft);
+      return;
+    }
+    if (action.type === "flush") {
+      send(action.text);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatStatus, inputLocked, legacyReadOnly, queued]);
 
   const composer = useRef<HTMLTextAreaElement>(null);
   const subject = initialContext?.type === "DESTINATION" && destinationName?.trim() ? destinationName.trim() : "Hà Giang";
@@ -1119,6 +1202,33 @@ export function TripsageChatClient({
                 </div>
               </div>
             )}
+            {queued.length > 0 && (
+              <div className="assistant-queued-list" aria-live="polite" aria-label="Tin nhắn đang chờ gửi">
+                <span className="assistant-queued-header">Đang chờ gửi</span>
+                <ul className="assistant-queued-items">
+                  {queued.map((item, index) => {
+                    const preview = formatQueuedPreview(item);
+                    return (
+                      <li key={`${index}-${item.slice(0, 24)}`} className="assistant-queued-item">
+                        <span className="assistant-queued-text" title={item}>{preview}</span>
+                        <button
+                          type="button"
+                          className="assistant-queued-remove"
+                          aria-label={`Bỏ câu chờ: ${preview}`}
+                          onClick={() => {
+                            const next = removeQueuedMessage(queuedRef.current, index);
+                            queuedRef.current = next;
+                            setQueued(next);
+                          }}
+                        >
+                          <X size={13} aria-hidden="true" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             <form noValidate className="assistant-composer" onSubmit={submit}>
               <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>
               <div
@@ -1135,10 +1245,9 @@ export function TripsageChatClient({
                   id="tripsage-chat-input"
                   className="resize-none"
                   rows={1}
-                  maxLength={MAX_LENGTH}
                   placeholder="Hỏi về chuyến đi Hà Giang…"
                   value={draft}
-                  disabled={locked}
+                  disabled={inputLocked}
                   onChange={event => {
                     draftEditedRef.current = true;
                     setDraft(event.target.value);
@@ -1153,29 +1262,46 @@ export function TripsageChatClient({
                 <div className="assistant-composer-bar">
                   <div className="assistant-composer-left-tools" />
                   {busy ? (
-                    <button
-                      type="button"
-                      className="assistant-composer-send-circle is-stop"
-                      aria-label="Dừng trả lời"
-                      onClick={() => void stop()}
-                    >
-                      <Square size={14} aria-hidden="true" />
-                    </button>
+                    <>
+                      {draft.trim().length > 0 && (
+                        <button
+                          type="submit"
+                          className="assistant-composer-send-circle"
+                          aria-label="Thêm vào hàng chờ"
+                          disabled={inputLocked || legacyReadOnly !== null || composerLength.overLimit}
+                        >
+                          <Send size={15} aria-hidden="true" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="assistant-composer-send-circle is-stop"
+                        aria-label="Dừng trả lời"
+                        onClick={handleStop}
+                      >
+                        <Square size={14} aria-hidden="true" />
+                      </button>
+                    </>
                   ) : (
                     <button
                       type="submit"
                       className="assistant-composer-send-circle"
                       aria-label="Gửi tin nhắn"
-                      disabled={!draft.trim() || saveLocked || loadingConversation}
+                      disabled={!draft.trim() || inputLocked || legacyReadOnly !== null || composerLength.overLimit}
                     >
                       <Send size={15} aria-hidden="true" />
                     </button>
                   )}
                 </div>
               </div>
-              {draft.length > MAX_LENGTH * 0.8 && (
+              {(draft.length > MAX_LENGTH * 0.8 || composerLength.showCounter) && (
                 <div className="assistant-composer-footer">
-                  <span className="assistant-char-counter">{draft.length}/{MAX_LENGTH} ký tự</span>
+                  <span
+                    className={`assistant-char-counter${composerLength.overLimit ? " is-over-limit" : ""}`}
+                    role={composerLength.overLimit ? "alert" : undefined}
+                  >
+                    {composerLength.displayCount}/{MAX_LENGTH} ký tự
+                  </span>
                 </div>
               )}
             </form>
