@@ -12,6 +12,7 @@ import {
 import {
   chosenLodgingListToMap,
   chosenLodgingsPartSchema,
+  dedupeTimelineSuggestions,
   pruneChosenLodgings,
   suggestionsPartSchema,
   timelinePartSchema,
@@ -144,7 +145,7 @@ export function readConversationState(messages: readonly Message[], isItinerary:
         if (parsed.success) timeline = parsed.data;
       } else if (part.type === "data-suggestions" && lastItineraryMessageId) {
         const parsed = suggestionsPartSchema.safeParse(part.data);
-        if (parsed.success) suggestions = [...suggestions, ...parsed.data.suggestions];
+        if (parsed.success) suggestions = dedupeTimelineSuggestions([...suggestions, ...parsed.data.suggestions]);
       } else if (part.type === "data-chosen-lodgings" && lastItineraryMessageId) {
         const parsed = chosenLodgingsPartSchema.safeParse(part.data);
         if (parsed.success) {

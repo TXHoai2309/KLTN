@@ -17,9 +17,14 @@ import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { resolveOvernightCheckinPresentation, resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
 import { scenicBufferMinutes } from "@/modules/trip-planner/planner-engine";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
-import { ItineraryValidationPanel } from "@/components/trip-planner/planner-presentation";
+import {
+  ItineraryOriginDepartureCard,
+  ItineraryOriginReturnCard,
+  ItineraryValidationPanel,
+  shouldShowHaGiangArrivalPrep,
+} from "@/components/trip-planner/planner-presentation";
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
-import { buildDataTripTitle } from "@/lib/traveler-trip-title";
+import { buildDataTripTitle, formatTravelerOriginLabel } from "@/lib/traveler-trip-title";
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
 import { cleanPlaceDisplayName, cleanTravelerDisplay } from "@/lib/traveler-display-clean";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
@@ -34,6 +39,7 @@ import {
 } from "@/modules/tripsage-chat/tripsage-chat-context";
 import type { CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 import {
+  dedupeTimelineSuggestions,
   isEligibleLodgingSuggestion,
   resolveDayLunchBreak,
   type ChosenLodgingMap,
@@ -347,7 +353,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
 
   const bySlot = useMemo(() => {
     const map = new globalThis.Map<string, TimelineSuggestion[]>();
-    for (const item of suggestions) {
+    for (const item of dedupeTimelineSuggestions(suggestions)) {
       map.set(item.slotId, [...(map.get(item.slotId) ?? []), item]);
     }
     return map;
@@ -558,9 +564,14 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
           : null,
       })),
     });
+    const hasAccessLeg = Boolean(accessLeg);
+    const cleanOriginLabel = formatTravelerOriginLabel(
+      proposal.requirement.journey?.origin?.label,
+      hasAccessLeg,
+    );
     const routeLabel = resolveDayRouteLabel({
       dayIndex: activePlannerDay.day,
-      originLabel: proposal.requirement.journey?.origin?.label,
+      originLabel: cleanOriginLabel || proposal.requirement.journey?.origin?.label,
       previousOvernightArea,
       stops,
       previousDayStops: (previousPlannerDay?.stops ?? []).map((s) => ({
@@ -570,6 +581,32 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       legs: proposal.journeyPlan?.legs,
       stopNamesById,
     });
+    const outboundLeg = proposal.journeyPlan?.legs.find((l) => l.kind === "OUTBOUND");
+    const returnLeg = proposal.journeyPlan?.legs.find((l) => l.kind === "RETURN");
+    const originNode = proposal.requirement.journey?.origin;
+    const departureCard =
+      activePlannerDay.day === 1 && originNode ? (
+        <ItineraryOriginDepartureCard
+          originLabel={cleanOriginLabel || originNode.label}
+          startMinute={proposal.requirement.journey?.departureMinute ?? null}
+          outboundLeg={outboundLeg ? { route: outboundLeg.route, restMinutes: outboundLeg.restMinutes } : undefined}
+          showArrivalPrep={shouldShowHaGiangArrivalPrep({
+            originLabel: originNode.label,
+            outboundDistanceMeters: outboundLeg?.route.distanceMeters,
+            hasAccessLeg,
+          })}
+          hasAccessLeg={hasAccessLeg}
+        />
+      ) : undefined;
+    const returnCard =
+      activePlannerDay.day === totalDays && originNode ? (
+        <ItineraryOriginReturnCard
+          originLabel={cleanOriginLabel || originNode.label}
+          endMinute={returnLeg?.endMinute ?? null}
+          returnDeadlineMinute={proposal.requirement.journey?.returnDeadlineMinute ?? null}
+          returnLeg={returnLeg ? { route: returnLeg.route, restMinutes: returnLeg.restMinutes } : undefined}
+        />
+      ) : undefined;
 
     return {
       dayIndex: activePlannerDay.day,
@@ -580,7 +617,9 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         allStopLegsVerified && allDayPlanLegsVerified ? activePlannerDay.distanceMeters : null,
       totalTravelSeconds:
         allStopLegsVerified && allDayPlanLegsVerified ? activePlannerDay.travelSeconds : null,
+      departureCard,
       stops,
+      returnCard,
       eveningPlan,
       estimatedCheckinTravelMinutes,
       checkinRouteSummary,
@@ -588,11 +627,14 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     };
   }, [
     activePlannerDay,
+    accessLeg,
     proposal.days,
     proposal.proposalId,
     proposal.journeyPlan,
     proposal.requirement.dayRhythm?.lunchMinutes,
-    proposal.requirement.journey?.origin?.label,
+    proposal.requirement.journey?.origin,
+    proposal.requirement.journey?.departureMinute,
+    proposal.requirement.journey?.returnDeadlineMinute,
     timeline,
     bySlot,
     chosenLodgings,

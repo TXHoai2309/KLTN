@@ -217,6 +217,25 @@ function shortOriginCity(label: string | null | undefined): string | null {
   return extractOriginCityProvince(label, { allowHaGiang: false });
 }
 
+/**
+ * Formats an origin label for traveler display (ADR-57 D3):
+ * for self-drive trips (`hasAccessLeg === false`), strips synthetic bus-station hub suffixes
+ * such as " (bến xe Mỹ Đình)" while preserving explicit traveler stations like "Bến xe Giáp Bát".
+ */
+export function formatTravelerOriginLabel(
+  rawLabel: string | null | undefined,
+  hasAccessLeg: boolean,
+): string {
+  const text = rawLabel?.trim() ?? "";
+  if (!text) return "";
+  if (hasAccessLeg) return text;
+  const cleaned = text
+    .replace(/\s*\((?:bến xe|bx|trạm|ga)[^)]*\)\s*$/iu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+  return cleaned || text;
+}
+
 export interface DataTripTitleInput {
   companionTitle?: string | null;
   homeCity?: string | null;

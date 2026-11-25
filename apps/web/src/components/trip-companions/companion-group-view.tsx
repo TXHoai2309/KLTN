@@ -46,6 +46,7 @@ import { RouteStrip } from "@/components/trip-timeline/route-strip";
 import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { cleanAreaDisplayLabel, cleanOvernightAreaLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import { resolveOvernightCheckinPresentation, resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
+import { formatTravelerOriginLabel } from "@/lib/traveler-trip-title";
 import { resolveDayLunchBreak } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { PlannerDay, PlannerStop, TravelLeg } from "@/modules/trip-planner/planner-contract";
 import {
@@ -1273,7 +1274,9 @@ function CompanionGroupContent({
                   });
                   const routeLabel = resolveDayRouteLabel({
                     dayIndex: day.dayIndex,
-                    originLabel: currentGroup.meetingPoint?.origin?.label,
+                    originLabel:
+                      formatTravelerOriginLabel(currentGroup.meetingPoint?.origin?.label, false) ||
+                      currentGroup.meetingPoint?.origin?.label,
                     previousOvernightArea,
                     stops,
                     previousDayStops: (prevGroupDay?.visits ?? []).map((v) => ({

@@ -12,7 +12,7 @@ import { splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-mar
 import { resolveOvernightCheckinPresentation, resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
-import { buildDataTripTitle, daysUntilTrip } from "@/lib/traveler-trip-title";
+import { buildDataTripTitle, daysUntilTrip, formatTravelerOriginLabel } from "@/lib/traveler-trip-title";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -62,6 +62,7 @@ import {
   nightRestText,
   ItineraryOriginDepartureCard,
   ItineraryOriginReturnCard,
+  shouldShowHaGiangArrivalPrep,
   durationText,
 } from "@/components/trip-planner/planner-presentation";
 import { formatMinuteLabel } from "@/modules/trip-origin/journey-time-utils";
@@ -1618,9 +1619,13 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                       : null,
                   })),
                 });
+                const hasAccessLeg = Boolean(accessLeg);
+                const cleanOriginLabel =
+                  formatTravelerOriginLabel(trip.journey?.journey.origin?.label, hasAccessLeg) ||
+                  trip.journey?.journey.origin?.label;
                 const routeLabel = resolveDayRouteLabel({
                   dayIndex: day.dayIndex,
-                  originLabel: trip.journey?.journey.origin?.label,
+                  originLabel: cleanOriginLabel,
                   previousOvernightArea,
                   stops,
                   previousDayStops: (prevTripDay?.visits ?? []).map((visit) => ({
@@ -1630,6 +1635,8 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   legs: trip.journey?.plan?.legs,
                   stopNamesById: tripStopNamesById,
                 });
+                const outboundPlanLeg = trip.journey?.plan?.legs.find((l) => l.kind === "OUTBOUND");
+                const returnPlanLeg = trip.journey?.plan?.legs.find((l) => l.kind === "RETURN");
 
                 const timelineDay: DayTimelineDay = {
                   dayIndex: day.dayIndex,
@@ -1642,16 +1649,22 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   departureCard:
                     day.dayIndex === 1 && trip.journey?.journey.origin ? (
                       <ItineraryOriginDepartureCard
-                        originLabel={trip.journey.journey.origin.label}
+                        originLabel={cleanOriginLabel ?? trip.journey.journey.origin.label}
                         startMinute={trip.journey.journey.departureMinute ?? null}
                         outboundLeg={
-                          trip.journey.plan?.legs.find((l) => l.kind === "OUTBOUND")
+                          outboundPlanLeg
                             ? {
-                                route: trip.journey.plan.legs.find((l) => l.kind === "OUTBOUND")!.route,
-                                restMinutes: trip.journey.plan.legs.find((l) => l.kind === "OUTBOUND")!.restMinutes,
+                                route: outboundPlanLeg.route,
+                                restMinutes: outboundPlanLeg.restMinutes,
                               }
                             : undefined
                         }
+                        showArrivalPrep={shouldShowHaGiangArrivalPrep({
+                          originLabel: trip.journey.journey.origin.label,
+                          outboundDistanceMeters: outboundPlanLeg?.route.distanceMeters,
+                          hasAccessLeg,
+                        })}
+                        hasAccessLeg={hasAccessLeg}
                       />
                     ) : undefined,
                   breakfast:
@@ -1667,16 +1680,14 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   returnCard:
                     day.dayIndex === trip.days.length && trip.journey?.journey.origin ? (
                       <ItineraryOriginReturnCard
-                        originLabel={trip.journey.journey.origin.label}
-                        endMinute={
-                          trip.journey.plan?.legs.find((l) => l.kind === "RETURN")?.endMinute ?? null
-                        }
+                        originLabel={cleanOriginLabel ?? trip.journey.journey.origin.label}
+                        endMinute={returnPlanLeg?.endMinute ?? null}
                         returnDeadlineMinute={trip.journey.journey.returnDeadlineMinute ?? null}
                         returnLeg={
-                          trip.journey.plan?.legs.find((l) => l.kind === "RETURN")
+                          returnPlanLeg
                             ? {
-                                route: trip.journey.plan.legs.find((l) => l.kind === "RETURN")!.route,
-                                restMinutes: trip.journey.plan.legs.find((l) => l.kind === "RETURN")!.restMinutes,
+                                route: returnPlanLeg.route,
+                                restMinutes: returnPlanLeg.restMinutes,
                               }
                             : undefined
                         }

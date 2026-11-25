@@ -307,15 +307,16 @@ function StopPhoto({
   fallback: { src: string; alt: string };
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const usable = image && image.url !== failedUrl;
+  const url = image?.url?.trim() ?? "";
+  const usable = url.length > 0 && url !== failedUrl;
   return (
     <img
-      src={usable ? image.url : fallback.src}
-      alt={usable ? image.alt : fallback.alt}
+      src={usable ? url : fallback.src}
+      alt={usable && image?.alt ? image.alt : fallback.alt}
       className="dt-visit-photo"
       loading="lazy"
       onError={() => {
-        if (usable) setFailedUrl(image.url);
+        if (usable) setFailedUrl(url);
       }}
     />
   );
@@ -830,12 +831,19 @@ export function DayTimeline({
                           <ul className="dt-photo-group-list">
                             {group.stops.map((subStop, subIdx) => {
                               const subName = cleanPlaceDisplayName(subStop.name) || subStop.name;
+                              const subCleanArea = cleanAreaDisplayLabel(subStop.area);
+                              const subFallback =
+                                subStop.fallbackVisual ??
+                                getDestinationVisual(subName, subCleanArea ?? undefined);
                               const subEnd =
                                 subStop.startMinute !== null && subStop.durationMinutes !== null
                                   ? subStop.startMinute + subStop.durationMinutes
                                   : null;
                               return (
                                 <li key={subStop.id} className="dt-photo-group-subitem">
+                                  <div className="dt-photo-group-thumb">
+                                    <StopPhoto image={subStop.image} fallback={subFallback} />
+                                  </div>
                                   <span>
                                     {subIdx > 0 && subStop.travelFromPrevious?.verified && subStop.travelFromPrevious.durationMinutes
                                       ? `${formatTravelLegLine(subStop.travelFromPrevious)} → `

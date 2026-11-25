@@ -740,7 +740,18 @@ const journeyClock = (minute: number | null) => minute == null ? "Chưa đủ d�
 function BoundaryMetrics({ leg }: { leg?: BoundaryLeg }) {
   return <p className="planner-boundary-metrics">{leg?.route.status === "VERIFIED" ? `${durationText(Math.ceil(leg.route.durationSeconds! / 60))} · ${kmText(leg.route.distanceMeters!)}` : "Chưa đủ dữ liệu đường đi"} · nghỉ ven đường: {leg?.restMinutes == null ? "Chưa đủ dữ liệu" : `+${leg.restMinutes} phút`}</p>;
 }
-function BoundaryStop({ time, title, originLabel, leg }: { time: string; title: string; originLabel: string; leg?: BoundaryLeg }) {
+export function shouldShowHaGiangArrivalPrep(input: {
+  originLabel?: string | null;
+  outboundDistanceMeters?: number | null;
+  hasAccessLeg?: boolean;
+}): boolean {
+  if (input.hasAccessLeg) return true;
+  if (input.outboundDistanceMeters != null && input.outboundDistanceMeters >= 50_000) return true;
+  const label = input.originLabel?.trim().toLowerCase() ?? "";
+  if (!label) return false;
+  return !label.includes("hà giang") && !label.includes("ha giang");
+}
+function BoundaryStop({ time, title, originLabel, leg, children }: { time: string; title: string; originLabel: string; leg?: BoundaryLeg; children?: import("react").ReactNode }) {
   return <li className="planner-stop planner-stop-boundary">
     <div className="planner-stop-node-col">
       <span className="planner-stop-number" aria-hidden="true"><House size={13} /></span>
@@ -748,15 +759,74 @@ function BoundaryStop({ time, title, originLabel, leg }: { time: string; title: 
     </div>
     <div className="planner-stop-body">
       <div className="planner-stop-time-row"><span className="planner-stop-time"><Clock size={12} aria-hidden="true" /><span>{time}</span></span></div>
-      <div className="planner-boundary-card"><strong>{title}</strong><p>{originLabel}</p><BoundaryMetrics leg={leg} /></div>
+      <div className="planner-boundary-card"><strong>{title}</strong><p>{originLabel}</p><BoundaryMetrics leg={leg} />{children}</div>
     </div>
   </li>;
 }
-export function ItineraryOriginDepartureCard({ originLabel, startMinute, outboundLeg }: { originLabel: string; startMinute: number | null; outboundLeg?: BoundaryLeg }) {
-  return <BoundaryStop time={`Xuất phát: ${journeyClock(startMinute)}`} title="Khởi hành · Nơi xuất phát hành trình" originLabel={originLabel} leg={outboundLeg} />;
+export function ItineraryOriginDepartureCard({
+  originLabel,
+  startMinute,
+  outboundLeg,
+  showArrivalPrep = false,
+  hasAccessLeg = false,
+}: {
+  originLabel: string;
+  startMinute: number | null;
+  outboundLeg?: BoundaryLeg;
+  showArrivalPrep?: boolean;
+  hasAccessLeg?: boolean;
+}) {
+  const arrivalMinute =
+    startMinute != null && outboundLeg?.route.status === "VERIFIED" && outboundLeg.route.durationSeconds != null
+      ? startMinute + Math.ceil(outboundLeg.route.durationSeconds / 60) + (outboundLeg.restMinutes ?? 0)
+      : null;
+  return (
+    <BoundaryStop
+      time={`Xuất phát: ${journeyClock(startMinute)}`}
+      title={showArrivalPrep ? "Chặng lên Hà Giang · Nơi xuất phát hành trình" : "Khởi hành · Nơi xuất phát hành trình"}
+      originLabel={originLabel}
+      leg={outboundLeg}
+    >
+      {showArrivalPrep && (
+        <div className="planner-boundary-prep" data-testid="arrival-prep-ha-giang">
+          {arrivalMinute != null && (
+            <p className="planner-boundary-metrics">
+              Dự kiến tới khu vực cửa ngõ Hà Giang: ~{journeyClock(arrivalMinute)}
+            </p>
+          )}
+          <div className="planner-boundary-prep-head">
+            <strong>Chuẩn bị tại TP Hà Giang</strong>
+            <span className="planner-flex-badge">linh động</span>
+          </div>
+          <p className="planner-boundary-note">
+            Về khách sạn nhận phòng hoặc gửi đồ, nhận và kiểm tra xe tại trung tâm TP Hà Giang, nghỉ nhẹ ăn uống trước khi vào điểm tham quan đầu tiên (khung giờ linh động, không khóa cứng).
+          </p>
+          {hasAccessLeg && (
+            <p className="planner-boundary-note">
+              Lưu ý: xe khách/tàu/máy bay đưa tới Hà Nội hoặc trung tâm TP Hà Giang, sau đó mới chuyển sang xe di chuyển các điểm đồi núi.
+            </p>
+          )}
+        </div>
+      )}
+    </BoundaryStop>
+  );
 }
 export function ItineraryOriginReturnCard({ originLabel, endMinute, returnDeadlineMinute, returnLeg }: { originLabel: string; endMinute: number | null; returnDeadlineMinute: number | null; returnLeg?: BoundaryLeg }) {
-  return <BoundaryStop time={`Về đến nơi: ${journeyClock(endMinute)} · Hạn về: ${journeyClock(returnDeadlineMinute)}`} title="Hoàn thành · Điểm kết thúc hành trình" originLabel={originLabel} leg={returnLeg} />;
+  const lateBeyondWish = endMinute != null && returnDeadlineMinute != null && endMinute > returnDeadlineMinute;
+  return (
+    <BoundaryStop
+      time={`Về đến nơi: ${journeyClock(endMinute)} · Hạn về: ${journeyClock(returnDeadlineMinute)}`}
+      title="Hoàn thành · Điểm kết thúc hành trình"
+      originLabel={originLabel}
+      leg={returnLeg}
+    >
+      {lateBeyondWish && (
+        <p className="planner-boundary-note">
+          Lưu ý: dự kiến về trễ hơn khung giờ mong muốn (chuyến vẫn lưu được bình thường; bạn có thể đi sớm hơn ngày cuối hoặc bớt điểm cuối nếu muốn).
+        </p>
+      )}
+    </BoundaryStop>
+  );
 }
 export function ItineraryTravelOnlyDayCard({ kind, originLabel, leg }: { kind: "OUTBOUND_ONLY" | "RETURN_ONLY"; originLabel: string; leg?: import("@/modules/trip-origin/journey-route-contract").JourneyPlan["legs"][number] }) {
   return <div className="planner-boundary-card planner-boundary-card-day"><strong>Chặng di chuyển {kind === "OUTBOUND_ONLY" ? "đi" : "về"}</strong><p>{kind === "OUTBOUND_ONLY" ? `${originLabel} → Hà Giang` : `Hà Giang → ${originLabel}`}</p><p>Khởi hành: {journeyClock(leg?.startMinute ?? null)} · Dự kiến đến: {journeyClock(leg?.endMinute ?? null)}</p><p>Nghỉ ven đường tự động: {leg?.restMinutes == null ? "Chưa đủ dữ liệu" : `+${leg.restMinutes} phút`}</p><p>Toàn bộ ngày dành cho hành trình đường dài. Mốc định tuyến là điểm tham quan, chưa tính đường ra/vào nơi nghỉ.</p></div>;

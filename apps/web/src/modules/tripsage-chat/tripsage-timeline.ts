@@ -463,3 +463,41 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
     }),
   };
 }
+
+export function foldSuggestionKey(text: string): string {
+  return text
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[\p{M}\p{Cf}]/gu, "")
+    .replace(/đ/gu, "d")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+/**
+ * Deduplicates timeline suggestions across turns and noisy provider results by `(slotId, kind, placeId)`
+ * and `(slotId, kind, normalizedTitle)` while keeping first/richest entry order intact (ADR-57 D5).
+ */
+export function dedupeTimelineSuggestions(items: readonly TimelineSuggestion[]): TimelineSuggestion[] {
+  const seenPlaceKeys = new Set<string>();
+  const seenTitleKeys = new Set<string>();
+  const out: TimelineSuggestion[] = [];
+  for (const item of items) {
+    const scope = `${item.slotId}|${item.kind}`;
+    const placeId = item.place?.placeId?.trim();
+    if (placeId) {
+      const placeKey = `${scope}|id:${placeId}`;
+      if (seenPlaceKeys.has(placeKey)) continue;
+      seenPlaceKeys.add(placeKey);
+    }
+    const normTitle = foldSuggestionKey(cleanPlaceDisplayName(item.place?.name ?? item.title) || item.title);
+    if (normTitle) {
+      const titleKey = `${scope}|name:${normTitle}`;
+      if (seenTitleKeys.has(titleKey)) continue;
+      seenTitleKeys.add(titleKey);
+    }
+    out.push(item);
+  }
+  return out;
+}

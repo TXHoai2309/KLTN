@@ -1,8 +1,21 @@
 import { cleanPlaceDisplayName, resolveOvernightAreaLabel } from "@/lib/traveler-display-clean";
+import { foldSuggestionKey } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { PlacePreviewTarget } from "@/lib/place-preview-url";
 import type { DayTimelineEveningPlan, DayTimelineNearbyItem } from "./day-timeline";
 
 export const MAX_EVENING_PLACES = 3;
+
+function dedupeNearbyByName<T extends { name: string }>(items: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of items) {
+    const key = foldSuggestionKey(cleanPlaceDisplayName(item.name) || item.name);
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
 
 export interface BuildDayEveningPlanInput {
   dayIndex: number;
@@ -40,10 +53,14 @@ export function buildDayEveningPlan(input: BuildDayEveningPlanInput): DayTimelin
           previewTarget: input.chosenLodging.previewTarget ?? null,
         }
       : null,
-    lodgingSuggestions: input.lodgingSuggestions?.slice(0, 3),
-    eveningPlaces: input.eveningPlaces.slice(0, MAX_EVENING_PLACES).map((place) => ({
-      ...place,
-      name: cleanPlaceDisplayName(place.name) || place.name,
-    })),
+    lodgingSuggestions: input.lodgingSuggestions
+      ? dedupeNearbyByName(input.lodgingSuggestions).slice(0, 3)
+      : undefined,
+    eveningPlaces: dedupeNearbyByName(input.eveningPlaces)
+      .slice(0, MAX_EVENING_PLACES)
+      .map((place) => ({
+        ...place,
+        name: cleanPlaceDisplayName(place.name) || place.name,
+      })),
   };
 }

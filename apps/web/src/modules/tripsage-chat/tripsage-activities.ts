@@ -278,13 +278,24 @@ export async function nearbyActivitySuggestions(input: {
     const ranked = rankValid(entry.anchor, entry.places);
     const outKind = entry.anchor.kind === "EVENING" ? "EVENING" : "ACTIVITY"; const used = usedBy[outKind];
     const slotLimit = outKind === "EVENING" ? EVENING_PER_SLOT : ACTIVITY_PER_SLOT;
+    const takenNames = new Set<string>();
     let taken = 0;
     for (const { place, distanceKm } of ranked) {
       if (taken >= slotLimit) break;
-      if (used.has(place.placeId)) continue;
+      const foldedName = place.name
+        .normalize("NFKD")
+        .toLowerCase()
+        .replace(/[\p{M}\p{Cf}]/gu, "")
+        .replace(/đ/gu, "d")
+        .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+        .replace(/\s+/gu, " ")
+        .trim();
+      if (used.has(place.placeId) || (foldedName && takenNames.has(foldedName))) continue;
       const parsed = suggestionSchema.safeParse({ slotId: entry.anchor.slotId, kind: outKind, title: place.name, place: { placeId: place.placeId, name: place.name, distanceKm: Math.round(distanceKm * 10) / 10 } });
       if (!parsed.success) continue;
-      used.add(place.placeId); out.push(parsed.data); taken += 1;
+      used.add(place.placeId);
+      if (foldedName) takenNames.add(foldedName);
+      out.push(parsed.data); taken += 1;
     }
     if (entry.anchor.kind === "EVENING") {
       const reason: EveningAnchorDiagnostic["reason"] = taken > 0
