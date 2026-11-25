@@ -1,6 +1,6 @@
 # Spec: Bài học từ chuyến d1ada90d — Lịch linh động không chặn cứng, mốc nghỉ đêm, chặng lên Hà Giang & chống hỏi lặp điểm xuất phát
 
-Trạng thái: **đang triển khai** (tổng hợp kết quả kiểm tra và phỏng vấn Q1–Q12 ngày 2026-11-25; đã ghi [ADR-57](../decisions.md) và cập nhật [GLOSSARY.md](../../GLOSSARY.md)).
+Trạng thái: **đã triển khai** (hoàn tất Q1–Q12 & D1–D7 ngày 2026-11-25; đã cập nhật [GLOSSARY.md](../../GLOSSARY.md), ghi [ADR-57](../decisions.md) và cập nhật [ai-progress.md](../ai-progress.md)).
 Phạm vi: `/assistant` (`tripsage-chat`, `tripsage-conversation-state`, `tripsage-chat-client`), lõi `trip-planner` & `trip-origin`, tìm điểm xuất phát (`origin-search`), gợi ý hoạt động (`tripsage-activities`), timeline hiển thị (`day-timeline`, `tripsage-plan-panel`, `trips-view`).
 Nguồn:
 - Hội thoại live `d1ada90d-d88c-4f22-8488-954aa3825f1f`: nhóm 4 người, xe máy, `28/12/2026–01/01/2027` (5 ngày, 11 điểm, 930 km), nêu xuất phát từ `bến xe Giáp Bát (Hà Nội)`.
@@ -252,3 +252,19 @@ Khi thử nghiệm thực tế trên hội thoại `d1ada90d-d88c-4f22-8488-954a
 4. **Nghỉ trưa linh động (Q4, Q9):** luôn có `Nghỉ trưa` khi tham quan qua trưa (ưu tiên chèn trước điểm dài vượt `12:30`), cho phép sớm/muộn kèm lưu ý, không chặn cứng.
 5. **Hiện ảnh mọi điểm dừng + khử trùng gợi ý tối (Q5):** không ẩn ảnh ở điểm bị gộp và khử trùng tên quán/state.
 6. **Gộp ứng viên điểm xuất phát trùng thực thể, sửa khớp nhãn ngắn `(A)`, khóa điểm xuất phát đã chốt và lập lịch ngay sau khi chốt nơi đi (Q12).**
+
+---
+
+## Ghi chú triển khai (2026-11-25)
+
+- **Chuỗi commit trên nhánh `master`:**
+  - `c30c286` (`docs: cập nhật GLOSSARY, ghi ADR-57 và spec d1ada90d`) — thuật ngữ D7 (`Return leg`, `Day route header`, `Arrival preparation step`, `Advisory notice`, `Overnight anchor`) và `ADR-57`.
+  - `7de08d3` (`feat(chat): khử trùng điểm xuất phát, sửa khớp nhãn ngắn và lập lịch ngay khi chốt nơi đi (D6)`) — `ORIGIN_DUPLICATE_RADIUS_KM = 2`, `cleanOriginCandidateLabel`, `deduplicateOriginResults`, `shouldPreserveConfirmedSpecificOrigin`, chống lặp `findOrigin`.
+  - `26f482e` (`feat(planner): bỏ chặn cứng giờ về và bổ sung nghỉ trưa linh động (D1, D4)`) — chuyển `RETURN_DEADLINE_MISSED` thành advisory không chặn xác nhận/lưu/sửa; giữ `Nghỉ trưa` linh động (sớm trước điểm dài hoặc muộn cuối trưa) kèm test hồi quy `journey-d1-d4-adr57.vitest.test.ts`.
+  - `32239d2` (`feat(planner): neo chặng và tiêu đề ngày theo khu vực nghỉ đêm (D2)`) — `resolveOvernightAnchorTown` (`overnight-anchor.ts`), `overnightStays` trong `journeyPlanSchema`, neo chặng sáng/về (`RETURN_ONLY`) theo `OVERNIGHT_TOWN_CENTERS`, cập nhật `resolveDayRouteLabel` & card `Nhận phòng · <Khu vực>`, giữ `chosenLodgings` không làm đổi định tuyến/kiểm tra (`journey-d2-overnight-anchor.vitest.test.ts`).
+  - `d8f1238` (`feat(ui): tách chặng chuẩn bị Hà Giang, làm sạch nhãn tự lái, ảnh từng điểm và khử trùng gợi ý (D3, D5)`) — `formatTravelerOriginLabel`, `ItineraryOriginDepartureCard` (phần *Chặng lên Hà Giang* + *Chuẩn bị tại TP Hà Giang* badge `linh động`), thumbnail cho mọi điểm trong `dt-photo-group`, mở rộng `getDestinationVisual`, và `dedupeTimelineSuggestions` xuyên lượt (`tripsage-d3-d5-adr57.vitest.test.ts`).
+  - `be19eb7` (`fix(planner): tôn trọng tên khu vực nghỉ đêm hợp lệ và đồng bộ test tone ADR-57`) — ưu tiên khu vực nghỉ đêm hợp lệ theo `area` của điểm đến và đồng bộ `area` lúc Lưu chuyến + `tripsage-chat-tone.vitest.test.ts`.
+- **Kiểm tra sau commit code cuối (`be19eb7`):**
+  - `npx tsc --noEmit -p .`: pass (0 lỗi).
+  - `npx vitest run --config vitest.config.mts src`: `484 passed | 40 skipped | 1 failed (525 files)` (`4904 passed | 237 skipped | 1 todo | 1 failed (5143 tests)`); lỗi duy nhất là lỗi CSS pre-existing ở `src/components/tripsage-chat/tripsage-cost-card.vitest.test.ts` (Bug 3 `--tv-ink-3`), còn 40 file skip là DB/live/env-gated.
+  - `npx varlock run -- cmd /c "set NODE_ENV=production&& npm run build"`: Next.js compile (`18.1s`) và TypeScript (`63s`) pass; bước prerender `/dashboard` & `/_global-error` lỗi pre-existing `useContext` khi chạy cục bộ dưới `varlock` + `NODE_ENV` từ `.env`.

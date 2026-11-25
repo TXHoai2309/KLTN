@@ -6423,3 +6423,25 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **Known issues:** Thất bại có sẵn ở `tripsage-cost-card.vitest.test.ts` (`Bug 3` CSS `--tv-ink-3`); production DB cần chủ dự án thực thi migration, script nạp và SQL D10 theo thứ tự trước khi kích hoạt mã mới.
 - **Decisions:** ADR-56.
 - **Next step:** Chủ dự án chạy lần lượt trên Production: (1) `prisma migrate deploy`, (2) `populate-destination-travel-time.mts` (`--dry-run` rồi chạy thật), (3) `docs/analysis/18-destination-durations-2026-11-25.sql`, rồi push/deploy khi sẵn sàng.
+
+
+## 2026-11-25 — Triển khai spec d1ada90d / ADR-57 (D1–D7)
+
+- **Branch:** `master`
+- **Story/task:** Hoàn tất spec [trip-review-lessons-d1ada90d-spec.md](specs/trip-review-lessons-d1ada90d-spec.md) (`ADR-57`, D1–D7 từ audit hội thoại `d1ada90d-d88c-4f22-8488-954aa3825f1f`).
+- **Completed:**
+  - **D7 (`c30c286`):** Bổ sung thuật ngữ `Return leg`, `Day route header`, `Arrival preparation step`, `Advisory notice`, `Overnight anchor` vào `GLOSSARY.md` và ghi `ADR-57` trong `docs/decisions.md`.
+  - **D6 (`7de08d3`):** Gộp ứng viên điểm xuất phát trùng cụm (`<= 2 km`) tại `origin-search-*`, sửa khớp nhãn ngắn `(A)` trong `tripsage-chat-origin.ts`, chống hỏi lặp `findOrigin`, giữ điểm đã chốt cụ thể (như Bến xe Giáp Bát) trước `hub:HA_NOI` và lập lịch ngay sau khi chốt nơi đi + số ngày.
+  - **D1 & D4 (`26f482e`):** Chuyển `RETURN_DEADLINE_MISSED` từ `VIOLATION`/blocker lưu sang `warnings`/`advisories` không chặn Lưu/Sửa; giữ `Nghỉ trưa` linh động (chèn sớm trước điểm tham quan dài vượt `12:30` hoặc muộn hơn nếu sát giờ đóng cửa mà không drop điểm hay tạo `VIOLATION`).
+  - **D2 (`32239d2`, `be19eb7`):** Tạo `overnight-anchor.ts` (`resolveOvernightAnchorTown`, `resolveOvernightCheckinPresentation`, `resolvePreviousOvernightArea`), lưu `overnightStays` trên `journeyPlan`, neo chặng về (`RETURN_ONLY`) và sáng ngày tiếp theo theo tâm thị trấn cố định (`OVERNIGHT_TOWN_CENTERS`) khi điểm cuối ngày trước cách tâm > 1 km, cập nhật tiêu đề ngày trên `day-timeline` / `tripsage-plan-panel` / `trips-view` / `companion-group-view` và giữ bất biến `chosenLodgings`.
+  - **D3 & D5 (`d8f1238`):** Ẩn hậu tố `(bến xe Mỹ Đình)` cho chuyến tự lái qua `formatTravelerOriginLabel`, tách rõ phần *Chặng lên Hà Giang* và bước *Chuẩn bị tại TP Hà Giang* (`linh động`) trên `ItineraryOriginDepartureCard`, gắn thumbnail `<StopPhoto />` cho mọi điểm con trong `dt-photo-group`, bổ sung visual fallback `getDestinationVisual` và khử trùng gợi ý ăn tối/buổi tối trong `tripsage-activities.ts`, `tripsage-timeline.ts`, `tripsage-conversation-state.ts`, `evening-plan.ts`.
+- **Files changed:** Xem commits `c30c286`, `7de08d3`, `26f482e`, `32239d2`, `d8f1238`, `be19eb7` (bao gồm 3 bộ test hồi quy mới: `journey-d1-d4-adr57.vitest.test.ts`, `journey-d2-overnight-anchor.vitest.test.ts`, `tripsage-d3-d5-adr57.vitest.test.ts`, cùng mở rộng test cho `origin-search`, `tripsage-chat-origin`, `day-timeline`, `edit-journey`, `journey-save`, `journey-planner`, `tripsage-chat-tone`).
+- **DB/migration changes:** Không có thay đổi schema/migration DB.
+- **Validation performed:**
+  - `cd apps/web; npx tsc --noEmit -p .` — pass (0 lỗi sau commit code cuối `be19eb7`).
+  - `cd apps/web; npx vitest run --config vitest.config.mts src` — `484 passed | 40 skipped | 1 failed (525 files)`, `4904 passed | 237 skipped | 1 todo | 1 failed (5143 tests)`; 1 lỗi duy nhất là lỗi CSS pre-existing trong `tripsage-cost-card.vitest.test.ts` (Bug 3 `--tv-ink-3`), 40 file skip là DB/live/env-gated.
+  - `cd apps/web; npx varlock run -- cmd /c "set NODE_ENV=production&& npm run build"` — compile (`18.1s`) & TypeScript (`63s`) pass; prerender `/dashboard` & `/_global-error` lỗi pre-existing `useContext` dưới môi trường `varlock` cục bộ.
+- **Deployment/smoke result:** Chưa push/deploy (chỉ commit cục bộ trên `master` theo quy tắc dự án).
+- **Known issues:** `tripsage-cost-card.vitest.test.ts` (Bug 3 CSS) và lỗi prerender Next.js cục bộ do `NODE_ENV` là tồn tại sẵn từ trước, ngoài phạm vi spec `d1ada90d`.
+- **Decisions:** [ADR-57](decisions.md), [trip-review-lessons-d1ada90d-spec.md](specs/trip-review-lessons-d1ada90d-spec.md).
+- **Next step:** Nếu chủ dự án yêu cầu, push nhánh `master` lên remote/Vercel để smoke test hội thoại thực tế trên bản preview/production.
