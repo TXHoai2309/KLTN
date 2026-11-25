@@ -1347,3 +1347,41 @@ Adopt both [assistant-queued-message-spec.md](specs/assistant-queued-message-spe
 - Database schema gains `destination_travel_time` via Prisma migration plus manual DEV seeding before PROD rollout.
 - Server cost logic becomes deterministic from itinerary and access-leg state, eliminating AI miscounts across travel days and vehicles.
 - Existing `estimateCosts`, overtime trimming, estimation winding-factor, and timeline tests that pinned superseded defaults must be updated with comments explaining the spec change.
+
+## ADR-57 — Flexible return deadline & lunch windows, fixed overnight town routing anchors, Day 1 arrival preparation & origin deduplication (2026-11-25)
+
+- **Status:** Accepted
+- **Date:** 2026-11-25
+- **Spec:** [trip-review-lessons-d1ada90d-spec.md](specs/trip-review-lessons-d1ada90d-spec.md)
+
+### Context
+
+Live review of conversation `d1ada90d-d88c-4f22-8488-954aa3825f1f` (4 travelers, motorcycle, 5 days from Hanoi/Giáp Bát) and three rounds of design alignment (Q1–Q12) uncovered blocking UX and planning gaps:
+1. System-default `18:00` (`DEFAULT_RETURN_DEADLINE_MINUTE`) and even traveler-stated return windows triggered hard `RETURN_DEADLINE_MISSED` `VIOLATION`s blocking trip saving and prompting the AI to suggest adding an unwanted 6th day.
+2. Multi-day route headers and return routing used raw first/last sightseeing attractions (`Núi Cấm`, `Sông Nho Quế`) instead of resolved overnight areas (`TP Hà Giang`, `Mèo Vạc`).
+3. Self-drive trips from Hanoi displayed `"Hà Nội (bến xe Mỹ Đình) → <attraction>"` and omitted the Day 1 outbound transit step plus flexible arrival preparation (`hotel drop-off/check-in, vehicle pickup, rest`).
+4. `takesLunchAfter` only checked arrival time at the next stop, letting a 180-minute midday activity (`Sông Nho Quế` `11:45–14:45`) erase lunch completely.
+5. Short scenic photo stops grouped into `dt-photo-group` hid photos on subsequent stops, and cross-turn/near-duplicate Google Maps evening suggestions repeated `"Nhà của Đức · 2,9 km"`.
+6. Nominatim returned multiple nodes for one landmark (`(A) Bến Xe Giáp Bát`), while `labelSegments` dropped `< 4`-char tokens like `A`, causing repeated confirmation loops and extra date turns before drafting an itinerary.
+
+### Decision
+
+Adopt all approved decisions D1–D7 from [trip-review-lessons-d1ada90d-spec.md](specs/trip-review-lessons-d1ada90d-spec.md):
+
+1. **Flexible return deadline (superseding `RETURN_DEADLINE_MISSED` as a hard save blocker):** Exceeding `returnDeadlineMinute` (whether system-default `18:00` or traveler-specified) emits an informational `warnings` advisory (`RETURN_DEADLINE_MISSED` / advisory message with predicted vs desired arrival clock and optional adjustments) without marking `TRAVEL_TIME` as `VIOLATION` or blocking trip saving (`eligibleForFinalConfirmation`). Planners still try pulling the penultimate overnight closer to the exit route when feasible within the user's chosen day count.
+2. **Fixed overnight town anchors (`OVERNIGHT_TOWN_CENTERS`) & clean day route headers:** Route late-day return-to-town legs when the final stop sits `> 1 km` outside its resolved overnight town center, and anchor next-day departure / `RETURN` routing on that fixed town center rather than raw attractions or unverified Google hotel pins (`Chosen lodging` remains informational with zero impact on PASS/clocks). Render day headers as `<origin/overnight area> → <focus region/destination>`.
+3. **Clean self-drive hub labels & flexible Day 1 arrival preparation:** Reserve `"bến xe Mỹ Đình"` strictly for bus access legs; display clean `"Hà Nội"` (or preserved specific origin like `Bến xe Giáp Bát`) for self-drive trips. Render explicit outbound transit + flexible arrival preparation cards on Day 1 (and return card on final day) across both `/assistant` and saved trips without enforcing rigid minute deductions or hard failures.
+4. **Flexible mandatory lunch window:** Ensure days with pre-lunch sightseeing overlapping lunch past `12:30` always allocate a `Nghỉ trưa` break (preferring pre-activity lunch before long midday stops or flexible early/late placement with an informational note), never blocking save or dropping stops due to meal timing.
+5. **Per-stop timeline visuals & evening deduplication:** Keep individual photo frames visible for every stop (never hiding photos in grouped lists), improve fallback visuals, and deduplicate evening/meal suggestions by normalized name/distance across server and client conversation state.
+6. **Origin candidate deduplication & single-step drafting:** Merge nearby same-name Nominatim results (`<= 2 km`, stripping short platform prefixes when comparing canonical names), fix short distinguishing segment matching in `permitsOriginConfirmation`, preserve specific confirmed origins over fixed-hub fallback, and generate the initial draft immediately once origin + day count are known.
+
+### Alternatives
+
+- Keeping `RETURN_DEADLINE_MISSED` as a hard `VIOLATION` whenever the user typed a return time was rejected by the owner ("cấm được chặn cứng"); hard-enforcing arrival prep minutes was likewise rejected in favor of flexible advisory placement.
+- Routing overnight transfers directly through unverified external hotel coordinates (`chosenLodgings`) was rejected to preserve deterministic Validator parity and prevent clicking a hotel suggestion from destabilizing verified status.
+
+### Consequences
+
+- Real-constraint Validator invariants (`CLOSED`/`OUTSIDE_OPENING_HOURS`, `VISIT_TOO_SHORT` unless user-chosen, `TRANSFER_TOO_SHORT`, `SCHEDULE_CONFLICT`, `INSUFFICIENT_DATA`) remain strictly enforced.
+- `journeyPlan` and day timelines include verified overnight town-center legs (`coordinateRoute`), requiring `INSUFFICIENT_DATA` reporting if an overnight town-center leg lacks verified routing rather than fabricating estimates.
+- Existing tests pinning `RETURN_DEADLINE_MISSED` as a `VIOLATION`, `"Hà Nội (bến xe Mỹ Đình)"` for self-drive titles/headers, hidden grouped photos, and two-turn origin loops will be updated alongside regression coverage from `d1ada90d`.

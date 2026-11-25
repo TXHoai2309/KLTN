@@ -79,8 +79,20 @@ _Avoid_: Straight-line distance estimate, final Validator PASS proof.
 _Avoid_: First attraction, current in-trip location, departure date.
 
 **Return leg (chặng về)**:
-Chặng di chuyển từ điểm tham quan cuối cùng quay về nơi xuất phát trong ngày cuối của chuyến đi.
+Chặng di chuyển từ khu vực nghỉ đêm cuối cùng (hoặc điểm tham quan cuối cùng nếu nằm ngay tại khu vực đó) quay về nơi xuất phát trong ngày cuối của chuyến đi.
 _Avoid_: Last attraction, trip completion.
+
+**Day route header (nhãn tuyến đầu ngày)**:
+Dòng tóm tắt lộ trình ở đầu mỗi ngày trên lịch trình, hiển thị từ nơi xuất phát sạch (Ngày 1) hoặc khu vực nghỉ đêm của tối hôm trước tới khu vực tham quan trọng tâm trong ngày hoặc điểm về cuối chuyến.
+_Avoid_: Bus station suffix on self-drive trips, raw landmark endpoint as morning origin.
+
+**Arrival preparation step (bước chuẩn bị tại điểm đến)**:
+Bước chuyển tiếp linh động ngay sau chặng di chuyển tới Hà Giang hoặc điểm tập kết (về khách sạn gửi/cất đồ, nhận phòng tạm, nhận và kiểm tra xe thuê, nghỉ lấy sức) trước lượt tham quan đầu tiên. Bước này không áp khung phút cứng và không chặn lịch.
+_Avoid_: Fixed time block, scheduled visit, validation blocker.
+
+**Advisory notice (lưu ý linh động)**:
+Thông báo tư vấn gắn trên lịch trình khi giờ về dự kiến muộn hơn khung giờ mong muốn hoặc giờ nghỉ trưa lệch khung quen thuộc, kèm gợi ý điều chỉnh tùy chọn mà không đánh vi phạm hay khóa lưu chuyến.
+_Avoid_: Validation violation, save blocker.
 
 **Roadside rest allowance (thời gian nghỉ dọc đường dự kiến)**:
 Khoảng thời gian hệ thống dành thêm để nghỉ trong các chặng di chuyển của lịch trình, tách biệt với thời gian chạy xe ước tính.
@@ -239,8 +251,8 @@ The days of a trip together with the nights the traveler explicitly said they wi
 _Avoid_: Trip duration, lodging.
 
 **Overnight anchor (khu vực nghỉ đêm)**:
-The area in which a night between two itinerary days falls, taken from where the earlier day ends or chosen by the traveler. It is a suggestion about an area, not a stop, a lodging, a price or a booking.
-_Avoid_: Hotel, homestay, accommodation booking.
+The fixed town or commune area where a night between two itinerary days falls, acting as the evening check-in destination for that day and the departure anchor for the next morning or return leg. It remains distinct from a suggested or chosen lodging place, price, or booking.
+_Avoid_: Hotel, homestay, accommodation booking, unverified lodging pin.
 
 **Night-area preference (khu vực nghỉ đêm mong muốn)**:
 An area the traveler explicitly asks to sleep in on a given night. It is honoured when a selected stop belongs to that area and reported plainly when it cannot be arranged; it is a preference, not a validity rule.
