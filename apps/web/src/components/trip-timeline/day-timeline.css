@@ -709,7 +709,8 @@
 
   .dt-lunch-wrap,
   .dt-visit-main-col,
-  .dt-marker-body {
+  .dt-marker-body,
+  .dt-travel-leg {
     grid-column: 2;
     min-width: 0;
   }
@@ -723,7 +724,8 @@
     gap: var(--tv-space-2);
   }
 
-  .dt-suggestion-marker .dt-marker-time--empty {
+  .dt-suggestion-marker .dt-marker-time--empty,
+  .dt-leg-item .dt-marker-time--empty {
     display: none;
   }
 
@@ -786,6 +788,42 @@
   margin-right: 4px;
 }
 
+.tripsage-access-direction {
+  display: grid;
+  gap: 4px;
+}
+
+.tripsage-access-step--meta {
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-xs);
+  padding-left: 8px;
+  border-left: 2px solid var(--tv-line);
+}
+
+.tripsage-access-warn {
+  margin: 2px 0 0;
+  color: var(--tv-warn-ink);
+  font-size: var(--tv-text-xs);
+}
+
+.tripsage-access-total {
+  margin: 2px 0 0;
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  color: var(--tv-ink-2);
+}
+
+.dt-travel-leg {
+  margin: 0;
+  font-size: var(--tv-text-xs);
+  color: var(--tv-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-travel-leg.is-unverified {
+  color: var(--tv-ink-3);
+}
+
 @media (max-width: 768px) {
   .dt-day-heading {
     grid-template-columns: 20px minmax(0, 1fr);
@@ -812,7 +850,8 @@
   /* The 2-column grid only places time and card explicitly; the lunch, stop-nearby, and marker content join column 2. */
   .dt-lunch-wrap,
   .dt-visit-main-col,
-  .dt-marker-body {
+  .dt-marker-body,
+  .dt-travel-leg {
     grid-column: 2;
     min-width: 0;
   }
@@ -825,7 +864,8 @@
     gap: var(--tv-space-2);
   }
 
-  .dt-suggestion-marker .dt-marker-time--empty {
+  .dt-suggestion-marker .dt-marker-time--empty,
+  .dt-leg-item .dt-marker-time--empty {
     display: none;
   }
 

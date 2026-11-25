@@ -568,3 +568,232 @@ export function shouldSuggestHub(result: PlannerResult): boolean {
   }
   return false;
 }
+
+/** D11 & D12: standard airport check-in lead time and airport ↔ bus station reference transit times. */
+export const AIRPORT_CHECKIN_BUFFER_MINUTES = 120;
+export const AIRPORT_TRANSFER_REFERENCES = {
+  NOI_BAI_MY_DINH_MINUTES: 60,
+} as const;
+
+export type AccessScheduleStep =
+  | {
+      kind: "CHECKIN";
+      clockLabel: string | null;
+      text: string;
+    }
+  | {
+      kind: "SEGMENT";
+      segmentIndex: number;
+      segment: AccessLegPart["outbound"][number];
+      clockLabel: string | null;
+      durationMinutes: number;
+    }
+  | {
+      kind: "LAYOVER";
+      clockLabel: string | null;
+      gapMinutes: number | null;
+      transferMinutes: number | null;
+      transferLabel: string | null;
+      tightWarning: string | null;
+    };
+
+export type AccessDirectionSchedule = {
+  steps: AccessScheduleStep[];
+  travelMinutes: number;
+  totalSpanMinutes: number | null;
+  hasMissingDuration: boolean;
+  startsWithFlight: boolean;
+  warnings: string[];
+};
+
+export function formatDurationVi(minutes: number): string {
+  const safe = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(safe / 60);
+  const mins = safe % 60;
+  if (hours === 0) return `${mins} phút`;
+  return mins > 0 ? `${hours} giờ ${mins} phút` : `${hours} giờ`;
+}
+
+function parseClockHhMm(value?: string): number | null {
+  if (!value) return null;
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value.trim());
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function formatClockOffsetVi(minute: number): string {
+  const dayOffset = Math.floor(minute / 1440);
+  const withinDay = ((minute % 1440) + 1440) % 1440;
+  const hh = String(Math.floor(withinDay / 60)).padStart(2, "0");
+  const mm = String(withinDay % 60).padStart(2, "0");
+  return dayOffset > 0 ? `${hh}:${mm} (+${dayOffset} ngày)` : `${hh}:${mm}`;
+}
+
+function isNoiBaiEndpoint(label: string): boolean {
+  const lower = label.toLowerCase();
+  return lower.includes("nội bài") || lower.includes("noi bai") || /\bhan\b/i.test(label);
+}
+
+function isHaNoiBusEndpoint(label: string): boolean {
+  const lower = label.toLowerCase();
+  return lower.includes("mỹ đình") || lower.includes("my dinh") || lower.includes("hà nội") || lower.includes("ha noi");
+}
+
+function resolveInterModalTransfer(
+  prev: AccessLegPart["outbound"][number],
+  next: AccessLegPart["outbound"][number],
+): { minutes: number; label: string } | null {
+  const isFlightToBus = prev.mode === "FLIGHT" && next.mode !== "FLIGHT";
+  const isBusToFlight = prev.mode !== "FLIGHT" && next.mode === "FLIGHT";
+  if (!isFlightToBus && !isBusToFlight) return null;
+  if (
+    (isFlightToBus && isNoiBaiEndpoint(prev.to) && isHaNoiBusEndpoint(next.from)) ||
+    (isBusToFlight && isHaNoiBusEndpoint(prev.to) && isNoiBaiEndpoint(next.from))
+  ) {
+    return {
+      minutes: AIRPORT_TRANSFER_REFERENCES.NOI_BAI_MY_DINH_MINUTES,
+      label: isFlightToBus ? "Trung chuyển Nội Bài → Mỹ Đình" : "Trung chuyển Mỹ Đình → Nội Bài",
+    };
+  }
+  return null;
+}
+
+/**
+ * Builds an ordered, clock-aligned timeline for one access-leg direction (`outbound` or `return`),
+ * preserving midnight wraps (+1 ngày), Nội Bài ↔ Mỹ Đình reference transfer (~60m), and 2h pre-flight check-in.
+ */
+export function buildAccessDirectionSchedule(
+  segments: AccessLegPart["outbound"],
+  direction: "outbound" | "return",
+): AccessDirectionSchedule {
+  const steps: AccessScheduleStep[] = [];
+  const warnings: string[] = [];
+  const hasMissingDuration = segments.some(s => s.durationMinutes <= 0);
+  const travelMinutes = segments.reduce((sum, s) => sum + Math.max(0, s.durationMinutes), 0);
+  const startsWithFlight = segments[0]?.mode === "FLIGHT";
+
+  let prevEndMinute: number | null = null;
+  let firstStartMinute: number | null = null;
+  let lastEndMinute: number | null = null;
+  let allTimedAndSized = segments.length > 0;
+
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index]!;
+    const rawStart = parseClockHhMm(segment.departTime);
+    let startMinute = rawStart;
+    if (startMinute !== null && prevEndMinute !== null && startMinute < prevEndMinute) {
+      const daysToAdd = Math.ceil((prevEndMinute - startMinute) / 1440);
+      startMinute += daysToAdd * 1440;
+    }
+    const endMinute = startMinute !== null && segment.durationMinutes > 0
+      ? startMinute + segment.durationMinutes
+      : null;
+
+    if (index === 0) {
+      firstStartMinute = startMinute;
+      if (segment.mode === "FLIGHT") {
+        const checkinAt = startMinute !== null ? startMinute - AIRPORT_CHECKIN_BUFFER_MINUTES : null;
+        steps.push({
+          kind: "CHECKIN",
+          clockLabel: checkinAt !== null && checkinAt >= 0 ? `Từ ${formatClockOffsetVi(checkinAt)}` : null,
+          text: "Có mặt sân bay trước 2 giờ để làm thủ tục",
+        });
+      }
+    } else {
+      const prev = segments[index - 1]!;
+      const transfer = resolveInterModalTransfer(prev, segment);
+      const needsPreFlightCheckin = segment.mode === "FLIGHT";
+      const gapMinutes = prevEndMinute !== null && startMinute !== null ? startMinute - prevEndMinute : null;
+      const requiredMinutes = (transfer?.minutes ?? 0) + (needsPreFlightCheckin ? AIRPORT_CHECKIN_BUFFER_MINUTES : 0);
+
+      let tightWarning: string | null = null;
+      if (gapMinutes !== null && requiredMinutes > 0 && gapMinutes < requiredMinutes) {
+        const prefix = direction === "outbound" ? "Chặng đi" : "Chặng về";
+        const detail = needsPreFlightCheckin
+          ? `${transfer ? `cần ~${transfer.minutes} phút ${transfer.label.toLowerCase()} + ` : ""}2 giờ có mặt sân bay trước giờ bay`
+          : `cần ~${transfer!.minutes} phút ${transfer!.label.toLowerCase()}`;
+        tightWarning = `${prefix}: thời gian nối chuyến (${formatDurationVi(gapMinutes)}) khá sát (${detail}).`;
+        warnings.push(tightWarning);
+      }
+
+      if (gapMinutes !== null || transfer !== null || tightWarning !== null) {
+        let transferLabel: string | null = null;
+        if (transfer && gapMinutes !== null) {
+          const spare = gapMinutes - requiredMinutes;
+          transferLabel = spare >= 0
+            ? `${transfer.label} (~${transfer.minutes} phút tham khảo)${spare > 0 ? `, còn ${formatDurationVi(spare)} chờ` : ""}`
+            : `${transfer.label} (~${transfer.minutes} phút tham khảo)`;
+        } else if (transfer) {
+          transferLabel = `${transfer.label} (~${transfer.minutes} phút tham khảo)`;
+        } else if (gapMinutes !== null) {
+          transferLabel = gapMinutes > 0 ? `Chờ nối chuyến ${formatDurationVi(gapMinutes)}` : "Nối chuyến ngay";
+        }
+        steps.push({
+          kind: "LAYOVER",
+          clockLabel:
+            prevEndMinute !== null && startMinute !== null
+              ? `${formatClockOffsetVi(prevEndMinute)} → ${formatClockOffsetVi(startMinute)}`
+              : null,
+          gapMinutes,
+          transferMinutes: transfer?.minutes ?? null,
+          transferLabel,
+          tightWarning,
+        });
+      }
+
+      if (needsPreFlightCheckin) {
+        const checkinAt = startMinute !== null ? startMinute - AIRPORT_CHECKIN_BUFFER_MINUTES : null;
+        steps.push({
+          kind: "CHECKIN",
+          clockLabel: checkinAt !== null ? `Trước ${formatClockOffsetVi(checkinAt)}` : null,
+          text: "Có mặt sân bay trước 2 giờ",
+        });
+      }
+    }
+
+    if (startMinute === null || endMinute === null) {
+      allTimedAndSized = false;
+    }
+    steps.push({
+      kind: "SEGMENT",
+      segmentIndex: index,
+      segment,
+      clockLabel:
+        startMinute !== null && endMinute !== null
+          ? `${formatClockOffsetVi(startMinute)} → ${formatClockOffsetVi(endMinute)}`
+          : startMinute !== null
+            ? `Từ ${formatClockOffsetVi(startMinute)}`
+            : null,
+      durationMinutes: segment.durationMinutes,
+    });
+
+    if (endMinute !== null) {
+      prevEndMinute = endMinute;
+      lastEndMinute = endMinute;
+    } else {
+      prevEndMinute = null;
+    }
+  }
+
+  const totalSpanMinutes =
+    allTimedAndSized && firstStartMinute !== null && lastEndMinute !== null
+      ? lastEndMinute - firstStartMinute
+      : null;
+
+  return {
+    steps,
+    travelMinutes,
+    totalSpanMinutes,
+    hasMissingDuration,
+    startsWithFlight,
+    warnings,
+  };
+}
+
+/** D11: returns non-blocking transfer & airport check-in warnings across both access-leg directions. */
+export function collectAccessLegWarnings(leg: AccessLegPart | null | undefined): string[] {
+  if (!leg) return [];
+  const outbound = buildAccessDirectionSchedule(leg.outbound, "outbound");
+  const returning = buildAccessDirectionSchedule(leg.return, "return");
+  return [...outbound.warnings, ...returning.warnings];
+}

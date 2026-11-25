@@ -48,6 +48,74 @@ export interface DayTimelineLunch {
   onRequestMeals?: () => void;
 }
 
+export interface DayTimelineTravelLeg {
+  transport: "MOTORCYCLE" | "CAR";
+  distanceMeters: number | null;
+  durationMinutes: number | null;
+  restMinutes?: number | null;
+  photoMinutes?: number | null;
+  verified: boolean;
+}
+
+export function formatDistanceKmVi(distanceMeters: number): string {
+  const km = Math.round((distanceMeters / 1000) * 10) / 10;
+  return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(km)} km`;
+}
+
+export function formatTravelDurationApproxVi(minutes: number): string {
+  const safe = Math.max(1, Math.round(minutes));
+  const hours = Math.floor(safe / 60);
+  const mins = safe % 60;
+  if (hours === 0) return `khoảng ${safe} phút`;
+  return mins > 0 ? `khoảng ${hours} giờ ${mins} phút` : `khoảng ${hours} giờ`;
+}
+
+export function formatTravelLegLine(leg: DayTimelineTravelLeg): string {
+  if (!leg.verified || leg.distanceMeters == null || leg.durationMinutes == null) {
+    return "Chưa có dữ liệu tuyến";
+  }
+  const icon = leg.transport === "CAR" ? "🚗" : "🛵";
+  const parts = [
+    `${icon} ${formatDistanceKmVi(leg.distanceMeters)}`,
+    formatTravelDurationApproxVi(leg.durationMinutes),
+  ];
+  if (leg.restMinutes && leg.restMinutes > 0) parts.push(`nghỉ ${leg.restMinutes} phút`);
+  if (leg.photoMinutes && leg.photoMinutes > 0) parts.push(`+${leg.photoMinutes} phút chụp ảnh`);
+  return parts.join(" · ");
+}
+
+export function buildDayTimelineTravelLeg(args: {
+  transport: "MOTORCYCLE" | "CAR";
+  route?: {
+    status: string;
+    distanceMeters: number | null;
+    durationSeconds: number | null;
+  } | null;
+  restMinutes?: number | null;
+  photoMinutes?: number | null;
+}): DayTimelineTravelLeg {
+  const verified =
+    args.route?.status === "VERIFIED" &&
+    args.route.distanceMeters != null &&
+    args.route.durationSeconds != null;
+  if (!verified || !args.route) {
+    return {
+      transport: args.transport,
+      distanceMeters: null,
+      durationMinutes: null,
+      verified: false,
+    };
+  }
+  return {
+    transport: args.transport,
+    distanceMeters: args.route.distanceMeters,
+    durationMinutes: Math.max(1, Math.ceil(args.route.durationSeconds! / 60)),
+    restMinutes: args.restMinutes ?? 0,
+    photoMinutes: args.photoMinutes ?? 0,
+    verified: true,
+  };
+}
+
 export interface DayTimelineStop {
   id: string;
   destinationId: string;
@@ -65,6 +133,7 @@ export interface DayTimelineStop {
   preferenceBadges?: readonly string[];
   weatherSlot?: ReactNode;
   previewTarget?: PlacePreviewTarget | null;
+  travelFromPrevious?: DayTimelineTravelLeg | null;
   nearbyAfter?: readonly DayTimelineNearbyItem[];
   lunchAfter?: DayTimelineLunch | null;
 }
@@ -95,6 +164,8 @@ export interface DayTimelineDay {
   dayIndex: number;
   localDate?: string | null;
   transportLabel?: string;
+  totalDistanceMeters?: number | null;
+  totalTravelSeconds?: number | null;
   sunSlot?: ReactNode;
   departureCard?: ReactNode;
   breakfast?: { minute: number; durationMinutes: number; text: string } | null;
@@ -518,6 +589,14 @@ export function DayTimeline({
               <MapPin size={15} aria-hidden="true" />
               {day.stops.length} điểm dừng
             </span>
+            {day.totalDistanceMeters != null &&
+              day.totalTravelSeconds != null &&
+              day.totalDistanceMeters > 0 && (
+                <span>
+                  {formatDistanceKmVi(day.totalDistanceMeters)} ·{" "}
+                  {formatTravelDurationApproxVi(day.totalTravelSeconds / 60)} lái xe
+                </span>
+              )}
           </div>
         )}
       </div>
@@ -554,6 +633,20 @@ export function DayTimeline({
                     <p className="planner-break dt-break-line">
                       <Coffee size={13} aria-hidden="true" />
                       <strong>Ăn sáng</strong> {day.breakfast.text}
+                    </p>
+                  </li>
+                )}
+
+                {stop.travelFromPrevious && (
+                  <li className="dt-break-item dt-leg-item">
+                    <span aria-hidden="true" />
+                    <span className="dt-visit-time dt-marker-time--empty" aria-hidden="true" />
+                    <p
+                      className={`dt-travel-leg${
+                        stop.travelFromPrevious.verified ? "" : " is-unverified"
+                      }`}
+                    >
+                      {formatTravelLegLine(stop.travelFromPrevious)}
                     </p>
                   </li>
                 )}

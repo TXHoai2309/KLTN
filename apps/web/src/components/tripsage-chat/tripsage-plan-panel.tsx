@@ -5,9 +5,16 @@ import { Calendar, Columns2, Map, Maximize2, PanelRightClose, PanelRightOpen, X 
 
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
-import { DayTimeline, type DayTimelineDay, type DayTimelineNearbyItem, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
+import {
+  buildDayTimelineTravelLeg,
+  DayTimeline,
+  type DayTimelineDay,
+  type DayTimelineNearbyItem,
+  type DayTimelineStop,
+} from "@/components/trip-timeline/day-timeline";
 import { estimateCheckinTravelMinutes, isSameTravelArea } from "@/components/trip-timeline/suggestion-markers";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
+import { scenicBufferMinutes } from "@/modules/trip-planner/planner-engine";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import { ItineraryValidationPanel } from "@/components/trip-planner/planner-presentation";
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
@@ -381,6 +388,32 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         .map((s) => s.title);
 
       const showLunchAfter = resolvedLunch !== null && idx === resolvedLunch.afterStopIndex;
+      const prevStop = idx > 0 ? activePlannerDay.stops[idx - 1] : null;
+      const transferLeg =
+        idx > 0 || (activePlannerDay.day > 1 && stop.inbound != null)
+          ? (proposal.journeyPlan?.legs ?? []).find(
+              (leg) =>
+                leg.day === activePlannerDay.day &&
+                leg.kind === "TRANSFER" &&
+                leg.to.kind === "ATTRACTION" &&
+                leg.to.destinationId === stop.destination.id &&
+                (!prevStop || leg.from.kind !== "ATTRACTION" || leg.from.destinationId === prevStop.destination.id),
+            ) ?? null
+          : null;
+      const legRoute = transferLeg?.route ?? stop.inbound ?? null;
+      const photoMinutes =
+        proposal.journeyPlan && legRoute?.status === "VERIFIED"
+          ? scenicBufferMinutes(legRoute.durationSeconds, proposal.requirement)
+          : 0;
+      const travelFromPrevious =
+        idx > 0 || (activePlannerDay.day > 1 && stop.inbound != null)
+          ? buildDayTimelineTravelLeg({
+              transport: proposal.requirement.transport,
+              route: legRoute,
+              restMinutes: transferLeg?.restMinutes ?? 0,
+              photoMinutes,
+            })
+          : null;
 
       return {
         id: `${proposal.proposalId}-${activePlannerDay.day}-${stop.destination.id}`,
@@ -395,6 +428,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         description: cleanTravelerDisplay(stop.destination.description) || null,
         preferenceBadges: preferenceBadges.length > 0 ? preferenceBadges : undefined,
         previewTarget: previewTargetForStop(stop),
+        travelFromPrevious,
         nearbyAfter: nearbyAfter.length > 0 ? nearbyAfter : undefined,
         lunchAfter: showLunchAfter && resolvedLunch
           ? {
@@ -454,10 +488,16 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         })
       : null;
 
+    const allStopLegsVerified = stops.every(
+      (s) => !s.travelFromPrevious || s.travelFromPrevious.verified,
+    );
+
     return {
       dayIndex: activePlannerDay.day,
       localDate: activePlannerDay.date,
       transportLabel: transportText,
+      totalDistanceMeters: allStopLegsVerified ? activePlannerDay.distanceMeters : null,
+      totalTravelSeconds: allStopLegsVerified ? activePlannerDay.travelSeconds : null,
       stops,
       eveningPlan,
       estimatedCheckinTravelMinutes,

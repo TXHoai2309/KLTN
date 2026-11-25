@@ -309,11 +309,34 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
       }
       const lunch = lunchAfter(day.stops, lunchMinutes);
       day.stops.forEach((stop, index) => {
-        if (index > 0 && stop.inbound) {
-          const minutes = stop.inbound.durationSeconds === null ? null : Math.ceil(stop.inbound.durationSeconds / 60);
-          // ADR-55: the planner leaves roadside photo time on journey plans; say so instead of hiding it in the clock.
-          const photo = result.journeyPlan ? scenicBufferMinutes(stop.inbound.durationSeconds, result.requirement) : 0;
-          items.push({ slotId: `d${day.day}-drive-${index}`, kind: "DRIVE", startMinute: null, endMinute: stop.arrivalMinute, label: minutes === null ? "Di chuyển (chưa có dữ liệu tuyến)" : photo ? `Di chuyển khoảng ${minutes} phút, thêm ~${photo} phút dừng chụp ảnh dọc đường` : `Di chuyển khoảng ${minutes} phút` });
+        if (index > 0 || (day.day > 1 && stop.inbound)) {
+          const prevStop = index > 0 ? day.stops[index - 1] : null;
+          const leg = legs.find(
+            item =>
+              item.day === day.day &&
+              item.kind === "TRANSFER" &&
+              item.to.kind === "ATTRACTION" &&
+              item.to.destinationId === stop.destination.id &&
+              (!prevStop || item.from.kind !== "ATTRACTION" || item.from.destinationId === prevStop.destination.id),
+          );
+          const route = leg?.route ?? stop.inbound;
+          const verified = route?.status === "VERIFIED" && route.distanceMeters != null && route.durationSeconds != null;
+          if (verified && route) {
+            const minutes = Math.max(1, Math.ceil(route.durationSeconds! / 60));
+            const kmValue = Math.round((route.distanceMeters! / 1000) * 10) / 10;
+            const kmLabel = `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(kmValue)} km`;
+            const icon = result.requirement.transport === "CAR" ? "🚗" : "🛵";
+            // ADR-55: the planner leaves roadside photo time on journey plans; say so instead of hiding it in the clock.
+            const photo = result.journeyPlan ? scenicBufferMinutes(route.durationSeconds, result.requirement) : 0;
+            const rest = leg?.restMinutes ?? 0;
+            const hoursPart = minutes >= 60 ? `khoảng ${Math.floor(minutes / 60)} giờ${minutes % 60 ? ` ${minutes % 60} phút` : ""}` : `khoảng ${minutes} phút`;
+            const parts = [`${icon} ${kmLabel}`, hoursPart];
+            if (rest > 0) parts.push(`nghỉ ${rest} phút`);
+            if (photo > 0) parts.push(`+${photo} phút chụp ảnh`);
+            items.push({ slotId: `d${day.day}-drive-${index}`, kind: "DRIVE", startMinute: null, endMinute: stop.arrivalMinute, label: parts.join(" · ") });
+          } else if (index > 0 || stop.inbound) {
+            items.push({ slotId: `d${day.day}-drive-${index}`, kind: "DRIVE", startMinute: null, endMinute: stop.arrivalMinute, label: "Chưa có dữ liệu tuyến" });
+          }
         }
         const description = formatVisitDescription(stop.destination.description);
         const externalPrefix = "ext:gplace:";

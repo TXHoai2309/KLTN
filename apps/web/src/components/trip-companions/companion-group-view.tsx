@@ -34,7 +34,11 @@ import {
 } from "lucide-react";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
-import { DayTimeline, type DayTimelineDay } from "@/components/trip-timeline/day-timeline";
+import {
+  buildDayTimelineTravelLeg,
+  DayTimeline,
+  type DayTimelineDay,
+} from "@/components/trip-timeline/day-timeline";
 import { splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
@@ -1156,42 +1160,79 @@ function CompanionGroupContent({
                     }),
                   );
 
+                  const planTransferLegs = (currentGroup.meetingPoint?.plan?.legs ?? []).filter(
+                    (leg) => leg.day === day.dayIndex && leg.kind === "TRANSFER",
+                  );
+                  const stops = day.visits.map((visit, visitIdx) => {
+                    const destId = visit.destination.destinationId || visit.visitId;
+                    const isUnavailable = visit.destination.availability === "UNAVAILABLE";
+                    const area = cleanAreaDisplayLabel(visit.destination.area) ?? inferDestinationArea(visit.destination.name);
+                    const fallbackVisual = getDestinationVisual(visit.destination.name, area);
+                    const stopNearby = nearbyByStopOrder.get(visit.order);
+                    const prevVisit = visitIdx > 0 ? day.visits[visitIdx - 1] : null;
+                    const transferLeg =
+                      visitIdx > 0 || day.dayIndex > 1
+                        ? planTransferLegs.find(
+                            (leg) =>
+                              leg.to.kind === "ATTRACTION" &&
+                              leg.to.destinationId === visit.destination.destinationId &&
+                              (!prevVisit ||
+                                leg.from.kind !== "ATTRACTION" ||
+                                leg.from.destinationId === prevVisit.destination.destinationId),
+                          ) ?? null
+                        : null;
+                    const travelFromPrevious =
+                      visitIdx > 0 || transferLeg !== null
+                        ? buildDayTimelineTravelLeg({
+                            transport: currentGroup.introduction.transport === "CAR" ? "CAR" : "MOTORCYCLE",
+                            route: transferLeg?.route ?? null,
+                            restMinutes: transferLeg?.restMinutes ?? 0,
+                          })
+                        : null;
+                    return {
+                      id: visit.visitId,
+                      destinationId: destId,
+                      order: visit.order,
+                      name: visit.destination.name,
+                      area,
+                      startMinute: visit.startMinute,
+                      durationMinutes: visit.plannedDurationMinutes,
+                      image: visit.destination.image ?? null,
+                      fallbackVisual,
+                      href: !isUnavailable && visit.destination.destinationId
+                        ? `/destinations/${visit.destination.destinationId}`
+                        : null,
+                      unavailable: isUnavailable,
+                      travelFromPrevious,
+                      nearbyAfter: stopNearby && stopNearby.length > 0 ? stopNearby : undefined,
+                      lunchAfter:
+                        dayLunch && visitIdx === dayLunch.afterStopIndex
+                          ? {
+                              fromMinute: dayLunch.fromMinute,
+                              toMinute: dayLunch.toMinute,
+                              durationMinutes: dayLunch.durationMinutes,
+                            }
+                          : null,
+                    };
+                  });
+                  const legSteps = stops.filter((s) => s.travelFromPrevious != null);
+                  const allGroupLegsVerified =
+                    legSteps.length > 0 && legSteps.every((s) => s.travelFromPrevious!.verified);
+                  const groupTotalDistance = allGroupLegsVerified
+                    ? planTransferLegs.reduce((sum, l) => sum + (l.route.distanceMeters ?? 0), 0)
+                    : null;
+                  const groupTotalSeconds = allGroupLegsVerified
+                    ? planTransferLegs.reduce((sum, l) => sum + (l.route.durationSeconds ?? 0), 0)
+                    : null;
+
                   const timelineDay: DayTimelineDay = {
                     dayIndex: day.dayIndex,
                     localDate: day.localDate,
                     transportLabel,
+                    totalDistanceMeters: groupTotalDistance && groupTotalDistance > 0 ? groupTotalDistance : null,
+                    totalTravelSeconds: groupTotalSeconds && groupTotalSeconds > 0 ? groupTotalSeconds : null,
                     emptyMessage: "Chưa có điểm dừng nào được lên lịch cho ngày này.",
-                    stops: day.visits.map((visit, visitIdx) => {
-                      const destId = visit.destination.destinationId || visit.visitId;
-                      const isUnavailable = visit.destination.availability === "UNAVAILABLE";
-                      const area = cleanAreaDisplayLabel(visit.destination.area) ?? inferDestinationArea(visit.destination.name);
-                      const fallbackVisual = getDestinationVisual(visit.destination.name, area);
-                      const stopNearby = nearbyByStopOrder.get(visit.order);
-                      return {
-                        id: visit.visitId,
-                        destinationId: destId,
-                        order: visit.order,
-                        name: visit.destination.name,
-                        area,
-                        startMinute: visit.startMinute,
-                        durationMinutes: visit.plannedDurationMinutes,
-                        image: visit.destination.image ?? null,
-                        fallbackVisual,
-                        href: !isUnavailable && visit.destination.destinationId
-                          ? `/destinations/${visit.destination.destinationId}`
-                          : null,
-                        unavailable: isUnavailable,
-                        nearbyAfter: stopNearby && stopNearby.length > 0 ? stopNearby : undefined,
-                        lunchAfter:
-                          dayLunch && visitIdx === dayLunch.afterStopIndex
-                            ? {
-                                fromMinute: dayLunch.fromMinute,
-                                toMinute: dayLunch.toMinute,
-                                durationMinutes: dayLunch.durationMinutes,
-                              }
-                            : null,
-                      };
-                    }),
+                    stops,
                     chosenLodging: day.dayIndex < totalDays && !eveningPlan && dayLodging
                       ? { nightIndex: dayLodging.nightIndex, name: dayLodging.name, placeId: dayLodging.placeId }
                       : null,

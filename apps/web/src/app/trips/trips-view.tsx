@@ -3,11 +3,11 @@
 import { DaySun, StopWeather, TripWeatherFootnote } from "@/modules/trip-weather/trip-weather-inline";
 import { TripWeatherProvider } from "@/modules/trip-weather/trip-weather-state";
 import Link from "next/link";
-import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
+import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE, scenicBufferMinutes } from "@/modules/trip-planner/planner-engine";
 import { Fragment, useEffect, useRef, useState, useMemo, type CSSProperties } from "react";
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, travelerDayColorVar, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
-import { DayTimeline, type DayTimelineDay, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
+import { buildDayTimelineTravelLeg, DayTimeline, type DayTimelineDay, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
 import { estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
@@ -1490,11 +1490,68 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   }),
                 );
 
+                const dayTransferLegs = (trip.journey?.plan?.legs ?? []).filter(
+                  (leg) => leg.day === day.dayIndex && leg.kind === "TRANSFER",
+                );
+                let dayVerifiedDistance = 0;
+                let dayVerifiedSeconds = 0;
+                let dayHasAnyStopLeg = false;
+                let dayAllLegsVerified = true;
+
                 const stops: DayTimelineStop[] = day.visits.map((visit, visitIndex) => {
                   const nextVisit = day.visits[visitIndex + 1];
+                  const prevVisit = visitIndex > 0 ? day.visits[visitIndex - 1] : null;
                   const departure = visit.startMinute + visit.plannedDurationMinutes;
                   const lunch = nextVisit ? lunchBreakAfter(trip.journey?.plan, nextVisit.destination.id, departure, nextVisit.startMinute) : null;
                   const stopNearby = nearbyByStopOrder.get(visit.order);
+                  const inboundTransferLeg =
+                    visitIndex > 0 || day.dayIndex > 1
+                      ? dayTransferLegs.find(
+                          (leg) =>
+                            leg.to.kind === "ATTRACTION" &&
+                            leg.to.destinationId === visit.destination.id &&
+                            (!prevVisit || leg.from.kind !== "ATTRACTION" || leg.from.destinationId === prevVisit.destination.id),
+                        ) ?? null
+                      : null;
+                  const legRoute = inboundTransferLeg?.route ?? visit.inbound ?? null;
+                  const prevArrivalGap =
+                    prevVisit != null
+                      ? visit.startMinute - (inboundTransferLeg?.endMinute ?? prevVisit.startMinute + prevVisit.plannedDurationMinutes)
+                      : 0;
+                  let photoMinutes = 0;
+                  if (
+                    legRoute?.status === "VERIFIED" &&
+                    legRoute.durationSeconds != null &&
+                    inboundTransferLeg &&
+                    inboundTransferLeg.endMinute != null
+                  ) {
+                    const relaxedScenic = scenicBufferMinutes(legRoute.durationSeconds, { transport: trip.transport, pace: "RELAXED" });
+                    const moderateScenic = scenicBufferMinutes(legRoute.durationSeconds, { transport: trip.transport, pace: "MODERATE" });
+                    const rawGap = Math.max(0, visit.startMinute - inboundTransferLeg.endMinute);
+                    if (relaxedScenic > 0 && rawGap >= relaxedScenic && rawGap <= relaxedScenic + 10) {
+                      photoMinutes = relaxedScenic;
+                    } else if (moderateScenic > 0 && rawGap >= moderateScenic && rawGap <= moderateScenic + 10) {
+                      photoMinutes = moderateScenic;
+                    }
+                  }
+                  const hasInboundLeg = visitIndex > 0 || inboundTransferLeg !== null || (day.dayIndex > 1 && visit.inbound != null && prevArrivalGap >= 0);
+                  const travelFromPrevious = hasInboundLeg
+                    ? buildDayTimelineTravelLeg({
+                        transport: trip.transport,
+                        route: legRoute,
+                        restMinutes: inboundTransferLeg?.restMinutes ?? 0,
+                        photoMinutes,
+                      })
+                    : null;
+                  if (travelFromPrevious) {
+                    dayHasAnyStopLeg = true;
+                    if (travelFromPrevious.verified && legRoute?.distanceMeters != null && legRoute.durationSeconds != null) {
+                      dayVerifiedDistance += legRoute.distanceMeters;
+                      dayVerifiedSeconds += legRoute.durationSeconds;
+                    } else {
+                      dayAllLegsVerified = false;
+                    }
+                  }
                   return {
                     id: visit.id,
                     destinationId: visit.destination.id,
@@ -1510,6 +1567,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                     external: Boolean(visit.destination.external),
                     unavailable: visit.destination.availability === "UNAVAILABLE",
                     weatherSlot: <StopWeather day={day.dayIndex} destinationId={visit.destination.id} />,
+                    travelFromPrevious,
                     nearbyAfter: stopNearby && stopNearby.length > 0 ? stopNearby : undefined,
                     lunchAfter: lunch ? { fromMinute: lunch.from, toMinute: lunch.to, durationMinutes: 60 } : null,
                   };
@@ -1530,6 +1588,8 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   dayIndex: day.dayIndex,
                   localDate: day.localDate,
                   transportLabel: transportLabel(trip.transport),
+                  totalDistanceMeters: dayHasAnyStopLeg && dayAllLegsVerified && dayVerifiedDistance > 0 ? dayVerifiedDistance : null,
+                  totalTravelSeconds: dayHasAnyStopLeg && dayAllLegsVerified && dayVerifiedDistance > 0 ? dayVerifiedSeconds : null,
                   sunSlot: <DaySun day={day.dayIndex} />,
                   departureCard:
                     day.dayIndex === 1 && trip.journey?.journey.origin ? (

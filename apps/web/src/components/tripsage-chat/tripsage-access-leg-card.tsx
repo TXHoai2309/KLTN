@@ -1,14 +1,18 @@
 import { Bus, Plane, TrainFront, Van } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { ACCESS_MODE_LABELS, type AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
+import {
+  ACCESS_MODE_LABELS,
+  buildAccessDirectionSchedule,
+  formatDurationVi,
+  type AccessLegPart,
+} from "@/modules/tripsage-chat/tripsage-access-leg";
 import { formatVnd } from "@/modules/tripsage-chat/tripsage-cost";
 import { PinButton, type PinControl } from "./tripsage-pin-button";
 
 const ICON: Record<keyof typeof ACCESS_MODE_LABELS, ReactNode> = {
   FLIGHT: <Plane size={14} aria-hidden="true" />, SLEEPER_BUS: <Bus size={14} aria-hidden="true" />, TRAIN: <TrainFront size={14} aria-hidden="true" />, SHUTTLE: <Van size={14} aria-hidden="true" />,
 };
-const hours = (minutes: number) => `${Math.floor(minutes / 60)} giờ${minutes % 60 ? ` ${minutes % 60} phút` : ""}`;
 const formatDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
 function segmentPriceLabel(segment: AccessLegPart["outbound"][number]): string {
@@ -22,36 +26,73 @@ function segmentPriceLabel(segment: AccessLegPart["outbound"][number]): string {
 
 function Segments({
   title,
+  direction,
   segments,
   minutes,
   headingLevel = 5,
 }: {
   title: string;
+  direction: "outbound" | "return";
   segments: AccessLegPart["outbound"];
   minutes: number;
   headingLevel?: 3 | 5;
 }) {
-  const hasMissingDuration = segments.some(s => s.durationMinutes <= 0);
+  const schedule = buildAccessDirectionSchedule(segments, direction);
   const Heading = headingLevel === 3 ? "h3" : "h5";
+  const headingMinutes = schedule.totalSpanMinutes ?? minutes;
   return (
-    <div>
+    <div className="tripsage-access-direction">
       <Heading className="font-semibold">
         {title}
-        {minutes > 0 ? ` · khoảng ${hours(minutes)}${hasMissingDuration ? " (chưa đủ mọi đoạn)" : ""}` : ""}
+        {headingMinutes > 0
+          ? ` · khoảng ${formatDurationVi(headingMinutes)}${schedule.hasMissingDuration ? " (chưa đủ mọi đoạn)" : ""}`
+          : ""}
       </Heading>
-      <ol className="tripsage-access-segments">
-        {segments.map((segment, index) => (
-          <li key={index}>
-            {ICON[segment.mode]} <strong>{ACCESS_MODE_LABELS[segment.mode]}</strong> {segment.from} → {segment.to}
-            <span className="assistant-muted">
-              {" · "}
-              {segment.departTime ? `đi ${segment.departTime}, ` : ""}
-              {segment.durationMinutes > 0 ? `${hours(segment.durationMinutes)} · ` : ""}
-              {segmentPriceLabel(segment)}
-            </span>
-          </li>
-        ))}
+      <ol className="tripsage-access-segments tripsage-access-schedule">
+        {schedule.steps.map((step, index) => {
+          if (step.kind === "CHECKIN") {
+            return (
+              <li key={`checkin-${index}`} className="tripsage-access-step tripsage-access-step--meta">
+                {step.clockLabel ? <strong>{step.clockLabel}</strong> : null}
+                <span>{step.clockLabel ? ` · ${step.text}` : step.text}</span>
+              </li>
+            );
+          }
+          if (step.kind === "LAYOVER") {
+            return (
+              <li key={`layover-${index}`} className="tripsage-access-step tripsage-access-step--meta">
+                {step.clockLabel ? <strong>{step.clockLabel}</strong> : null}
+                {step.transferLabel ? (
+                  <span>{step.clockLabel ? ` · ${step.transferLabel}` : step.transferLabel}</span>
+                ) : null}
+                {step.tightWarning && (
+                  <p className="tripsage-access-warn" role="note">{step.tightWarning}</p>
+                )}
+              </li>
+            );
+          }
+          const segment = step.segment;
+          return (
+            <li key={`seg-${step.segmentIndex}`} className="tripsage-access-step">
+              {ICON[segment.mode]}{" "}
+              {step.clockLabel ? <strong>{step.clockLabel} · </strong> : null}
+              <strong>{ACCESS_MODE_LABELS[segment.mode]}</strong> {segment.from} → {segment.to}
+              <span className="assistant-muted">
+                {" · "}
+                {segment.durationMinutes > 0 ? `${formatDurationVi(segment.durationMinutes)} · ` : ""}
+                {segmentPriceLabel(segment)}
+              </span>
+            </li>
+          );
+        })}
       </ol>
+      {schedule.totalSpanMinutes !== null && schedule.totalSpanMinutes > 0 && (
+        <p className="tripsage-access-total">
+          Tổng {formatDurationVi(schedule.totalSpanMinutes)}{" "}
+          {schedule.startsWithFlight ? "từ lúc cất cánh" : "từ lúc khởi hành"}
+          {schedule.travelMinutes > 0 ? ` (trong đó ${formatDurationVi(schedule.travelMinutes)} di chuyển)` : ""}
+        </p>
+      )}
     </div>
   );
 }
@@ -75,8 +116,8 @@ export function TripsageAccessLegCard({
     return (
       <section className="tripsage-access tripsage-access-inline" aria-label={only === "outbound" ? "Chặng đi tới điểm tập kết" : "Chặng về nhà"}>
         {only === "outbound"
-          ? <Segments title={`Trước ngày 1 · ${leg.homeCity} → ${leg.hubName}`} segments={leg.outbound} minutes={leg.outboundMinutes} headingLevel={inlineHeadingLevel} />
-          : <Segments title={`Sau ngày cuối · ${leg.hubName} → ${leg.homeCity}`} segments={leg.return} minutes={leg.returnMinutes} headingLevel={inlineHeadingLevel} />}
+          ? <Segments title={`Trước ngày 1 · ${leg.homeCity} → ${leg.hubName}`} direction="outbound" segments={leg.outbound} minutes={leg.outboundMinutes} headingLevel={inlineHeadingLevel} />
+          : <Segments title={`Sau ngày cuối · ${leg.hubName} → ${leg.homeCity}`} direction="return" segments={leg.return} minutes={leg.returnMinutes} headingLevel={inlineHeadingLevel} />}
       </section>
     );
   }
@@ -95,8 +136,8 @@ export function TripsageAccessLegCard({
           pins && <PinButton item={{ kind: "ACCESS", leg }} control={pins} label="chặng tiếp cận" />
         )}
       </div>
-      <Segments title="Trước chuyến đi" segments={leg.outbound} minutes={leg.outboundMinutes} />
-      <Segments title="Sau chuyến đi" segments={leg.return} minutes={leg.returnMinutes} />
+      <Segments title="Trước chuyến đi" direction="outbound" segments={leg.outbound} minutes={leg.outboundMinutes} />
+      <Segments title="Sau chuyến đi" direction="return" segments={leg.return} minutes={leg.returnMinutes} />
       <p className="text-sm">
         Tổng tham khảo cả nhóm {leg.travelers} người:{" "}
         <strong>
