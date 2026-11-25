@@ -118,6 +118,7 @@ export function createPlannerService(deps: {
         }
       }
       let journeyPlan = journey?.journeyPlan;
+      let journeyAdvisories = journey?.warnings ?? [];
       if (journey) {
         const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
         if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
@@ -141,6 +142,7 @@ export function createPlannerService(deps: {
           stopStatuses = jOpt.stopStatuses;
           journeyPlan = jOpt.journeyPlan;
           selected = jOpt.selected;
+          journeyAdvisories = jOpt.warnings ?? [];
         }
       }
       for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "PASS";
@@ -148,7 +150,7 @@ export function createPlannerService(deps: {
         { code: "ORIGIN_AND_LODGING_UNKNOWN", message: "Điểm đầu được đề xuất theo vị trí và sở thích; chưa biết nơi xuất phát, chỗ nghỉ hoặc điểm kết thúc của bạn. Chưa tính các chặng này. Chuyển ngày dùng chặng từ điểm cuối ngày trước.", day: null, destinationId: null }];
       if (journey) warnings[1] = { code: "LODGING_LEGS_NOT_INCLUDED", message: "Đã yêu cầu tính hai chặng nơi xuất phát; xem kết quả kiểm tra dữ liệu. Chưa tính đường ra/vào nơi nghỉ; không có nơi nghỉ hoặc booking được xác nhận.", day: null, destinationId: null };
       if (journey?.reduced) warnings.push({ code: "JOURNEY_STOPS_REDUCED", message: "Đã giảm số điểm tham quan so với nhịp độ đã chọn để kịp chặng đi và về. Thêm ngày hoặc đổi giờ đi/về để có thêm điểm.", day: null, destinationId: null });
-      if (journey) warnings.push(...journeyDrivingWarnings(requirement, days), { code: "LUNCH_ALLOWANCE", message: "Lịch chừa 60 phút nghỉ trưa khi một lượt tham quan kết thúc khoảng 11:30–14:00 và trong ngày còn điểm tiếp theo.", day: null, destinationId: null });
+      if (journey) warnings.push(...journeyDrivingWarnings(requirement, days), ...journeyAdvisories, { code: "LUNCH_ALLOWANCE", message: "Lịch luôn bố trí 60 phút nghỉ trưa linh động khi ngày tham quan vắt qua trưa (kèm lưu ý nếu ăn sớm hoặc muộn hơn khung quen thuộc) và không chặn lưu chuyến.", day: null, destinationId: null });
       if (pairs.length) warnings.push({ code: "ROUTE_ESTIMATE", message: "Tuyến đường và thời gian di chuyển là ước tính theo mạng đường, đã giới hạn tốc độ trung bình theo đường núi (tối đa ô tô 50 và xe máy 40, tính bằng km/h); không xác minh giao thông, thời tiết hay điều kiện đường thực tế.", day: null, destinationId: null });
       if (requirement.transport === "MOTORCYCLE") warnings.push({ code: "MOTORCYCLE_CAUTION", message: "Tuyến xe máy có thể thiếu lối đi hoặc hướng dẫn chính xác; cần kiểm tra điều kiện đường trước chuyến đi.", day: null, destinationId: null });
       if (selected.length < candidates.length) warnings.push({ code: "BOUNDED_SELECTION", message: "Chỉ đề xuất các điểm có tọa độ và thời lượng trong giới hạn kế hoạch; không phải danh sách đầy đủ điểm đến Hà Giang.", day: null, destinationId: null });

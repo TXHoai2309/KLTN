@@ -19,7 +19,7 @@ import {
 import { assertJourneyCoverage, assertJourneyReady } from "../trip-origin/trip-origin-service";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 import { mapsProviderFromEnv } from "../map/maps-provider";
-import type { TripValidation, ValidationFinding } from "../trip-validation/trip-validation";
+import type { TripValidation, ValidationAdvisory, ValidationFinding } from "../trip-validation/trip-validation";
 import { hasJourneyChanged, type EditCandidate } from "./edit-candidate";
 import type { PreviewJourneySummary } from "./edit-journey-helper";
 import type {
@@ -43,6 +43,7 @@ type EvaluateJourneyInput = {
 
 export type EvaluatedEditJourney = {
   extraFindings: ValidationFinding[];
+  advisories?: ValidationAdvisory[];
   journeySummary?: PreviewJourneySummary;
   nextJourneySnapshot?: SavedJourney | null;
 };
@@ -369,6 +370,7 @@ export async function evaluateEditJourney(
     ? activeJourney.returnDepartureMinute
     : lastEntry.visit.startMinute + lastEntry.visit.plannedDurationMinutes;
 
+  const advisories: ValidationAdvisory[] = [];
   if (returnRoute.status === "VERIFIED" && returnStartMinute !== null && returnRoute.durationSeconds !== null) {
     const accumulatedBeforeReturn = lastDayEmpty ? 0 : (currentDayAccumulated ?? 0);
     const retDrive = driveWithRest(
@@ -392,11 +394,10 @@ export async function evaluateEditJourney(
       activeJourney.returnDeadlineMinute != null &&
       estimatedReturnArrivalMinute > activeJourney.returnDeadlineMinute
     ) {
-      extraFindings.push({
-        group: "travelTime",
-        status: "VIOLATION",
+      // ADR-57 (D1): late return arrival is a non-blocking advisory, never a save blocker.
+      advisories.push({
         reasonCode: "RETURN_DEADLINE_MISSED",
-        message: `Dự kiến về đến nơi lúc ${fromMinute(estimatedReturnArrivalMinute)}, trễ hơn hạn về ${fromMinute(activeJourney.returnDeadlineMinute)}.`,
+        message: `Lưu ý: dự kiến về tới nơi lúc ${fromMinute(estimatedReturnArrivalMinute)}, trễ hơn khung giờ mong muốn ${fromMinute(activeJourney.returnDeadlineMinute)} (vẫn có thể lưu chuyến).`,
         affectedVisitId: lastEntry.visit.visitId,
       });
     }
@@ -461,6 +462,7 @@ export async function evaluateEditJourney(
 
   return {
     extraFindings,
+    ...(advisories.length > 0 ? { advisories } : {}),
     journeySummary,
     ...(nextJourneySnapshot !== undefined ? { nextJourneySnapshot } : {}),
   };
@@ -469,8 +471,12 @@ export async function evaluateEditJourney(
 export function mergeJourneyValidation(
   baseValidation: TripValidation,
   extraFindings: readonly ValidationFinding[],
+  extraAdvisories: readonly ValidationAdvisory[] = [],
 ): TripValidation {
-  if (extraFindings.length === 0) return baseValidation;
+  const combinedAdvisories = [...(baseValidation.advisories ?? []), ...extraAdvisories];
+  if (extraFindings.length === 0) {
+    return combinedAdvisories.length > 0 ? { ...baseValidation, advisories: combinedAdvisories } : baseValidation;
+  }
   const currentTravel = baseValidation.groups.travelTime;
   const combinedFindings = [...currentTravel.findings, ...extraFindings];
   const hasViolation =
@@ -499,5 +505,6 @@ export function mergeJourneyValidation(
       nextGroups.minimumDuration.status === "SATISFIED" &&
       nextGroups.travelTime.status === "SATISFIED" &&
       nextGroups.scheduleConflict.status === "SATISFIED",
+    ...(combinedAdvisories.length > 0 ? { advisories: combinedAdvisories } : {}),
   };
 }

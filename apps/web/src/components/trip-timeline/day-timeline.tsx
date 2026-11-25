@@ -44,6 +44,7 @@ export interface DayTimelineLunch {
   fromMinute: number;
   toMinute: number;
   durationMinutes?: number;
+  note?: string | null;
   suggestions?: readonly DayTimelineNearbyItem[];
   onRequestMeals?: () => void;
 }
@@ -860,6 +861,9 @@ export function DayTimeline({
                           <UtensilsCrossed size={13} aria-hidden="true" />
                           <strong>Nghỉ trưa</strong> {minuteLabel(resolvedLunch.fromMinute)} –{" "}
                           {minuteLabel(resolvedLunch.toMinute)}
+                          {resolvedLunch.note && (
+                            <span className="dt-suggestion-dist"> · {resolvedLunch.note}</span>
+                          )}
                         </p>
                       </div>
                     </li>
@@ -1044,6 +1048,9 @@ export function DayTimeline({
                         <UtensilsCrossed size={13} aria-hidden="true" />
                         <strong>Nghỉ trưa</strong> {minuteLabel(resolvedLunch.fromMinute)} –{" "}
                         {minuteLabel(resolvedLunch.toMinute)}
+                        {resolvedLunch.note && (
+                          <span className="dt-suggestion-dist"> · {resolvedLunch.note}</span>
+                        )}
                         {resolvedLunch.onRequestMeals && (
                           <button
                             type="button"

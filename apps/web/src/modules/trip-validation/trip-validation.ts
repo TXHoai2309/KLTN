@@ -29,10 +29,17 @@ export type ValidationFinding = {
   toVisitId?: string;
   visitIds?: [string, string];
 };
+export type ValidationAdvisory = {
+  reasonCode: string;
+  message: string;
+  affectedVisitId?: string;
+};
 export type TripValidation = {
   timeReference: string;
   groups: Record<ValidationGroupName, { status: ValidationGroupStatus; findings: ValidationFinding[] }>;
   canConfirm: boolean;
+  /** Non-blocking flexible advisories (e.g. ADR-57 late return arrival or flexible meal timing). */
+  advisories?: ValidationAdvisory[];
 };
 
 export type InTripOriginLeg = {

@@ -623,7 +623,7 @@ export async function validateEditCandidateFull(
     enforceReadyForSave: enforceJourneyReadyForSave,
   });
 
-  const mergedValidation = mergeJourneyValidation(baseValidation, evaluated.extraFindings);
+  const mergedValidation = mergeJourneyValidation(baseValidation, evaluated.extraFindings, evaluated.advisories);
   return {
     validation: mergedValidation,
     legs,

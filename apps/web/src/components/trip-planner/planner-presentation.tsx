@@ -50,7 +50,11 @@ export function lunchBreakAfter(plan: JourneyPlan | null | undefined, nextDestin
   const leg = plan?.legs.find(item => item.kind === "TRANSFER" && item.to.kind === "ATTRACTION" && item.to.destinationId === nextDestinationId);
   if (!leg || leg.endMinute == null || departureMinute === null || nextArrivalMinute === null) return null;
   const drive = leg.route.durationSeconds == null ? null : Math.ceil(leg.route.durationSeconds / 60);
-  if (!takesLunchAfter(departureMinute, drive) || nextArrivalMinute - leg.endMinute < LUNCH.minutes) return null;
+  const gapAfterDrive = nextArrivalMinute - leg.endMinute;
+  const triggered =
+    takesLunchAfter(departureMinute, drive, { allowLateExtended: true })
+    || (departureMinute >= LUNCH.earlyFromMinute && gapAfterDrive >= LUNCH.minutes);
+  if (!triggered || gapAfterDrive < LUNCH.minutes) return null;
   return { from: departureMinute, to: departureMinute + LUNCH.minutes };
 }
 

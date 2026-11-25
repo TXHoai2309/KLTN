@@ -173,18 +173,57 @@ export function timelineSlotIds(visitsPerDay: readonly number[]): Set<string> {
 
 const driveMinutes = (seconds: number | null | undefined) => (seconds == null ? null : Math.ceil(seconds / 60));
 
-/** Mirrors the planner's lunch rule (ADR-55): the first visit after which the planner took lunch, with room left for it. */
+/** ADR-57 (D4): gentle advisory note when lunch falls outside the familiar 11:15–13:30 band. */
+export function formatLunchAdvisoryNote(fromMinute: number): string | undefined {
+  if (fromMinute < LUNCH.fromMinute) return "Nghỉ trưa sớm (trước điểm tham quan dài)";
+  if (fromMinute > 810) return "Nghỉ trưa muộn hơn khung quen thuộc";
+  return undefined;
+}
+
+/**
+ * Mirrors the planner's flexible lunch rule (ADR-55 / ADR-57 D4):
+ * checks validated gap between stops first (allowing pre-long-visit early or delayed lunch),
+ * falling back to trailing lunch only when active sightseeing crosses all of 12:00–13:00 with no earlier lunch break.
+ */
 function lunchAfter(
-  stops: readonly { departureMinute: number | null; arrivalMinute: number | null; inbound?: { durationSeconds: number | null } | null }[],
+  stops: readonly { arrivalMinute: number | null; departureMinute: number | null; visitDurationMinutes?: number; inbound?: { durationSeconds: number | null } | null }[],
   lunchMinutes: number = DEFAULT_LUNCH_MINUTES,
-): { afterIndex: number; fromMinute: number; toMinute: number; durationMinutes: number } | null {
+  requirement?: { transport: "MOTORCYCLE" | "CAR"; pace?: "RELAXED" | "MODERATE" | "PACKED" | null; hasJourney?: boolean },
+): { afterIndex: number; fromMinute: number; toMinute: number; durationMinutes: number; note?: string } | null {
   for (let index = 0; index < stops.length - 1; index++) {
     const departure = stops[index]!.departureMinute;
     const next = stops[index + 1]!;
     const drive = driveMinutes(next.inbound?.durationSeconds);
-    if (!takesLunchAfter(departure, drive)) continue;
+    const scenic = requirement?.hasJourney && next.inbound?.durationSeconds != null ? scenicBufferMinutes(next.inbound.durationSeconds, { transport: requirement.transport, pace: requirement.pace ?? null }) : 0;
+    const nextVisit = next.visitDurationMinutes ?? (next.arrivalMinute !== null && next.departureMinute !== null ? next.departureMinute - next.arrivalMinute : null);
+    if (!takesLunchAfter(departure, drive, {
+      nextVisitMinutes: nextVisit,
+      nextScenicMinutes: scenic,
+      isNextLastStop: index + 1 === stops.length - 1,
+      allowLateExtended: true,
+    })) continue;
     if (next.arrivalMinute !== null && next.arrivalMinute < departure! + lunchMinutes + (drive ?? 0)) continue;
-    return { afterIndex: index, fromMinute: departure!, toMinute: departure! + lunchMinutes, durationMinutes: lunchMinutes };
+    const fromMinute = departure!;
+    return {
+      afterIndex: index,
+      fromMinute,
+      toMinute: fromMinute + lunchMinutes,
+      durationMinutes: lunchMinutes,
+      ...(formatLunchAdvisoryNote(fromMinute) ? { note: formatLunchAdvisoryNote(fromMinute) } : {}),
+    };
+  }
+  if (stops.length >= 2) {
+    const firstArr = stops[0]!.arrivalMinute;
+    const lastDep = stops.at(-1)!.departureMinute;
+    if (firstArr !== null && lastDep !== null && firstArr < 750 && lastDep > 780) {
+      return {
+        afterIndex: stops.length - 1,
+        fromMinute: lastDep,
+        toMinute: Math.min(1080, lastDep + lunchMinutes),
+        durationMinutes: Math.max(30, Math.min(lunchMinutes, 1080 - lastDep)),
+        note: "Nghỉ trưa muộn (lịch liên tục qua trưa)",
+      };
+    }
   }
   return null;
 }
@@ -194,6 +233,7 @@ export interface ResolvedDayLunch {
   fromMinute: number;
   toMinute: number;
   durationMinutes: number;
+  note?: string;
 }
 
 /**
@@ -219,11 +259,12 @@ export function resolveDayLunchBreak(input: {
     if (!lunchItem) return null;
     const fromMinute = lunchItem.startMinute!;
     const toMinute = lunchItem.endMinute!;
-    for (let i = stops.length - 2; i >= 0; i--) {
+    const note = lunchItem.description ?? formatLunchAdvisoryNote(fromMinute);
+    for (let i = stops.length - 1; i >= 0; i--) {
       const dep = stops[i]!.departureMinute;
-      const nextArr = stops[i + 1]!.arrivalMinute;
+      const nextArr = i + 1 < stops.length ? stops[i + 1]!.arrivalMinute : null;
       if (dep !== null && dep <= fromMinute && (nextArr === null || toMinute <= nextArr)) {
-        return { afterStopIndex: i, fromMinute, toMinute, durationMinutes: toMinute - fromMinute };
+        return { afterStopIndex: i, fromMinute, toMinute, durationMinutes: toMinute - fromMinute, ...(note ? { note } : {}) };
       }
     }
     return null;
@@ -233,13 +274,30 @@ export function resolveDayLunchBreak(input: {
     const dep = stops[i]!.departureMinute;
     const next = stops[i + 1]!;
     const nextArr = next.arrivalMinute;
+    const nextVisit = nextArr !== null && next.departureMinute !== null ? next.departureMinute - nextArr : null;
     const leg = journeyPlan?.legs.find(
       (item) => item.kind === "TRANSFER" && item.to.kind === "ATTRACTION" && item.to.destinationId === next.destinationId,
     );
-    if (!takesLunchAfter(dep, driveMinutes(leg?.route.durationSeconds))) continue;
+    if (!takesLunchAfter(dep, driveMinutes(leg?.route.durationSeconds), {
+      nextVisitMinutes: nextVisit,
+      isNextLastStop: i + 1 === stops.length - 1,
+      allowLateExtended: true,
+    }) && !(dep !== null && dep >= LUNCH.earlyFromMinute && leg && leg.endMinute != null && nextArr !== null && nextArr - leg.endMinute >= lunchMinutes)) continue;
     if (nextArr !== null && nextArr < dep! + lunchMinutes) continue;
     if (leg && leg.endMinute != null && nextArr !== null && nextArr - leg.endMinute < lunchMinutes) continue;
-    return { afterStopIndex: i, fromMinute: dep!, toMinute: dep! + lunchMinutes, durationMinutes: lunchMinutes };
+    const note = formatLunchAdvisoryNote(dep!);
+    return { afterStopIndex: i, fromMinute: dep!, toMinute: dep! + lunchMinutes, durationMinutes: lunchMinutes, ...(note ? { note } : {}) };
+  }
+  const firstArr = stops[0]!.arrivalMinute;
+  const lastDep = stops.at(-1)!.departureMinute;
+  if (firstArr !== null && lastDep !== null && firstArr < 750 && lastDep > 780) {
+    return {
+      afterStopIndex: stops.length - 1,
+      fromMinute: lastDep,
+      toMinute: Math.min(1080, lastDep + lunchMinutes),
+      durationMinutes: Math.max(30, Math.min(lunchMinutes, 1080 - lastDep)),
+      note: "Nghỉ trưa muộn (lịch liên tục qua trưa)",
+    };
   }
   return null;
 }
@@ -307,7 +365,11 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
       } else if (travelOnlyLabel && !legs.some(leg => leg.kind === "RETURN" && leg.day === day.day)) {
         items.push({ slotId: `d${day.day}-drive-0`, kind: "DRIVE", startMinute: null, endMinute: null, label: travelOnlyLabel });
       }
-      const lunch = lunchAfter(day.stops, lunchMinutes);
+      const lunch = lunchAfter(day.stops, lunchMinutes, {
+        transport: result.requirement.transport,
+        pace: result.requirement.pace,
+        hasJourney: Boolean(result.journeyPlan),
+      });
       day.stops.forEach((stop, index) => {
         if (index > 0 || (day.day > 1 && stop.inbound)) {
           const prevStop = index > 0 ? day.stops[index - 1] : null;
@@ -364,7 +426,14 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
           ...(googleMapsUrl ? { googleMapsUrl } : {}),
         });
         if (lunch !== null && index === lunch.afterIndex) {
-          items.push({ slotId: `d${day.day}-lunch`, kind: "LUNCH", startMinute: lunch.fromMinute, endMinute: lunch.toMinute, label: `Nghỉ trưa ${lunch.durationMinutes} phút` });
+          items.push({
+            slotId: `d${day.day}-lunch`,
+            kind: "LUNCH",
+            startMinute: lunch.fromMinute,
+            endMinute: lunch.toMinute,
+            label: `Nghỉ trưa ${lunch.durationMinutes} phút`,
+            ...(lunch.note ? { description: lunch.note } : {}),
+          });
         }
       });
       const returning = legs.find(leg => leg.kind === "RETURN" && leg.day === day.day);

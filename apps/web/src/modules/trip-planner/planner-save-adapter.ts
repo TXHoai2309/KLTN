@@ -49,7 +49,6 @@ export function toTripValidation(proposal: PlannerResult, now = new Date()): Tri
         issue.code === "TRANSFER_TOO_SHORT" ||
         issue.code === "SCHEDULE_CONFLICT" ||
         issue.code === "NO_TIME_SLOT" ||
-        issue.code === "RETURN_DEADLINE_MISSED" ||
         issue.code === "OVERNIGHT_DRIVING_UNSUPPORTED" ||
         issue.code === "NO_SIGHTSEEING_TIME" ||
         issue.code === "JOURNEY_REST_MISMATCH" ||
@@ -63,6 +62,14 @@ export function toTripValidation(proposal: PlannerResult, now = new Date()): Tri
       affectedVisitId: issue.destinationId ?? undefined,
     }));
   };
+
+  const advisories = proposal.warnings
+    .filter((w) => w.code === "RETURN_DEADLINE_MISSED")
+    .map((w) => ({
+      reasonCode: w.code,
+      message: w.message,
+      ...(w.destinationId ? { affectedVisitId: w.destinationId } : {}),
+    }));
 
   return {
     timeReference: now.toISOString(),
@@ -87,5 +94,6 @@ export function toTripValidation(proposal: PlannerResult, now = new Date()): Tri
     canConfirm:
       proposal.eligibleForFinalConfirmation &&
       proposal.checks.every((c) => c.status === "PASS"),
+    ...(advisories.length > 0 ? { advisories } : {}),
   };
 }

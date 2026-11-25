@@ -48,16 +48,29 @@ describe("fresh authoritative journey Save", () => {
     payload.proposal.journey!.departureMinute = 420;
     expect(await saveTrip(new Headers(), payload, "journey-save-1", test.deps, now)).toMatchObject({ status: "FAILED", error: { code: "IDEMPOTENCY_KEY_REUSED" } });
   });
-  it("accepts fresh preview while rejecting forged timing, below-minimum visits, missing distance and missed return deadline", async () => {
+  it("accepts fresh preview while rejecting forged timing, below-minimum visits and missing distance; treats missed return deadline as non-blocking advisory", async () => {
     const test = fixture();
     expect((await previewTripValidation(new Headers(), input().proposal, test.deps, now)).canConfirm).toBe(true);
-    for (const change of [(value: ReturnType<typeof input>) => { value.proposal.days[0]!.visits[0]!.startMinute = 400; }, (value: ReturnType<typeof input>) => { value.proposal.days[0]!.visits[0]!.plannedDurationMinutes = 10; }, (value: ReturnType<typeof input>) => { value.proposal.journey!.returnDeadlineMinute = 700; }]) {
+    for (const change of [(value: ReturnType<typeof input>) => { value.proposal.days[0]!.visits[0]!.startMinute = 400; }, (value: ReturnType<typeof input>) => { value.proposal.days[0]!.visits[0]!.plannedDurationMinutes = 10; }]) {
       const payload = input(); change(payload);
       await expect(saveTrip(new Headers(), payload, "invalid-save", test.deps, now)).rejects.toMatchObject({ code: "TRIP_VALIDATION_FAILED" });
     }
+    // ADR-57 (D1): Quá giờ muốn về không chặn cứng lưu chuyến; chỉ gắn advisory.
+    const lateReturnPayload = input();
+    lateReturnPayload.proposal.journey!.returnDeadlineMinute = 700;
+    const lateSaved = await saveTrip(new Headers(), lateReturnPayload, "late-return-advisory-save", test.deps, now);
+    expect(lateSaved).toMatchObject({
+      status: "SUCCESS",
+      data: {
+        validation: {
+          canConfirm: true,
+          advisories: expect.arrayContaining([expect.objectContaining({ reasonCode: "RETURN_DEADLINE_MISSED" })]),
+        },
+      },
+    });
     test.deps.getRoute = async () => ({ kind: "ok", provider: "STADIA_MAPS", durationSeconds: 60 });
     await expect(saveTrip(new Headers(), input(), "missing-distance", test.deps, now)).rejects.toMatchObject({ code: "TRIP_VALIDATION_FAILED" });
-    expect(test.trips).toHaveLength(0);
+    expect(test.trips).toHaveLength(1);
   });
   it.each(["coordinates", "minimum", "role"])("detects changed %s after fresh route work before transactional write", async kind => {
     const test = fixture(); let calls = 0;

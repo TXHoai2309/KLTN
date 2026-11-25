@@ -114,6 +114,7 @@ export function journeyValidationResult(
   const travel = validated.checks.find(check => check.key === "TRAVEL_TIME")!;
   if (scheduled.check.status === "VIOLATION" || travel.status === "PASS") travel.status = scheduled.check.status;
   travel.issues.push(...scheduled.check.issues);
+  if (scheduled.warnings?.length) warnings.push(...scheduled.warnings);
   return plannerResultSchema.parse({ proposalId: "fresh-save-validation", phase: "PRELIMINARY_PROPOSAL", status: validated.checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : validated.checks.every(check => check.status === "PASS") ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
     requirement, timezone: "Asia/Ho_Chi_Minh", days: scheduled.days, checks: validated.checks, warnings, reasonCodes: [], eligibleForFinalConfirmation: validated.checks.every(check => check.status === "PASS") && requirement.startDate !== null, journeyPlan: scheduled.journeyPlan });
 }

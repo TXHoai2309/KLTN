@@ -1601,6 +1601,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           ? evaluateOvernightConstraints(effectiveOvernightAreas, result, usableBase)
           : { met: [], unmet: [] };
         latestUnmetOvernight = overnightCheck.unmet;
+        const returnAdvisory = result.warnings.find(w => w.code === "RETURN_DEADLINE_MISSED") ?? null;
         // Bug 6 + Point 1: track open schedule decisions vs save-readiness for closing-question priority.
         const decisionIssues: string[] = [];
         if (overnightCheck.unmet.length > 0) {
@@ -1624,6 +1625,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           );
         } else if (result.checks.some(check => check.status === "VIOLATION")) {
           context.emitQuickReplies?.(statedDate?.tentative ? ["Đổi ngày", "Bớt điểm", "Đi thong thả hơn", "Giữ bản nháp này"] : ["Bớt điểm", "Đi thong thả hơn", "Giữ bản nháp này"]);
+        } else if (returnAdvisory) {
+          context.emitQuickReplies?.(["Giữ lịch này", "Đi sớm hơn ngày cuối", "Bớt điểm ngày cuối"]);
         } else if (statedDate?.tentative) {
           context.emitQuickReplies?.(["Đổi ngày", "Xem bảng chi phí", "Đổi nhịp đi"]);
         }
@@ -1683,15 +1686,16 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
           ...(nearbySummary && nearbySummary.eveningAnchors > 0 ? { nearbySummary } : {}),
-          ...(droppedChosenStops.length ? { droppedStops: `Đã bỏ bớt ${droppedChosenStops.length} điểm để kịp giờ (${droppedChosenStops.map(cleanStopName).join(", ")}). Hãy nói tự nhiên theo góc nhìn người dùng kèm tên điểm cụ thể (ví dụ 'Mình bỏ bớt ${droppedChosenStops.slice(0, 2).map(cleanStopName).join(" và ")} để kịp giờ; muốn giữ thì thêm 1 ngày'); KHÔNG dùng từ 'hệ thống đã lược' và KHÔNG gọi proposeItinerary lại trong lượt này.` } : droppedStops.length ? { droppedStops: `Đã bỏ bớt ${droppedStops.length} điểm gợi ý thêm để kịp giờ (${droppedStops.map(cleanStopName).join(", ")}).` } : {}),
+          ...(droppedChosenStops.length ? { droppedStops: `Đã bỏ bớt ${droppedChosenStops.length} điểm để kịp giờ (${droppedChosenStops.map(cleanStopName).join(", ")}). Hãy nói tự nhiên theo góc nhìn người dùng kèm tên điểm cụ thể; KHÔNG dùng từ 'hệ thống đã lược' và KHÔNG gọi proposeItinerary lại trong lượt này.` } : droppedStops.length ? { droppedStops: `Đã bỏ bớt ${droppedStops.length} điểm gợi ý thêm để kịp giờ (${droppedStops.map(cleanStopName).join(", ")}).` } : {}),
           ...(droppedSuggestedStops.length ? { droppedSuggestedStops: droppedSuggestedStops.map(cleanStopName) } : {}),
           ...(flexApplied ? { flexApplied: flexMessage } : {}),
+          ...(returnAdvisory ? { returnAdvisory: returnAdvisory.message } : {}),
           // Without the reasons the model re-proposes blindly; tell it which day broke which rule so one repair is enough.
           ...(result.checks.some(check => check.status === "VIOLATION") ? {
             problems: result.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.slice(0, 6).map(issue => ({ check: check.key, day: issue.day ?? null, code: issue.code, message: issue.message }))),
-            repairHint: "Có vi phạm. Đọc problems rồi chỉnh đúng ngày bị nêu (máy chủ đã thử bớt điểm kém nổi bật nhất; nếu vẫn chưa đạt thì thay điểm xa nhất của ngày đó bằng điểm gần tuyến hơn) và gọi proposeItinerary lại một lần; đừng đổi các ngày không bị nêu. Nếu vẫn không đạt, nói thẳng với người dùng nguyên nhân và đề xuất thêm ngày hoặc đổi điểm xuất phát.",
+            repairHint: "Có vi phạm. Đọc problems rồi chỉnh đúng ngày bị nêu (máy chủ đã thử bớt điểm kém nổi bật nhất; nếu vẫn chưa đạt thì thay điểm xa nhất của ngày đó bằng điểm gần tuyến hơn) và gọi proposeItinerary lại một lần; đừng đổi các ngày không bị nêu. Nếu vẫn không đạt, nói thẳng với người dùng nguyên nhân và đề xuất điều chỉnh.",
           } : {}),
-          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận. Máy chủ đã sắp thứ tự và chia ngày theo tuyến đường; giới thiệu đúng thứ tự trong lịch.${survivingAddedStops.length ? ` Máy chủ đã thêm ${survivingAddedStops.map(cleanStopName).join(", ")} để lấp thời gian trống.` : ""}${unmetOvernightNote}${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi song song trong cùng một bước searchHotels (stays gồm các khu nghỉ đêm, gộp đêm liên tiếp cùng điểm cuối ngày) cùng estimateCosts / planAccessLeg (nếu không phụ thuộc nhau) để panel cập nhật nhanh." : " Có thể gọi song song các công cụ độc lập như searchPlaces (chỗ nghỉ) và estimateCosts trong cùng một bước."}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
+          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận. Máy chủ đã sắp thứ tự và chia ngày theo tuyến đường; giới thiệu đúng thứ tự trong lịch.${survivingAddedStops.length ? ` Máy chủ đã thêm ${survivingAddedStops.map(cleanStopName).join(", ")} để lấp thời gian trống.` : ""}${unmetOvernightNote}${returnAdvisory ? ` QUAN TRỌNG — LƯU Ý GIỜ VỀ (KHÔNG CHẶN LƯU): ${returnAdvisory.message} Hãy nêu ngắn gọn 1 câu về giờ về dự kiến so với giờ mong muốn, khẳng định CHUYẾN VẪN LƯU ĐƯỢC (tuyệt đối KHÔNG gạ thêm ngày hay nhận là AI lên sai lịch), rồi mời chọn giữ lịch hoặc chỉnh nhẹ.` : ""}${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi song song trong cùng một bước searchHotels (stays gồm các khu nghỉ đêm, gộp đêm liên tiếp cùng điểm cuối ngày) cùng estimateCosts / planAccessLeg (nếu không phụ thuộc nhau) để panel cập nhật nhanh." : " Có thể gọi song song các công cụ độc lập như searchPlaces (chỗ nghỉ) và estimateCosts trong cùng một bước."}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
       } catch (error) {
         // A plan the server rejected for its input (wrong day count, unknown id) is a correction, not one of the turn's tries.
         if (error instanceof AppError && error.code === "INVALID_AI_PLAN") {

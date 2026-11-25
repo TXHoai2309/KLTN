@@ -57,19 +57,24 @@ describe("one-day authoritative origin routing/scheduling", () => {
     expect(onTime.checks.find(check => check.key === "TRAVEL_TIME")?.status).toBe("PASS");
     expect(onTime.journeyPlan?.totals).toEqual({ drivingSeconds: 7200, restMinutes: 0, distanceMeters: 2000 });
     expect(onTime.days[0]?.travelSeconds).toBe(7200);
+    // ADR-57 (D1): Quá giờ muốn về chỉ tạo advisory warning, không chặn cứng (VIOLATION) việc lưu lịch.
     const late = await service(provider(60 * 60, 61 * 60)).propose("owner", "deadline-missed", { ...base, journey });
-    expect(late.checks.find(check => check.key === "TRAVEL_TIME")).toMatchObject({ status: "VIOLATION", issues: expect.arrayContaining([expect.objectContaining({ code: "RETURN_DEADLINE_MISSED" })]) });
+    expect(late.checks.find(check => check.key === "TRAVEL_TIME")).toMatchObject({ status: "PASS" });
+    expect(late.eligibleForFinalConfirmation).toBe(true);
+    expect(late.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: "RETURN_DEADLINE_MISSED" })]));
     const missing: RouteProvider = { route: provider(0).route, coordinateRoute: async () => ({ status: "INSUFFICIENT_DATA", reason: "NO_ROUTE", durationSeconds: null, distanceMeters: null, provider: null }) };
     const unknown = await service(missing).propose("owner", "deadline-unknown", { ...base, journey });
     expect(unknown.journeyPlan?.totals.drivingSeconds).toBeNull();
     expect(unknown.status).toBe("INSUFFICIENT_DATA");
     expect(unknown.reasonCodes).not.toContain("RETURN_DEADLINE_MISSED");
+    expect(unknown.warnings).not.toEqual(expect.arrayContaining([expect.objectContaining({ code: "RETURN_DEADLINE_MISSED" })]));
   });
   it("adds rest before deadline/overnight checks and never truncates route or visit evidence", async () => {
     const journey = { ...COMPLETE_JOURNEY_FIXTURE, departureMinute: 480, returnDeadlineMinute: 850 };
     const result = await service(provider(0, 300 * 60)).propose("owner", "return-with-rest", { ...base, journey });
     expect(result.journeyPlan?.legs.at(-1)).toMatchObject({ restMinutes: 30, startMinute: 540, endMinute: 870 });
-    expect(result.reasonCodes).toContain("RETURN_DEADLINE_MISSED");
+    expect(result.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: "RETURN_DEADLINE_MISSED" })]));
+    expect(result.eligibleForFinalConfirmation).toBe(true);
     const overnight = await service(provider(0, 900 * 60)).propose("owner", "return-overnight", base);
     expect(overnight.reasonCodes).toContain("OVERNIGHT_DRIVING_UNSUPPORTED");
     expect(overnight.days[0]?.stops).toHaveLength(1);

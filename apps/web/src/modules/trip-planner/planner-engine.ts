@@ -10,12 +10,49 @@ import type { RoutePair } from "./planner-routes";
 
 // Explicit preliminary planning preferences, not verified destination availability.
 export const PLANNING_WINDOW = { startMinute: 480, endMinute: 1080 } as const;
-/** ADR-55: lunch once a visit ends 11:15–14:00, or when the drive to the next stop would pass 12:00. */
-export const LUNCH = { fromMinute: 675, toMinute: 840, byMinute: 720, minutes: 60 } as const;
-export function takesLunchAfter(departureMinute: number | null, nextDriveMinutes: number | null): boolean {
+/** ADR-55 / ADR-57 (D4): flexible lunch break around midday — prefers pre-visit lunch before long stops crossing 12:30 and never hard-blocks early/late placement. */
+export const LUNCH = {
+  fromMinute: 675,
+  toMinute: 840,
+  byMinute: 720,
+  earlyFromMinute: 645,
+  overlapEndMinute: 750,
+  lateToMinute: 900,
+  minutes: 60,
+} as const;
+export type TakesLunchOptions = {
+  nextVisitMinutes?: number | null;
+  nextScenicMinutes?: number | null;
+  isNextLastStop?: boolean;
+  allowLateExtended?: boolean;
+};
+export function takesLunchAfter(
+  departureMinute: number | null,
+  nextDriveMinutes: number | null,
+  options?: TakesLunchOptions,
+): boolean {
   if (departureMinute === null) return false;
-  if (departureMinute >= LUNCH.fromMinute) return departureMinute <= LUNCH.toMinute;
-  return nextDriveMinutes !== null && departureMinute + nextDriveMinutes > LUNCH.byMinute;
+  if (departureMinute >= LUNCH.fromMinute) {
+    const upper = options?.allowLateExtended ? LUNCH.lateToMinute : LUNCH.toMinute;
+    return departureMinute <= upper;
+  }
+  if (nextDriveMinutes !== null && departureMinute + nextDriveMinutes > LUNCH.byMinute) return true;
+  if (
+    departureMinute >= LUNCH.earlyFromMinute
+    && nextDriveMinutes !== null
+    && options?.nextVisitMinutes != null
+  ) {
+    const projectedArrival = departureMinute + nextDriveMinutes + (options.nextScenicMinutes ?? 0);
+    const projectedEnd = projectedArrival + options.nextVisitMinutes;
+    if (
+      projectedArrival <= LUNCH.toMinute
+      && projectedEnd > LUNCH.overlapEndMinute
+      && (departureMinute >= 660 || projectedEnd >= 810 || options.isNextLastStop)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 /** ADR-55: from Day 2, breakfast then travel at 07:30 (was 06:00). Visits still begin within the planning window. */
 export const MORNING_DEPARTURE_MINUTE = 450;
@@ -149,9 +186,40 @@ export function schedulePlannerDays(requirement: TripRequirementInput, selected:
       if (state !== "PLANNED") arrival = null;
       const departure = arrival === null ? null : arrival + duration;
       cursor = departure;
-      const nextDrive = order < candidates.length - 1 ? routes.get(candidates[order + 1]!.id)?.durationSeconds ?? null : null;
-      if (timing && !lunched && order < candidates.length - 1 && takesLunchAfter(departure, nextDrive === null ? null : Math.ceil(nextDrive / 60))) {
-        cursor = departure! + lunchMinutes; lunched = true;
+      const nextCandidate = order < candidates.length - 1 ? candidates[order + 1]! : null;
+      const nextInbound = nextCandidate ? routes.get(nextCandidate.id) ?? null : null;
+      const nextDrive = nextInbound?.durationSeconds ?? null;
+      const nextDriveMin = nextDrive === null ? null : Math.ceil(nextDrive / 60);
+      const nextDuration = nextCandidate ? visitDuration(nextCandidate) : null;
+      const nextScenicMin = nextDrive !== null && timing ? scenicBufferMinutes(nextDrive, requirement) : 0;
+      const wantsLunchNow = timing && !lunched && nextCandidate !== null && takesLunchAfter(departure, nextDriveMin, {
+        nextVisitMinutes: nextDuration,
+        nextScenicMinutes: nextScenicMin,
+        isNextLastStop: order + 1 === candidates.length - 1,
+        allowLateExtended: true,
+      });
+      if (wantsLunchNow && departure !== null && nextCandidate !== null) {
+        let canShiftNext = true;
+        const shiftedBase = departure + lunchMinutes;
+        const fixedNext = timing?.fixedArrivals?.get(nextCandidate.id);
+        if (fixedNext !== undefined) {
+          canShiftNext = nextInbound?.status === "VERIFIED"
+            ? fixedNext >= shiftedBase + (nextDriveMin ?? 0) + nextScenicMin + (timing?.restBefore.get(nextCandidate.id) ?? 0)
+            : false;
+        } else if (nextDuration !== null && nextInbound?.status === "VERIFIED") {
+          const nextRest = timing?.restBefore.get(nextCandidate.id) ?? 0;
+          const shiftedArr = Math.ceil(Math.max(PLANNING_WINDOW.startMinute, shiftedBase + (nextDriveMin ?? 0) + nextScenicMin + nextRest) / 5) * 5;
+          const nextHours = openingFor(nextCandidate, date);
+          if (nextHours?.status === "OPEN") {
+            canShiftNext = nextHours.intervals.some(iv => Math.max(shiftedArr, iv.opensAtMinute) + nextDuration <= Math.min(iv.closesAtMinute, dayEnd));
+          } else {
+            canShiftNext = shiftedArr + nextDuration <= dayEnd;
+          }
+        }
+        if (canShiftNext) {
+          cursor = shiftedBase;
+          lunched = true;
+        }
       }
       const { id, name, description, area, address, category, latitude, longitude, image } = candidate;
       return { order: order + 1, destination: { id, name, description, area, address, category, latitude, longitude, image, ...(candidate.external ? { external: true as const } : {}) }, arrivalMinute: arrival,

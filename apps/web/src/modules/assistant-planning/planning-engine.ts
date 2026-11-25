@@ -66,6 +66,7 @@ export async function scheduleSelection(needs: PlanningNeeds, selection: Plannin
     travel.issues.push(...journey.check.issues);
     let days = journey.days;
     let journeyPlan = journey.journeyPlan;
+    let journeyAdvisories = journey.warnings ?? [];
     let weatherAdjusted = false;
     const jOpt = await optimizeJourneyForWeather({
       requirement,
@@ -83,10 +84,11 @@ export async function scheduleSelection(needs: PlanningNeeds, selection: Plannin
       checks = jOpt.checks;
       stopStatuses = jOpt.stopStatuses;
       journeyPlan = jOpt.journeyPlan;
+      journeyAdvisories = jOpt.warnings ?? [];
     }
     for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "PASS";
     const allPass = checks.every(check => check.status === "PASS");
-    const warnings: PlannerResult["warnings"] = [{ code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu chính thức.", day: null, destinationId: null }, { code: "LODGING_LEGS_NOT_INCLUDED", message: "Mốc định tuyến là điểm tham quan, không phải nơi nghỉ. Chưa tính chặng ra/vào nơi nghỉ.", day: null, destinationId: null }, ...journeyDrivingWarnings(requirement, days)];
+    const warnings: PlannerResult["warnings"] = [{ code: "PRELIMINARY_ONLY", message: "Đề xuất sơ bộ; chưa lưu chính thức.", day: null, destinationId: null }, { code: "LODGING_LEGS_NOT_INCLUDED", message: "Mốc định tuyến là điểm tham quan, không phải nơi nghỉ. Chưa tính chặng ra/vào nơi nghỉ.", day: null, destinationId: null }, ...journeyDrivingWarnings(requirement, days), ...journeyAdvisories];
     if (weatherAdjusted) warnings.push(WEATHER_PREFERENCE_WARNING);
     return plannerResultSchema.parse({ proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days,
       journeyPlan, checks, status: checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",

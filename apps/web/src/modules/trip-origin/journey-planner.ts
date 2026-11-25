@@ -98,7 +98,8 @@ function idleBeforeLastDay(requirement: TripRequirementInput, days: readonly Pla
 function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly PlannerCandidate[], transfer: ReadonlyMap<string, TravelLeg>, outbound: JourneyRoute, returning: JourneyRoute, cap: number): PlannerCandidate[][] {
   const dayCount = requirement.durationDays, journey = requirement.journey!;
   const returnMinutes = (start: number, driven: number) => start + Math.ceil(returning.durationSeconds! / 60) + driveWithRest(returning.durationSeconds!, driven, restProfileOf(requirement)).restMinutes;
-  const returnCost = (end: number) => end >= 1440 || (journey.returnDeadlineMinute != null && end > journey.returnDeadlineMinute) ? 100 : 0;
+  const returnCost = (end: number) =>
+    end >= 1440 ? 100 : journey.returnDeadlineMinute != null && end > journey.returnDeadlineMinute ? 5 : 0;
   const costOfDay = (dayIndex: number, offset: number, count: number) => {
     const isLast = dayIndex === dayCount - 1;
     if (!count) {
@@ -276,7 +277,9 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
     day.distanceMeters = known ? own.reduce((sum, leg) => sum + leg.route.distanceMeters!, 0) : null;
     day.travelSeconds = known ? own.reduce((sum, leg) => sum + leg.route.durationSeconds!, 0) : null;
   }
+  const formatClock = (minute: number) => `${String(Math.floor(minute / 60) % 24).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
   const findings: PlannerCheck["issues"] = [];
+  const warnings: import("../trip-planner/planner-contract").PlannerResult["warnings"] = [];
   let violation = false;
   const add = (code: string, message: string, day: number | null = null) => findings.push({ code, message, day, destinationId: null });
   if (missingJourneyFields(requirement.journey, returnOnly).length) add("JOURNEY_INPUT_MISSING", "Cần xác nhận nơi xuất phát và giờ đi/về để kiểm tra toàn hành trình.");
@@ -287,10 +290,18 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
   const timingCheck = validateJourneyTiming(requirement, days, journeyPlan);
   findings.push(...timingCheck.issues);
   if (timingCheck.status === "VIOLATION") violation = true;
-  if (returnEnd !== null && requirement.journey?.returnDeadlineMinute != null && returnEnd > requirement.journey.returnDeadlineMinute) { violation = true; add("RETURN_DEADLINE_MISSED", "Phương án không về kịp hạn đã chọn; hãy điều chỉnh giờ, điểm hoặc số ngày.", requirement.durationDays); }
+  // ADR-57 (D1): exceeding desired return window is an informational advisory, never a hard VIOLATION blocking save.
+  if (returnEnd !== null && returnEnd < 1440 && requirement.journey?.returnDeadlineMinute != null && returnEnd > requirement.journey.returnDeadlineMinute) {
+    warnings.push({
+      code: "RETURN_DEADLINE_MISSED",
+      day: requirement.durationDays,
+      destinationId: null,
+      message: `Lưu ý: dự kiến về tới nơi lúc ${formatClock(returnEnd)}, muộn hơn khung giờ mong muốn ${formatClock(requirement.journey.returnDeadlineMinute)} (chuyến vẫn đủ điều kiện lưu; bạn có thể giữ lịch này hoặc chỉnh giờ đi/bớt điểm cuối nếu muốn).`,
+    });
+  }
   if (!stops.length) { violation = true; add("NO_SIGHTSEEING_TIME", "Phương án chưa có lượt tham quan; cần điều chỉnh nhu cầu."); }
   const check: PlannerCheck = { key: "TRAVEL_TIME", status: violation ? "VIOLATION" : findings.length ? "INSUFFICIENT_DATA" : "PASS", issues: findings };
-  return { days, journeyPlan, check, travelOnlyDays };
+  return { days, journeyPlan, check, travelOnlyDays, warnings };
 }
 
 /** Independent deterministic check of schedule/rest against route evidence. */
@@ -409,5 +420,6 @@ export async function optimizeJourneyForWeather(input: {
     stopStatuses: opt.evaluated.stopStatuses,
     journeyPlan: latestJourney.journeyPlan,
     selected: opt.days.flat(),
+    warnings: latestJourney.warnings ?? [],
   };
 }

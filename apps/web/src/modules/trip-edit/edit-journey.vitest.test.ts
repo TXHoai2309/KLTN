@@ -228,9 +228,33 @@ describe("Ticket 04 integrated Trip origin & journeySnapshot", () => {
       test.dependencies,
       nowBeforeTrip,
     );
+    // ADR-57 (D1): RETURN_DEADLINE_MISSED là advisory không chặn lưu; JOURNEY_ARRIVAL_TOO_EARLY vẫn là blocker cứng.
     expect(failedPreview.validation.canConfirm).toBe(false);
     expect(failedPreview.validation.groups.travelTime.findings.map((f) => f.reasonCode)).toEqual(
-      expect.arrayContaining(["JOURNEY_ARRIVAL_TOO_EARLY", "RETURN_DEADLINE_MISSED"]),
+      expect.arrayContaining(["JOURNEY_ARRIVAL_TOO_EARLY"]),
+    );
+    expect(failedPreview.validation.advisories?.map((f) => f.reasonCode)).toEqual(
+      expect.arrayContaining(["RETURN_DEADLINE_MISSED"]),
+    );
+
+    const lateReturnOnlyPreview = await previewEdit(
+      "trip-1",
+      "owner-1",
+      revision.toISOString(),
+      {
+        ...candidateEarly,
+        journey: {
+          ...candidateEarly.journey!,
+          departureMinute: 360, // 06:00 -> arrives 09:15 (before 10:00 visit start)
+          returnDeadlineMinute: 800, // 13:20 < 14:15 return arrival -> advisory only
+        },
+      },
+      test.dependencies,
+      nowBeforeTrip,
+    );
+    expect(lateReturnOnlyPreview.validation.canConfirm).toBe(true);
+    expect(lateReturnOnlyPreview.validation.advisories?.map((f) => f.reasonCode)).toEqual(
+      expect.arrayContaining(["RETURN_DEADLINE_MISSED"]),
     );
 
     // Fix route to 60 mins + late deadline, then apply!

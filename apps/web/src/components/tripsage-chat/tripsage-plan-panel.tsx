@@ -463,6 +463,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
               fromMinute: resolvedLunch.fromMinute,
               toMinute: resolvedLunch.toMinute,
               durationMinutes: resolvedLunch.durationMinutes,
+              ...(resolvedLunch.note ? { note: resolvedLunch.note } : {}),
               suggestions: lunchMeals.map((m, mIdx) => ({
                 key: m.place?.placeId ?? `${lunchSlot}-${mIdx}`,
                 name: m.title,
