@@ -652,4 +652,30 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     expect(withCheckinSummary).toContain("Nhận phòng · Mèo Vạc");
     expect(withCheckinSummary).toContain("Về khu vực Mèo Vạc: 6,6 km · khoảng 14 phút");
   });
+
+  it("D5 / B10: places direct .dt-break-line rows (breakfast, night rest) into column 2 on narrow containers and mobile viewports", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/components/trip-timeline/day-timeline.css"), "utf8");
+    const containerBlocks = Array.from(css.matchAll(/@container dt-day \(max-width: 480px\)\s*\{([\s\S]*?)\n\}/gu)).map((m) => m[1] ?? "");
+    expect(containerBlocks.some((block) => /\.dt-break-item > \.dt-break-line[\s\S]*?grid-column:\s*2;/.test(block))).toBe(true);
+    expect(containerBlocks.some((block) => /\.dt-day--compact \.dt-break-item[\s\S]*?grid-template-columns:\s*20px minmax\(0, 1fr\);/.test(block))).toBe(true);
+
+    const media768 = css.match(/@media \(max-width: 768px\)\s*\{([\s\S]*?)\n\}/u)?.[1] ?? "";
+    expect(media768).toMatch(/\.dt-break-item > \.dt-break-line[\s\S]*?grid-column:\s*2;/);
+    expect(media768).toMatch(/\.dt-travel-leg[\s\S]*?grid-column:\s*2;/);
+    expect(media768).toMatch(/\.dt-lunch-wrap[\s\S]*?grid-column:\s*2;/);
+    expect(media768).toMatch(/\.dt-marker-body[\s\S]*?grid-column:\s*2;/);
+
+    const html = renderToStaticMarkup(
+      createElement(DayTimeline, {
+        day: {
+          ...SAMPLE_DAY,
+          breakfast: { minute: 420, durationMinutes: 30, text: "07:00 – 07:30, khởi hành 07:30" },
+          nightRest: { startMinute: 1050, text: "Yên Minh" },
+        },
+        variant: "full",
+      }),
+    );
+    expect(html).toContain('<li class="dt-break-item"><span aria-hidden="true"></span><div class="dt-visit-time"><strong>07:00</strong><span>30 phút</span></div><p class="planner-break dt-break-line">');
+    expect(html).toContain("<strong>Nghỉ tối</strong>");
+  });
 });
