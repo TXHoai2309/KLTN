@@ -22,7 +22,7 @@ import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSugge
 import { computeBudgetSavingsChips, computeCostDateSpan, computeTieredTripCost, costSelectionsSchema, parseTicketPriceVnd, type CostPart, type CostSelectionsInput, type RentalTier } from "./tripsage-cost";
 import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
 import { addCalendarDaysIso, itineraryDistanceKm } from "./tripsage-chat-context";
-import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, resolveMissingPriceChips, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
+import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHaNoiOriginOrHome, isHubOrigin, resolveMissingPriceChips, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { formatDocumentSourceTitle, isItineraryActionChipWithoutPlan, isOutOfScopeDestinationChip, quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
@@ -1035,6 +1035,17 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           message: "Ứng dụng chỉ phục vụ du lịch Hà Giang: không tạo nút gợi ý cho địa điểm ngoài Hà Giang (như Sa Pa, Mộc Châu, Cao Bằng…). Hãy đổi sang nút Hà Giang tương ứng (ví dụ 'Lên lịch Hà Giang nhẹ nhàng').",
         };
       }
+      // S5: never suggest travelling TO Hà Nội (train/flight/bus to Hà Nội) when the traveler is already in Hà Nội.
+      if (
+        isHaNoiOriginOrHome(currentJourney?.origin?.label, tripInfo.homeCity)
+        && replies.some(r => /(?:ra|đ[eế]n|t[oớ]i)\s+h[aà]\s+n[oộ]i|\bto\s+h[aà]\s+n[oộ]i\b/iu.test(r))
+      ) {
+        return {
+          ok: false as const,
+          code: "ALREADY_IN_HA_NOI_CHIP",
+          message: "Người dùng đã ở Hà Nội và tự đi từ Hà Nội nên không gợi ý cách ra Hà Nội ('Đi tàu hỏa/máy bay ra Hà Nội'). Hãy đưa nút trả lời đúng câu hỏi kết (ví dụ: chỉnh lịch, nghỉ đêm TP Hà Giang, hoặc giữ nguyên lịch).",
+        };
+      }
       const hasMealReply = replies.some(r => /qu[aá]n\s+[aă]n|t[iì]m\s+th[eê]m\s+qu[aá]n/iu.test(r));
       const { info: currentInfo } = withTripInfoDefaults(tripInfo);
       const allAccessSegs = latestAccessLeg ? [...latestAccessLeg.outbound, ...latestAccessLeg.return] : [];
@@ -1737,14 +1748,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         if (result.checks.some(check => check.status === "VIOLATION")) decisionIssues.push("mục kiểm tra chưa đạt");
         if (result.days.some(day => day.stops.length === 0 && day.journeyDayKind !== "OUTBOUND_ONLY" && day.journeyDayKind !== "RETURN_ONLY")) decisionIssues.push("có ngày trống");
         if (result.warnings.some(w => w.code === "LONG_DRIVING_DAY")) decisionIssues.push("chặng chạy xe dài");
-        if (shouldSuggestHub(result)) decisionIssues.push("chặng ngày đầu dài, cân nhắc điểm tập kết");
+        const suggestHub = shouldSuggestHub(result) && !isHaNoiOriginOrHome(result.requirement.journey?.origin?.label, effective.homeCity);
+        if (suggestHub) decisionIssues.push("chặng ngày đầu dài, cân nhắc điểm tập kết");
         latestProposalDecisionIssues = decisionIssues;
         latestProposalReadyToSave = Boolean(result.eligibleForFinalConfirmation && blockingAssumed.length === 0 && decisionIssues.length === 0);
 
         // A plan with an unmet overnight constraint, hub hint, or violation never ends the turn without a next step; the model may still replace these buttons.
         if (overnightCheck.unmet.length > 0) {
           context.emitQuickReplies?.(overnightCheck.unmet[0]!.chips);
-        } else if (shouldSuggestHub(result)) {
+        } else if (suggestHub) {
           context.emitQuickReplies?.(
             effective.flightDeclined
               ? ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Thêm ngày để tự chạy xe"]
@@ -1800,7 +1812,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           emitGroundedPreferenceLabels(),
         ]);
         const nearbySummary = nearbyOutcome.status === "fulfilled" ? nearbyOutcome.value : null;
-        if (shouldSuggestHub(result)) hubSuggested = true;
+        if (suggestHub) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
         const scheduledIds = new Set(result.days.flatMap(day => day.stops.map(stop => stop.destination.id)));
         const missingRequiredIds = requiredDestinationIds.filter(id => !scheduledIds.has(id));

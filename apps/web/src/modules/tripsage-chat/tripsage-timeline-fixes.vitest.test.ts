@@ -12,7 +12,8 @@ import { TripsageItineraryView } from "../../components/tripsage-chat/tripsage-i
 import { TripsageTimelineView } from "../../components/tripsage-chat/tripsage-timeline-view";
 import { tripsageChatResponse } from "./tripsage-chat-http";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
-import { shouldSuggestHub } from "./tripsage-access-leg";
+import { isHaNoiOriginOrHome, shouldSuggestHub } from "./tripsage-access-leg";
+import { reconcileQuickRepliesWithQuestion } from "./tripsage-chat-service";
 import { buildDayTimeline } from "./tripsage-timeline";
 
 const THANH_HOA_JOURNEY = {
@@ -240,5 +241,58 @@ describe("Ticket 06: timeline and long day-1 hubHint fixes", () => {
       },
     });
     expect(shouldSuggestHub(shortTripLongLeg)).toBe(true);
+  });
+
+  it("S5: never suggests hub-access chips ('Đi tàu hỏa/máy bay ra Hà Nội') for Hanoi self-drive travelers and reconciles adjustment questions", () => {
+    const cauGiayJourney = {
+      origin: { label: "Quận Cầu Giấy, Hà Nội", latitude: 21.0362, longitude: 105.7906, source: "GOOGLE_PLACES" as const, confirmed: true as const },
+      departureMinute: 420,
+      returnDeadlineMinute: 1080,
+    };
+    const hanoi4DayCar = makeProposal({
+      requirement: tripRequirementInputSchema.parse({
+        startDate: "2026-12-11",
+        durationDays: 4,
+        transport: "CAR",
+        interests: ["NATURE"],
+        journey: cauGiayJourney,
+      }),
+      journeyPlan: {
+        policy: "roadside-rest-v1",
+        legs: [
+          {
+            kind: "OUTBOUND",
+            day: 1,
+            from: { kind: "ORIGIN" },
+            to: { kind: "ATTRACTION", destinationId: "d1" },
+            startMinute: 420,
+            endMinute: 850,
+            restMinutes: 45,
+            route: { status: "VERIFIED", reason: null, durationSeconds: 25_200, distanceMeters: 348_700, provider: "STADIA_MAPS" },
+          },
+        ],
+        totals: { distanceMeters: 348_700, drivingSeconds: 25_200, restMinutes: 45 },
+      },
+    });
+
+    // Cầu Giấy, Hà Nội is already inside Hà Nội -> shouldSuggestHub MUST return false
+    expect(isHaNoiOriginOrHome("Quận Cầu Giấy, Hà Nội", "Hà Nội")).toBe(true);
+    expect(shouldSuggestHub(hanoi4DayCar)).toBe(false);
+
+    // Reconcile safety net: if stale hub chips ever pair with "Bạn muốn ưu tiên điều chỉnh nào?", replace with matching schedule-adjustment chips
+    const reconciled = reconcileQuickRepliesWithQuestion({
+      text: "Lịch 4 ngày từ Cầu Giấy đã xong nhưng ngày 1 chạy khá dài.\nBạn muốn ưu tiên điều chỉnh nào?",
+      latestUserText: "Thêm 1 ngày",
+      emittedReplies: ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Đi máy bay ra Hà Nội"],
+      hasOriginCandidates: false,
+      itinerary: hanoi4DayCar,
+      cost: null,
+      accessLeg: null,
+      tripInfo: { transport: "CAR", durationDays: 4, startDate: "2026-12-11", travelers: 3, homeCity: "Hà Nội" },
+    });
+    expect(reconciled).toBeTruthy();
+    expect(reconciled!.some(r => /ra\s+h[aà]\s+n[oộ]i/iu.test(r))).toBe(false);
+    expect(reconciled!.some(r => /t[aà]u\s+h[oỏ]a|m[aá]y\s+bay/iu.test(r))).toBe(false);
+    expect(reconciled).toContain("Nghỉ TP Hà Giang đêm 1");
   });
 });

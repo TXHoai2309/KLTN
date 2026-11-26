@@ -13,7 +13,7 @@ import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { PlacesSearch } from "./tripsage-places";
 import { buildDayTimeline, suggestionSchema, timelinePartSchema, type TimelineSuggestion } from "./tripsage-timeline";
 import { costPartSchema, type CostPart } from "./tripsage-cost";
-import { accessLegPartSchema, resolveMissingPriceChips, shouldSuggestHub, type AccessLegPart } from "./tripsage-access-leg";
+import { accessLegPartSchema, isHaNoiOriginOrHome, resolveMissingPriceChips, shouldSuggestHub, type AccessLegPart } from "./tripsage-access-leg";
 import { blockingAssumedFields, formatAssumedConfirmationMessage } from "../trip-validation/trip-proposal-contract";
 import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
@@ -510,7 +510,17 @@ export type FallbackQuickRepliesInput = {
   ambiguityResolution?: AmbiguousPlaceResolution | null;
 };
 
-function hubTransportChipsFor(tripInfo: TripsageTripInfo | null, lang: ReplyLanguage = "vi"): string[] {
+function hubTransportChipsFor(
+  tripInfo: TripsageTripInfo | null,
+  lang: ReplyLanguage = "vi",
+  originLabel?: string | null,
+): string[] {
+  const alreadyInHaNoi = isHaNoiOriginOrHome(originLabel, tripInfo?.homeCity);
+  if (alreadyInHaNoi) {
+    return lang === "en"
+      ? ["Bus to TP Hà Giang", "Keep self-driving", "Add 1 day"]
+      : ["Đi xe khách lên TP Hà Giang", "Tự lái từ Hà Nội", "Thêm 1 ngày"];
+  }
   if (lang === "en") {
     return tripInfo?.flightDeclined
       ? ["Bus to TP Hà Giang", "Train to Hà Nội", "Add days to self-drive"]
@@ -520,6 +530,10 @@ function hubTransportChipsFor(tripInfo: TripsageTripInfo | null, lang: ReplyLang
     ? ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Thêm ngày để tự chạy xe"]
     : ["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Đi máy bay ra Hà Nội"];
 }
+
+const TRAVEL_TO_HA_NOI_CHIP_RE = /(?:ra|đ[eế]n|t[oớ]i)\s+h[aà]\s+n[oộ]i|\bto\s+h[aà]\s+n[oộ]i\b/iu;
+const SCHEDULE_ADJUSTMENT_QUESTION_RE =
+  /(?:[uư]u\s+ti[eê]n\s+đi[eề]u\s+ch[iỉ]nh|đi[eề]u\s+ch[iỉ]nh\s+n[aà]o|ch[iỉ]nh\s+l[iị]ch|ch[iỉ]nh\s+theo\s+h[uư][oớ]ng|mu[oố]n\s+(?:gi[uữ]|đ[oổ]i|ch[iỉ]nh|ngh[iỉ])|\b(?:which\s+adjustment|how\s+would\s+you\s+like\s+to\s+adjust)\b)/iu;
 
 const HUB_TRANSPORT_QUESTION_RE =
   /(?:ra|đ[eế]n|t[oớ]i)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|tp\.?\s*h[aà]\s+giang).*(?:b[aằ]ng\s+c[aá]ch\s+n[aà]o|b[aằ]ng\s+g[iì]|ph[uươ]ng\s+ti[eệ]n|m[aá]y\s+bay|t[aà]u\s+h[oỏ]a|xe\s+kh[aá]ch)|ph[uươ]ng\s+ti[eệ]n\s+(?:ra|đ[eế]n)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|h[aà]\s+giang)|\b(?:reach|get\s+to|travel\s+to)\s+(?:the\s+)?(?:hub|h[aà]\s+n[oộ]i|h[aà]\s+giang)\b/iu;
@@ -600,13 +614,34 @@ export function reconcileQuickRepliesWithQuestion(input: ReconcileQuickRepliesIn
     return parsed.success ? parsed.data.replies : null;
   };
 
+  const originLabel = input.itinerary?.requirement.journey?.origin?.label ?? null;
+  const alreadyInHaNoi = isHaNoiOriginOrHome(originLabel, input.tripInfo?.homeCity);
+
   if (HUB_TRANSPORT_QUESTION_RE.test(questionLine)) {
     const hasTransportChip = input.emittedReplies.some(r =>
       /xe\s+kh[aá]ch|t[aà]u\s+h[oỏ]a|m[aá]y\s+bay|t[uự]\s+ch[aạ]y|t[uự]\s+l[aá]i|thu[eê]\s+xe|so\s+s[aá]nh|\b(?:bus|train|flight|fly|drive|car|motorbike)\b/iu.test(r),
     );
-    if (!hasTransportChip) {
-      return pick(hubTransportChipsFor(input.tripInfo, lang));
+    const hasAbsurdToHaNoi = alreadyInHaNoi && input.emittedReplies.some(r => TRAVEL_TO_HA_NOI_CHIP_RE.test(r));
+    if (!hasTransportChip || hasAbsurdToHaNoi) {
+      return pick(hubTransportChipsFor(input.tripInfo, lang, originLabel));
     }
+  }
+
+  // S5: Never keep "ra Hà Nội" hub-access chips for travelers already departing from Hà Nội,
+  // and replace stale hub-access chips when the closing question asks about schedule adjustments.
+  const hasAbsurdToHaNoiChip = alreadyInHaNoi && input.emittedReplies.some(r => TRAVEL_TO_HA_NOI_CHIP_RE.test(r));
+  const allAccessHubChips = input.emittedReplies.every(r =>
+    /xe\s+kh[aá]ch|t[aà]u\s+h[oỏ]a|m[aá]y\s+bay|\b(?:bus|train|flight)\b/iu.test(r),
+  );
+  if (hasAbsurdToHaNoiChip || (allAccessHubChips && SCHEDULE_ADJUSTMENT_QUESTION_RE.test(questionLine))) {
+    if (input.itinerary) {
+      return pick(
+        lang === "en"
+          ? ["Overnight in TP Hà Giang Day 1", "Lighter pace", "Keep this itinerary"]
+          : ["Nghỉ TP Hà Giang đêm 1", "Bớt điểm cho nhẹ hơn", "Giữ nguyên lịch này"],
+      );
+    }
+    return pick(hubTransportChipsFor(input.tripInfo, lang, originLabel));
   }
 
   // D7 (B11 & B12): strip/replace discovery chips that assume a non-existent itinerary or target outside Hà Giang.
@@ -688,7 +723,7 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
 
   // Point 3: honor explicit closing-question intent first (e.g. "Bạn muốn ra điểm tập kết bằng cách nào?").
   if (HUB_TRANSPORT_QUESTION_RE.test(questionLine)) {
-    return pick(hubTransportChipsFor(input.tripInfo, lang));
+    return pick(hubTransportChipsFor(input.tripInfo, lang, input.itinerary?.requirement.journey?.origin?.label ?? null));
   }
 
   if (input.ambiguityResolution?.kind === "AMBIGUOUS" && input.ambiguityResolution.candidates.length >= 2) {

@@ -550,9 +550,26 @@ export function resolveTravelDaysContext(input: {
   return { homeCity, hubName: originLabel };
 }
 
+/** S5: True when the traveler's origin or home city is already inside Hà Nội (same city as hub:HA_NOI). */
+export function isHaNoiOriginOrHome(
+  originLabel?: string | null,
+  homeCity?: string | null,
+): boolean {
+  return (
+    (Boolean(originLabel) && sameAccessPlace(originLabel!, "Hà Nội"))
+    || (Boolean(homeCity) && sameAccessPlace(homeCity!, "Hà Nội"))
+  );
+}
+
 /** Returns true when driving from the current origin eats too much of Day 1 and a closer hub should be offered. */
 export function shouldSuggestHub(result: PlannerResult): boolean {
-  if (isHubOrigin(result.requirement.journey?.origin?.label)) return false;
+  const originLabel = result.requirement.journey?.origin?.label;
+  if (isHubOrigin(originLabel)) return false;
+  // S5: Travelers already departing from inside Hà Nội (e.g. "Quận Cầu Giấy, Hà Nội") or TP Hà Giang
+  // are already at a hub city — never suggest hub-access options like train/flight to Hà Nội.
+  if (originLabel && (sameAccessPlace(originLabel, "Hà Nội") || sameAccessPlace(originLabel, "TP Hà Giang"))) {
+    return false;
+  }
   const outbound = result.journeyPlan?.legs.find(leg => leg.kind === "OUTBOUND");
   const outboundMinutes = (outbound?.route.durationSeconds ?? 0) / 60;
   const outboundKm = (outbound?.route.distanceMeters ?? 0) / 1000;
