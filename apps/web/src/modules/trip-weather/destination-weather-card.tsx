@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sunrise } from "lucide-react";
-import { formatMinute, todayInVietnam, type SunTimes } from "./sun-times";
+import { formatMinute, formatShortViDate, todayInVietnam, type SunTimes } from "./sun-times";
 import type { DestinationForecast, DestinationWeather } from "./destination-weather-service";
 
 type LoadState = { status: "loading" } | { status: "error" } | { status: "ready"; weather: DestinationWeather };
@@ -29,7 +29,7 @@ export function ForecastView({ forecast, today }: { forecast: DestinationForecas
   return (
     <>
       {forecast.status === "NOT_YET_AVAILABLE"
-        ? <p>{forecast.availableFrom > today ? `Chưa có dự báo cho ngày này, sẽ có từ ngày ${forecast.availableFrom}.` : "Không có dự báo cho ngày này."}</p>
+        ? <p>{forecast.availableFrom > today ? `Chưa có dự báo cho ngày này, sẽ có từ ngày ${formatShortViDate(forecast.availableFrom)}.` : "Không có dự báo cho ngày này."}</p>
         : (
           <div className="public-detail-table-scroll" tabIndex={0} role="region" aria-label="Bảng dự báo theo giờ">
             <table className="weather-hourly">

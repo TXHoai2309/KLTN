@@ -3,7 +3,7 @@
 import { CalendarClock, CloudOff, Droplets, EyeOff, Sunrise, Sunset } from "lucide-react";
 import { FOG_VISIBILITY_THRESHOLD_M, type WeatherAdvisory } from "./trip-weather-service";
 import { advisoryChipIcon, conditionMeta, formatRainSummary, formatTempSummary, KIND_TEXT } from "./trip-weather-panel";
-import { formatMinute } from "./sun-times";
+import { formatMinute, formatShortViDate } from "./sun-times";
 import { useTripWeatherContext } from "./trip-weather-state";
 import "./trip-weather.css";
 
@@ -31,7 +31,7 @@ export function StopWeather({ day, destinationId }: { day: number; destinationId
     return (
       <p className="trip-weather-stop trip-weather-stop--muted">
         <CalendarClock size={14} aria-hidden="true" />
-        <span>Dự báo có từ ngày {w.availableFrom}</span>
+        <span>Dự báo có từ ngày {formatShortViDate(w.availableFrom)}</span>
       </p>
     );
   }

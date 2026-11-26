@@ -285,7 +285,8 @@ describe("TripWeatherView redesign (Ticket 01)", () => {
         days: plannerDays,
       }),
     );
-    expect(notYet).toContain("Chưa có dự báo, sẽ có từ ngày 2026-12-05");
+    expect(notYet).toContain("Chưa có dự báo, sẽ có từ ngày 05/12");
+    expect(notYet).not.toContain("2026-12-05");
     expect(notYet).toContain("Chưa có dự báo · Không có cảnh báo");
     expect(notYet).toContain("trip-weather-state--pending");
 

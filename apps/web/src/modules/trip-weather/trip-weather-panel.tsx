@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import type { PlannerDay } from "@/modules/trip-planner/planner-contract";
 import type { JourneyPlan } from "@/modules/trip-origin/journey-route-contract";
-import { formatMinute } from "./sun-times";
+import { formatMinute, formatShortViDate } from "./sun-times";
 import { toTripWeatherRequest } from "./trip-weather-request";
 import { useTripWeatherState } from "./trip-weather-state";
 import {
@@ -121,7 +121,7 @@ function VisitWeatherMetrics({ weather }: { weather: WindowWeather }) {
     return (
       <span className="trip-weather-state trip-weather-state--pending">
         <CalendarClock size={14} aria-hidden="true" />
-        <span>Chưa có dự báo, sẽ có từ ngày {weather.availableFrom}</span>
+        <span>Chưa có dự báo, sẽ có từ ngày {formatShortViDate(weather.availableFrom)}</span>
       </span>
     );
   }

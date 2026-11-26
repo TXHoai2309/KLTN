@@ -56,7 +56,9 @@ describe("inline trip weather", () => {
   });
 
   it("explains a forecast that is not available yet or could not be fetched", () => {
-    expect(render(ready(), createElement(StopWeather, { day: 2, destinationId: "c" }))).toContain("Dự báo có từ ngày 2026-12-05");
+    const pendingHtml = render(ready(), createElement(StopWeather, { day: 2, destinationId: "c" }));
+    expect(pendingHtml).toContain("Dự báo có từ ngày 05/12");
+    expect(pendingHtml).not.toContain("2026-12-05");
     expect(render(ready(), createElement(StopWeather, { day: 2, destinationId: "d" }))).toContain("Chưa có dự báo thời tiết");
   });
 

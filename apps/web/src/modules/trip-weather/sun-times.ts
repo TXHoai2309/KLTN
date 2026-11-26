@@ -44,3 +44,10 @@ export function formatMinute(minute: number | null): string {
   if (minute === null) return "—";
   return `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 }
+
+/** S13: Formats an ISO calendar date (`YYYY-MM-DD`) as Vietnamese `DD/MM` (e.g. `2026-12-06` → `06/12`). */
+export function formatShortViDate(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(iso.trim());
+  if (!match) return iso;
+  return `${match[3]}/${match[2]}`;
+}

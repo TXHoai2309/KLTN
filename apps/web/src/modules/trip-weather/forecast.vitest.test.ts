@@ -94,7 +94,9 @@ describe("destination forecast", () => {
     const html = (forecast: Parameters<typeof ForecastView>[0]["forecast"]) => renderToStaticMarkup(createElement(ForecastView, { forecast, today: "2026-11-18" }));
     const available = html({ status: "AVAILABLE", provider: "OPEN_METEO", fetchedAt: "2026-11-18T00:00:00Z", hours: [{ time: "2026-11-18T08:00", temperatureC: 12, precipitationProbability: 80, precipitationMm: 1.2, visibilityM: 800, windGustKmh: 30, weatherCode: 61 }], days: [] });
     expect(available).toContain("Open-Meteo"); expect(available).toContain("08:00"); expect(available).toContain("0.8 km");
-    expect(html({ status: "NOT_YET_AVAILABLE", availableFrom: "2026-12-05", days: [] })).toContain("sẽ có từ ngày 2026-12-05");
+    const pending = html({ status: "NOT_YET_AVAILABLE", availableFrom: "2026-12-05", days: [] });
+    expect(pending).toContain("sẽ có từ ngày 05/12");
+    expect(pending).not.toContain("2026-12-05");
     const down = html({ status: "UNAVAILABLE", reason: "TIMEOUT" });
     expect(down).toContain("Không lấy được dự báo"); expect(down).not.toContain("Open-Meteo");
   });
