@@ -158,7 +158,8 @@ describe("AssistantWeatherCard & chat weather message rendering (Ticket 04)", ()
         today: "2026-11-18",
       }),
     );
-    expect(notYetHtml).toContain("Chưa có dự báo cho ngày này, sẽ có từ ngày 2026-12-05.");
+    expect(notYetHtml).toContain("Chưa có dự báo cho ngày này, sẽ có từ ngày 05/12.");
+    expect(notYetHtml).not.toContain("2026-12-05");
     expect(notYetHtml).toContain("Bình minh");
 
     const providerDown: DestinationWeather = {
