@@ -131,6 +131,8 @@ export function resolveDayRouteLabel(input: {
   dayIndex: number;
   originLabel?: string | null;
   previousOvernightArea?: string | null;
+  /** Current day's canonical overnight area (from `journeyPlan.overnightStays`), used when a day only has an outbound leg to another day's stop (D3 / B5). */
+  overnightArea?: string | null;
   stops: readonly { destinationId: string; name: string }[];
   previousDayStops?: readonly { destinationId: string; name: string }[];
   legs?: readonly {
@@ -152,8 +154,10 @@ export function resolveDayRouteLabel(input: {
   for (const stop of input.stops) {
     if (!(stop.destinationId in lookup)) lookup[stop.destinationId] = stop.name;
   }
+  const dayStopIds = new Set(input.stops.map((stop) => stop.destinationId));
   const originText = cleanName(input.originLabel);
   const prevOvernight = input.dayIndex > 1 ? cleanName(input.previousOvernightArea) : null;
+  const currentOvernight = cleanName(input.overnightArea);
   const endpointLabel = (endpoint: { kind: "ORIGIN" } | { kind: "ATTRACTION"; destinationId: string }): string | null =>
     endpoint.kind === "ORIGIN" ? (originText ?? "Điểm xuất phát") : cleanName(lookup[endpoint.destinationId]);
 
@@ -164,7 +168,11 @@ export function resolveDayRouteLabel(input: {
       prevOvernight && dayLegs[0]!.from.kind === "ATTRACTION"
         ? prevOvernight
         : rawFrom;
-    const to = endpointLabel(dayLegs.at(-1)!.to);
+    const lastLeg = dayLegs.at(-1)!;
+    const to =
+      lastLeg.to.kind === "ATTRACTION" && !dayStopIds.has(lastLeg.to.destinationId)
+        ? (currentOvernight ?? "TP Hà Giang")
+        : endpointLabel(lastLeg.to);
     if (from && to) {
       if (from !== to) return `${from} → ${to}`;
       const via = cleanName(input.stops.at(-1)?.name);
@@ -286,6 +294,7 @@ export interface DayTimelineDay {
   chosenLodging?: DayTimelineChosenLodging | null;
   nearbySuggestions?: readonly DayTimelineNearbyItem[];
   freeTimeSuggestions?: readonly DayTimelineNearbyItem[];
+  overnightStayArea?: string | null;
   estimatedCheckinTravelMinutes?: number | null;
   checkinRouteSummary?: string | null;
   eveningPlan?: DayTimelineEveningPlan | null;
@@ -662,6 +671,7 @@ export function DayTimeline({
     nearbySuggestions: day.nearbySuggestions,
     eveningPlan: day.eveningPlan,
     chosenLodging: day.chosenLodging,
+    overnightStayArea: day.overnightStayArea,
     estimatedCheckinTravelMinutes: day.estimatedCheckinTravelMinutes,
     checkinRouteSummary: day.checkinRouteSummary,
   });

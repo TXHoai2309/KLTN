@@ -492,9 +492,36 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         previewTarget: previewTargetForSuggestion(s),
       }));
 
+    const overnightStay = proposal.journeyPlan?.overnightStays?.find(
+      (stay) => stay.day === activePlannerDay.day,
+    );
+    const checkinPresentation =
+      activePlannerDay.day < totalDays
+        ? resolveOvernightCheckinPresentation({
+            overnightStay,
+            lastStop: lastDayStop?.destination
+              ? {
+                  area: lastDayStop.destination.area,
+                  name: lastDayStop.destination.name,
+                  address: lastDayStop.destination.address,
+                  latitude: lastDayStop.destination.latitude,
+                  longitude: lastDayStop.destination.longitude,
+                }
+              : null,
+            transport: proposal.requirement.transport,
+          })
+        : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
+    const dayHasOutboundOnly =
+      activePlannerDay.day === 1 &&
+      activePlannerDay.stops.length === 0 &&
+      Boolean(proposal.journeyPlan?.legs.some((leg) => leg.day === 1 && leg.kind === "OUTBOUND"));
+    const canonicalOvernightArea =
+      overnightStay?.area ?? checkinPresentation.area ?? (dayHasOutboundOnly ? "TP Hà Giang" : null);
+
     const eveningPlan = buildDayEveningPlan({
       dayIndex: activePlannerDay.day,
       totalDays,
+      overnightAreaOverride: canonicalOvernightArea,
       lastStopArea: lastDayStop?.destination.area,
       lastStopName: lastDayStop?.destination.name,
       lastStopAddress: lastDayStop?.destination.address,
@@ -509,27 +536,8 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       lodgingSuggestions: lodgingChoices,
       eveningPlaces,
     });
-
-    const overnightStay = proposal.journeyPlan?.overnightStays?.find(
-      (stay) => stay.day === activePlannerDay.day,
-    );
-    const checkinPresentation = eveningPlan
-      ? resolveOvernightCheckinPresentation({
-          overnightStay,
-          lastStop: lastDayStop?.destination
-            ? {
-                area: lastDayStop.destination.area,
-                name: lastDayStop.destination.name,
-                address: lastDayStop.destination.address,
-                latitude: lastDayStop.destination.latitude,
-                longitude: lastDayStop.destination.longitude,
-              }
-            : null,
-          transport: proposal.requirement.transport,
-        })
-      : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
-    const estimatedCheckinTravelMinutes = checkinPresentation.estimatedCheckinTravelMinutes;
-    const checkinRouteSummary = checkinPresentation.checkinRouteSummary;
+    const estimatedCheckinTravelMinutes = eveningPlan ? checkinPresentation.estimatedCheckinTravelMinutes : null;
+    const checkinRouteSummary = eveningPlan ? checkinPresentation.checkinRouteSummary : null;
 
     const allStopLegsVerified = stops.every(
       (s) => !s.travelFromPrevious || s.travelFromPrevious.verified,
@@ -573,6 +581,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       dayIndex: activePlannerDay.day,
       originLabel: cleanOriginLabel || proposal.requirement.journey?.origin?.label,
       previousOvernightArea,
+      overnightArea: canonicalOvernightArea ?? eveningPlan?.overnightArea ?? null,
       stops,
       previousDayStops: (previousPlannerDay?.stops ?? []).map((s) => ({
         destinationId: s.destination.id,
@@ -621,6 +630,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       stops,
       returnCard,
       eveningPlan,
+      overnightStayArea: canonicalOvernightArea,
       estimatedCheckinTravelMinutes,
       checkinRouteSummary,
       freeTimeSuggestions: freeNearby.length > 0 ? freeNearby : undefined,

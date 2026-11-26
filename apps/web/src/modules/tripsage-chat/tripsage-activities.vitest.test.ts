@@ -80,4 +80,34 @@ describe("tripsage-activities (ADR-45)", () => {
     expect(out.map(s => s.place?.name)).toEqual(["Chợ đêm Phố Cổ", "Chợ đêm Phố Cổ"]);
     expect(out.every(s => !/Balana|H'mong Village Resort|Homestay Tommy|Khu Vui Chơi|\[Tạm\]/u.test(s.title))).toBe(true);
   });
+
+  it("D3 / B3: anchors EVENING suggestions on journeyPlan.overnightStays when present instead of last stop area", () => {
+    const planWithOvernightStay = {
+      days: [
+        { day: 1, stops: [stop("Phố cổ Phố Bảng", 23.237, 105.174)] },
+        { day: 2, stops: [stop("Đồng Văn", 23.28, 105.36)] },
+      ],
+      journeyPlan: {
+        overnightStays: [
+          {
+            day: 1,
+            area: "Yên Minh",
+            latitude: OVERNIGHT_TOWN_CENTERS["Yên Minh"]!.latitude,
+            longitude: OVERNIGHT_TOWN_CENTERS["Yên Minh"]!.longitude,
+            fromDestinationId: "Phố cổ Phố Bảng",
+            distanceFromLastStopKm: 18,
+          },
+        ],
+      },
+    } as unknown as PlannerResult;
+    const { anchors } = activityAnchors(planWithOvernightStay);
+    const night = anchors.find(a => a.slotId === "d1-overnight");
+    expect(night).toMatchObject({
+      kind: "EVENING",
+      anchorSource: "town_center",
+      areaLabel: "Yên Minh",
+      latitude: OVERNIGHT_TOWN_CENTERS["Yên Minh"]!.latitude,
+      longitude: OVERNIGHT_TOWN_CENTERS["Yên Minh"]!.longitude,
+    });
+  });
 });

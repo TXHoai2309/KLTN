@@ -5,7 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { DayTimeline, resolveDayRouteLabel, type DayTimelineDay } from "./day-timeline";
-import { estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "./suggestion-markers";
+import { buildDayEveningPlan } from "./evening-plan";
+import { buildDaySuggestionMarkers, estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "./suggestion-markers";
+import { resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
 import { TripsageTimelineView } from "@/components/tripsage-chat/tripsage-timeline-view";
 import { formatVisitDescription } from "@/modules/tripsage-chat/tripsage-timeline";
@@ -677,5 +679,93 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     );
     expect(html).toContain('<li class="dt-break-item"><span aria-hidden="true"></span><div class="dt-visit-time"><strong>07:00</strong><span>30 phút</span></div><p class="planner-break dt-break-line">');
     expect(html).toContain("<strong>Nghỉ tối</strong>");
+  });
+
+  it("D3 / B3 & B5: unifies check-in overnight area with overnightStays and fixes Day 1 outbound-only route label", () => {
+    // B5: Day 1 has 0 visits and its OUTBOUND leg targets Day 2's first stop (Dốc Bắc Sum) -> Hà Nội → TP Hà Giang
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 1,
+        originLabel: "Hà Nội",
+        stops: [],
+        legs: [
+          {
+            kind: "OUTBOUND",
+            day: 1,
+            from: { kind: "ORIGIN" },
+            to: { kind: "ATTRACTION", destinationId: "d-bac-sum" },
+          },
+        ],
+        stopNamesById: { "d-bac-sum": "Dốc Bắc Sum" },
+      }),
+    ).toBe("Hà Nội → TP Hà Giang");
+
+    // B5 with explicit overnightArea override
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 1,
+        originLabel: "Hà Nội",
+        overnightArea: "TP Hà Giang",
+        stops: [],
+        legs: [
+          {
+            kind: "OUTBOUND",
+            day: 1,
+            from: { kind: "ORIGIN" },
+            to: { kind: "ATTRACTION", destinationId: "d-bac-sum" },
+          },
+        ],
+        stopNamesById: { "d-bac-sum": "Dốc Bắc Sum" },
+      }),
+    ).toBe("Hà Nội → TP Hà Giang");
+
+    // B3: buildDayEveningPlan + buildDaySuggestionMarkers honor canonical overnightStays ("Yên Minh") over lastStopArea ("Phố Bảng")
+    const eveningPlan = buildDayEveningPlan({
+      dayIndex: 2,
+      totalDays: 5,
+      overnightAreaOverride: "Yên Minh",
+      lastStopArea: "Phố Bảng",
+      lastStopName: "Phố cổ Phố Bảng",
+      eveningPlaces: [],
+    });
+    expect(eveningPlan?.overnightArea).toBe("Yên Minh");
+
+    const markers = buildDaySuggestionMarkers({
+      dayIndex: 2,
+      orderedStops: SAMPLE_DAY.stops,
+      overnightStayArea: "Yên Minh",
+      checkinRouteSummary: "Về khu vực Yên Minh: 18 km · khoảng 31 phút",
+      eveningPlan: {
+        nightIndex: 2,
+        overnightArea: "Phố Bảng",
+        lodgingSuggestions: [],
+        eveningPlaces: [],
+      },
+    });
+    const checkinMarker = markers.find((m) => m.kind === "CHECKIN");
+    expect(checkinMarker?.title).toBe("Nhận phòng · Yên Minh");
+    expect(checkinMarker?.checkinRouteSummary).toBe("Về khu vực Yên Minh: 18 km · khoảng 31 phút");
+
+    // Falls back to eveningPlan.overnightArea when overnightStayArea is absent
+    const fallbackMarkers = buildDaySuggestionMarkers({
+      dayIndex: 2,
+      orderedStops: SAMPLE_DAY.stops,
+      eveningPlan: {
+        nightIndex: 2,
+        overnightArea: "Đồng Văn",
+        lodgingSuggestions: [],
+        eveningPlaces: [],
+      },
+    });
+    expect(fallbackMarkers.find((m) => m.kind === "CHECKIN")?.title).toBe("Nhận phòng · Đồng Văn");
+
+    // resolvePreviousOvernightArea reads Day 1 overnightStays even if Day 1 had 0 sightseeing stops
+    expect(
+      resolvePreviousOvernightArea({
+        dayIndex: 2,
+        overnightStays: [{ day: 1, area: "TP Hà Giang" }],
+        previousDays: [{ dayIndex: 1, lastStop: null }],
+      }),
+    ).toBe("TP Hà Giang");
   });
 });

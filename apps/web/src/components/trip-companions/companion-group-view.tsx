@@ -1129,9 +1129,34 @@ function CompanionGroupContent({
                     (item) => item.dayIndex === day.dayIndex && item.kind === "EVENING",
                   );
                   const lastVisit = day.visits.at(-1);
+                  const overnightStay = currentGroup.meetingPoint?.plan?.overnightStays?.find(
+                    (stay) => stay.day === day.dayIndex,
+                  );
+                  const checkinPresentation =
+                    day.dayIndex < totalDays
+                      ? resolveOvernightCheckinPresentation({
+                          overnightStay,
+                          lastStop: lastVisit?.destination
+                            ? {
+                                area:
+                                  lastVisit.destination.area ||
+                                  inferDestinationArea(lastVisit.destination.name),
+                                name: lastVisit.destination.name,
+                              }
+                            : null,
+                          transport: currentGroup.introduction.transport === "CAR" ? "CAR" : "MOTORCYCLE",
+                        })
+                      : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
+                  const dayHasOutboundOnly =
+                    day.dayIndex === 1 &&
+                    day.visits.length === 0 &&
+                    Boolean(currentGroup.meetingPoint?.plan?.legs.some((leg) => leg.day === 1 && leg.kind === "OUTBOUND"));
+                  const canonicalOvernightArea =
+                    overnightStay?.area ?? checkinPresentation.area ?? (dayHasOutboundOnly ? "TP Hà Giang" : null);
                   const eveningPlan = buildDayEveningPlan({
                     dayIndex: day.dayIndex,
                     totalDays,
+                    overnightAreaOverride: canonicalOvernightArea,
                     lastStopArea:
                       lastVisit?.destination.area ||
                       (lastVisit ? inferDestinationArea(lastVisit.destination.name) : ""),
@@ -1237,23 +1262,6 @@ function CompanionGroupContent({
                   const prevGroupDay = currentGroup.itinerary.days.find(
                     (item) => item.dayIndex === day.dayIndex - 1,
                   );
-                  const overnightStay = currentGroup.meetingPoint?.plan?.overnightStays?.find(
-                    (stay) => stay.day === day.dayIndex,
-                  );
-                  const checkinPresentation = eveningPlan
-                    ? resolveOvernightCheckinPresentation({
-                        overnightStay,
-                        lastStop: lastVisit?.destination
-                          ? {
-                              area:
-                                lastVisit.destination.area ||
-                                inferDestinationArea(lastVisit.destination.name),
-                              name: lastVisit.destination.name,
-                            }
-                          : null,
-                        transport: currentGroup.introduction.transport === "CAR" ? "CAR" : "MOTORCYCLE",
-                      })
-                    : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
                   const previousOvernightArea = resolvePreviousOvernightArea({
                     dayIndex: day.dayIndex,
                     overnightStays: currentGroup.meetingPoint?.plan?.overnightStays,
@@ -1278,6 +1286,7 @@ function CompanionGroupContent({
                       formatTravelerOriginLabel(currentGroup.meetingPoint?.origin?.label, false) ||
                       currentGroup.meetingPoint?.origin?.label,
                     previousOvernightArea,
+                    overnightArea: canonicalOvernightArea ?? eveningPlan?.overnightArea ?? null,
                     stops,
                     previousDayStops: (prevGroupDay?.visits ?? []).map((v) => ({
                       destinationId: v.destination.destinationId || v.visitId,
@@ -1300,8 +1309,9 @@ function CompanionGroupContent({
                       ? { nightIndex: dayLodging.nightIndex, name: dayLodging.name, placeId: dayLodging.placeId }
                       : null,
                     eveningPlan,
-                    estimatedCheckinTravelMinutes: checkinPresentation.estimatedCheckinTravelMinutes,
-                    checkinRouteSummary: checkinPresentation.checkinRouteSummary,
+                    overnightStayArea: canonicalOvernightArea,
+                    estimatedCheckinTravelMinutes: eveningPlan ? checkinPresentation.estimatedCheckinTravelMinutes : null,
+                    checkinRouteSummary: eveningPlan ? checkinPresentation.checkinRouteSummary : null,
                     freeTimeSuggestions: freeTimeSuggestions.length > 0 ? freeTimeSuggestions : undefined,
                   };
 

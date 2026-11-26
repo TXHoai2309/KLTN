@@ -152,6 +152,8 @@ export function buildDaySuggestionMarkers(input: {
   nearbySuggestions?: readonly DayTimelineNearbyItem[];
   eveningPlan?: DayTimelineEveningPlan | null;
   chosenLodging?: DayTimelineChosenLodging | null;
+  /** Canonical overnight area from `journeyPlan.overnightStays` (D3 / B3), taking priority over `eveningPlan.overnightArea`. */
+  overnightStayArea?: string | null;
   estimatedCheckinTravelMinutes?: number | null;
   checkinRouteSummary?: string | null;
 }): TimelineSuggestionMarker[] {
@@ -191,7 +193,7 @@ export function buildDaySuggestionMarkers(input: {
   const checkinMinute = hasTravelEstimate ? lastStopEndMinute! + Math.round(travelMin!) : null;
 
   if (input.eveningPlan) {
-    const overnightArea = input.eveningPlan.overnightArea.trim();
+    const overnightArea = input.overnightStayArea?.trim() || input.eveningPlan.overnightArea.trim();
     const chosen = input.eveningPlan.chosenLodging;
     markers.push({
       id: `d${input.dayIndex}-marker-checkin`,

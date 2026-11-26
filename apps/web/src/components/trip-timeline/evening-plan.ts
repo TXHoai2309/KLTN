@@ -20,6 +20,8 @@ function dedupeNearbyByName<T extends { name: string }>(items: readonly T[]): T[
 export interface BuildDayEveningPlanInput {
   dayIndex: number;
   totalDays: number;
+  /** Canonical overnight area from `journeyPlan.overnightStays` (D3 / B3), taking priority over last-stop fallback. */
+  overnightAreaOverride?: string | null;
   lastStopArea?: string | null;
   lastStopName?: string | null;
   lastStopAddress?: string | null;
@@ -38,12 +40,15 @@ export interface BuildDayEveningPlanInput {
  */
 export function buildDayEveningPlan(input: BuildDayEveningPlanInput): DayTimelineEveningPlan | null {
   if (input.dayIndex >= input.totalDays) return null;
-  const overnightArea = resolveOvernightAreaLabel(input.lastStopArea, input.lastStopName, {
-    chosenLodgingName: input.chosenLodging?.name ?? null,
-    address: input.lastStopAddress ?? null,
-    latitude: input.lastStopLatitude ?? null,
-    longitude: input.lastStopLongitude ?? null,
-  });
+  const overrideArea = input.overnightAreaOverride?.trim();
+  const overnightArea =
+    overrideArea ||
+    resolveOvernightAreaLabel(input.lastStopArea, input.lastStopName, {
+      chosenLodgingName: input.chosenLodging?.name ?? null,
+      address: input.lastStopAddress ?? null,
+      latitude: input.lastStopLatitude ?? null,
+      longitude: input.lastStopLongitude ?? null,
+    });
   return {
     nightIndex: input.dayIndex,
     overnightArea,

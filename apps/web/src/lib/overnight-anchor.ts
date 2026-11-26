@@ -194,6 +194,10 @@ export function resolvePreviousOvernightArea(input: {
   }[];
 }): string | null {
   if (input.dayIndex <= 1) return null;
+  const directPrevPlan = input.overnightStays?.find((s) => s.day === input.dayIndex - 1)?.area;
+  if (directPrevPlan) return directPrevPlan;
+  const directPrevStay = input.overnightStays?.find((s) => s.day === input.dayIndex - 1)?.area;
+  if (directPrevStay) return directPrevStay;
   const latest = [...input.previousDays]
     .filter((d) => d.dayIndex < input.dayIndex && d.lastStop)
     .sort((a, b) => b.dayIndex - a.dayIndex)[0];

@@ -104,19 +104,36 @@ export type ActivityAnchor = {
 export function resolveEveningAnchorPoint(input: {
   lastStop: { name?: string | null; area?: string | null; address?: string | null; latitude: number; longitude: number };
   lodging?: OvernightLodgingPoint | null;
+  /** Canonical overnight town center from `journeyPlan.overnightStays` (D3 / B3). */
+  overnightStay?: { area: string; latitude: number; longitude: number } | null;
 }): { latitude: number; longitude: number; anchorSource: EveningAnchorSource; areaLabel?: string } {
+  const stayArea = input.overnightStay?.area?.trim() || undefined;
   // Only snap the EVENING Places search anchor to a town center when the stop's area/address/name
   // actually belongs to that town (not by snapping an unrelated distant stop to a faraway town).
   const areaLabel =
+    stayArea ||
     resolveOvernightAreaLabel(input.lastStop.area, input.lastStop.name, {
       address: input.lastStop.address ?? null,
-    }) || undefined;
+    }) ||
+    undefined;
   if (input.lodging && Number.isFinite(input.lodging.latitude) && Number.isFinite(input.lodging.longitude)) {
     return {
       latitude: input.lodging.latitude,
       longitude: input.lodging.longitude,
       anchorSource: input.lodging.source,
       areaLabel,
+    };
+  }
+  if (
+    input.overnightStay &&
+    Number.isFinite(input.overnightStay.latitude) &&
+    Number.isFinite(input.overnightStay.longitude)
+  ) {
+    return {
+      latitude: input.overnightStay.latitude,
+      longitude: input.overnightStay.longitude,
+      anchorSource: "town_center",
+      areaLabel: stayArea ?? areaLabel,
     };
   }
   const townCenter = areaLabel ? OVERNIGHT_TOWN_CENTERS[areaLabel] : undefined;
@@ -156,6 +173,7 @@ export function activityAnchors(
     const freeAfternoon = last && index < result.days.length - 1 && last.departureMinute !== null && last.departureMinute < EARLY_DAY_END_MINUTE;
     if (last && freeAfternoon) frees.push({ slotId: `d${day.day}-free`, kind: "FREE", latitude: last.destination.latitude, longitude: last.destination.longitude });
     if (last && index < result.days.length - 1) {
+      const overnightStay = result.journeyPlan?.overnightStays?.find((stay) => stay.day === day.day) ?? null;
       const resolved = resolveEveningAnchorPoint({
         lastStop: {
           name: last.destination.name,
@@ -164,6 +182,7 @@ export function activityAnchors(
           longitude: last.destination.longitude,
         },
         lodging: options?.overnightLodgings?.[day.day] ?? null,
+        overnightStay,
       });
       nights.push({
         slotId: `d${day.day}-overnight`,

@@ -1459,9 +1459,36 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 const lastVisit = day.visits.at(-1);
                 const lastDeparture = lastVisit ? lastVisit.startMinute + lastVisit.plannedDurationMinutes : null;
                 const nightText = lastDeparture !== null && trip.journey?.plan && nextDay ? nightRestText(lastDeparture) : null;
+                const overnightStay = trip.journey?.plan?.overnightStays?.find(
+                  (stay) => stay.day === day.dayIndex,
+                );
+                const checkinPresentation =
+                  day.dayIndex < trip.days.length
+                    ? resolveOvernightCheckinPresentation({
+                        overnightStay,
+                        lastStop: lastVisit?.destination
+                          ? {
+                              area: lastVisit.destination.area,
+                              name: lastVisit.destination.name,
+                              latitude: lastVisit.destination.latitude,
+                              longitude: lastVisit.destination.longitude,
+                            }
+                          : null,
+                        transport: trip.transport,
+                      })
+                    : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
+                const dayHasOutboundOnly =
+                  day.dayIndex === 1 &&
+                  day.visits.length === 0 &&
+                  Boolean(trip.journey?.plan?.legs.some((leg) => leg.day === 1 && leg.kind === "OUTBOUND"));
+                const canonicalOvernightArea =
+                  overnightStay?.area ??
+                  checkinPresentation.area ??
+                  (dayHasOutboundOnly ? "TP Hà Giang" : null);
                 const eveningPlan = buildDayEveningPlan({
                   dayIndex: day.dayIndex,
                   totalDays: trip.days.length,
+                  overnightAreaOverride: canonicalOvernightArea,
                   lastStopArea: lastVisit?.destination.area,
                   lastStopName: lastVisit?.destination.name,
                   lastStopAddress: (lastVisit?.destination as { address?: string | null } | undefined)?.address ?? null,
@@ -1576,26 +1603,14 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   };
                 });
 
-                const overnightStay = trip.journey?.plan?.overnightStays?.find(
-                  (stay) => stay.day === day.dayIndex,
-                );
-                const checkinPresentation =
+                const estimatedCheckinTravelMinutes =
                   eveningPlan || (day.dayIndex < trip.days.length && lastVisit)
-                    ? resolveOvernightCheckinPresentation({
-                        overnightStay,
-                        lastStop: lastVisit?.destination
-                          ? {
-                              area: lastVisit.destination.area,
-                              name: lastVisit.destination.name,
-                              latitude: lastVisit.destination.latitude,
-                              longitude: lastVisit.destination.longitude,
-                            }
-                          : null,
-                        transport: trip.transport,
-                      })
-                    : { area: null, estimatedCheckinTravelMinutes: null, checkinRouteSummary: null };
-                const estimatedCheckinTravelMinutes = checkinPresentation.estimatedCheckinTravelMinutes;
-                const checkinRouteSummary = checkinPresentation.checkinRouteSummary;
+                    ? checkinPresentation.estimatedCheckinTravelMinutes
+                    : null;
+                const checkinRouteSummary =
+                  eveningPlan || (day.dayIndex < trip.days.length && lastVisit)
+                    ? checkinPresentation.checkinRouteSummary
+                    : null;
 
                 const tripStopNamesById: Record<string, string> = {};
                 for (const tripDay of trip.days) {
@@ -1627,6 +1642,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   dayIndex: day.dayIndex,
                   originLabel: cleanOriginLabel,
                   previousOvernightArea,
+                  overnightArea: canonicalOvernightArea ?? eveningPlan?.overnightArea ?? null,
                   stops,
                   previousDayStops: (prevTripDay?.visits ?? []).map((visit) => ({
                     destinationId: visit.destination.id,
@@ -1702,6 +1718,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                       }
                     : null,
                   eveningPlan,
+                  overnightStayArea: canonicalOvernightArea,
                   estimatedCheckinTravelMinutes,
                   checkinRouteSummary,
                   freeTimeSuggestions: freeTimeSuggestions.length > 0 ? freeTimeSuggestions : undefined,
