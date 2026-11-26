@@ -434,6 +434,27 @@ export type AiEditBarProps = {
   onJumpToTab?: (tab: "timeline" | "map") => void;
 };
 
+/** S10: Drops diff lines that duplicate the suggestion summary (or repeat each other). */
+export function visibleSuggestionDiffLines(
+  summary: string,
+  diffSummaryLines: readonly string[],
+): string[] {
+  const normalize = (value: string) =>
+    value.trim().replace(/[.\s]+$/u, "").replace(/\s+/gu, " ").toLocaleLowerCase("vi");
+  const cleanSummary = cleanTravelerProse(summary) || summary;
+  const summaryKey = normalize(cleanSummary);
+  const seen = new Set<string>(summaryKey ? [summaryKey] : []);
+  const out: string[] = [];
+  for (const raw of diffSummaryLines) {
+    const cleanLine = (cleanTravelerProse(raw) || raw).trim();
+    const key = normalize(cleanLine);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(cleanLine);
+  }
+  return out;
+}
+
 function suggestionStatusLabel(suggestion: AdviceSuggestionCard): {
   label: string;
   isPass: boolean;
@@ -965,6 +986,8 @@ export default function AiEditBar({
                       <div className={styles.aiSuggestionCardsRow}>
                         {state.suggestions.slice(0, 4).map((suggestion) => {
                           const badge = suggestionStatusLabel(suggestion);
+                          const cleanSummary = cleanTravelerProse(suggestion.summary) || suggestion.summary;
+                          const diffLines = visibleSuggestionDiffLines(suggestion.summary, suggestion.diffSummaryLines);
                           return (
                             <article key={suggestion.id} className={styles.aiSuggestionCard}>
                               <div className={styles.aiSuggestionHeader}>
@@ -977,13 +1000,13 @@ export default function AiEditBar({
                                 </span>
                               </div>
                               <p className={styles.aiSuggestionSummary}>
-                                {cleanTravelerProse(suggestion.summary) || suggestion.summary}
+                                {cleanSummary}
                               </p>
-                              {suggestion.diffSummaryLines.length > 0 && (
+                              {diffLines.length > 0 && (
                                 <ul className={styles.aiSuggestionDiffList}>
-                                  {suggestion.diffSummaryLines.map((line, index) => (
+                                  {diffLines.map((line, index) => (
                                     <li key={`${suggestion.id}-diff-${index}`}>
-                                      {cleanTravelerProse(line) || line}
+                                      {line}
                                     </li>
                                   ))}
                                 </ul>

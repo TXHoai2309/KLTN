@@ -458,10 +458,12 @@
   background: var(--edit-green);
   color: var(--primary-foreground);
 }
+/* S12: Keep toast in-flow above .content inside .workspaceStage so it never overlaps chat messages. */
 .toastPill {
-  position: absolute;
-  top: 12px;
-  right: 16px;
+  position: relative;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin: 10px 16px 0;
   z-index: 28;
   max-width: min(520px, calc(100% - 32px));
   display: flex;
@@ -1328,9 +1330,9 @@
     display: none;
   }
   .toastPill {
-    left: 12px;
-    right: 12px;
-    top: 10px;
+    align-self: stretch;
+    margin: 8px 12px 0;
+    max-width: none;
     border-radius: 12px;
   }
   .workspaceGrid,

@@ -1053,4 +1053,63 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     // Preserve US-35 storage & continuous tracking invariants
     expect(clientSource).not.toMatch(/localStorage|sessionStorage|indexedDB|document\.cookie|watchPosition/u);
   });
+
+  it("S10 & S12: hides duplicate diff lines matching suggestion summary and keeps .toastPill in-flow so it never overlaps messages", async () => {
+    const { visibleSuggestionDiffLines } = await import("./ai-edit-bar");
+    expect(
+      visibleSuggestionDiffLines("Đổi giờ bắt đầu về sang 05:30", ["Đổi giờ bắt đầu về sang 05:30"]),
+    ).toEqual([]);
+    expect(
+      visibleSuggestionDiffLines("Đổi giờ bắt đầu về sang 05:30", [
+        "Đổi giờ bắt đầu về sang 05:30",
+        "Bỏ Sông Nho Quế khỏi Ngày 5",
+      ]),
+    ).toEqual(["Bỏ Sông Nho Quế khỏi Ngày 5"]);
+
+    const cardHtml = renderToStaticMarkup(createElement(AiEditBar, {
+      open: true,
+      onToggleOpen: () => {},
+      inputValue: "",
+      onInputChange: () => {},
+      disabled: false,
+      state: {
+        kind: "ADVISED",
+        advice: "Bạn có thể cân nhắc xuất phát sớm hơn ngày cuối.",
+        suggestions: [
+          {
+            id: "s-dup",
+            title: "Xuất phát về lúc 05:30",
+            summary: "Đổi giờ bắt đầu về sang 05:30",
+            diffSummaryLines: ["Đổi giờ bắt đầu về sang 05:30"],
+            candidate: { startDate: "2026-12-20", durationDays: 5, transport: "MOTORCYCLE", days: [] },
+            diff: { added: [], removed: [], updated: [], tripChanges: {} },
+            changedVisitIds: { added: [], updated: [], shifted: [], removedCount: 0 },
+            validation: {
+              timeReference: "2026-11-26T00:00:00.000Z",
+              canConfirm: true,
+              groups: {
+                openingHours: { status: "SATISFIED", findings: [] },
+                minimumDuration: { status: "SATISFIED", findings: [] },
+                travelTime: { status: "SATISFIED", findings: [] },
+                scheduleConflict: { status: "SATISFIED", findings: [] },
+              },
+            },
+            saveEligibility: "PASS",
+          },
+        ],
+      },
+      onSubmitPrompt: () => {},
+      onRetry: () => {},
+      onUndoAiStep: () => {},
+      onDismissApplied: () => {},
+    }));
+    expect(cardHtml.match(/Đổi giờ bắt đầu về sang 05:30/g)).toHaveLength(1);
+
+    // S12: .toastPill uses in-flow relative positioning inside .workspaceStage rather than absolute overlay
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const css = await readFile(resolve(dir, "./edit-trip.module.css"), "utf8");
+    const toastRule = css.match(/\.toastPill\s*\{([^}]*)\}/u)?.[1] ?? "";
+    expect(toastRule).toContain("position: relative;");
+    expect(toastRule).not.toContain("position: absolute;");
+  });
 });
