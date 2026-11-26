@@ -124,6 +124,10 @@ describe("S14 / S6 deterministic signal detection", () => {
     expect(hasYoungChildSignal(["doan co tre em"])).toBe(true);
     expect(hasYoungChildSignal(["Nhà có em bé đi cùng"])).toBe(true);
     expect(hasYoungChildSignal(["nha co em be"])).toBe(true);
+    // Folding turns bẻ/bề/bệ into "be": these must not read as a young child.
+    expect(hasYoungChildSignal(["Dinh thự nhìn bề thế không bạn?"])).toBe(false);
+    expect(hasYoungChildSignal(["Đường đèo phải bẻ lái nhiều không?"])).toBe(false);
+    expect(hasYoungChildSignal(["Chỗ này có bệ ngồi không"])).toBe(false);
     expect(hasYoungChildSignal(["Con mình 10 tuổi đi được không?"])).toBe(true);
     expect(hasYoungChildSignal(["con minh 5 tuoi"])).toBe(true);
   });

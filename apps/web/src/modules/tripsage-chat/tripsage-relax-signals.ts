@@ -53,8 +53,9 @@ export function hasYoungChildSignal(texts: readonly string[]): boolean {
       }
     }
 
-    // Standalone "bé" (already stripped of "bạn bè", "bể bơi", "xe bé", negated "không có bé", etc.)
-    if (/\bbe\b/u.test(cleaned)) {
+    // Standalone "bé" (already stripped of "bạn bè", "bể bơi", "xe bé", negated "không có bé", etc.).
+    // Folding merges bé/bẻ/bề/bệ/bế into "be", so also require the accented "bé" in the raw text ("bề thế", "bẻ lái" are not children).
+    if (/\bbe\b/u.test(cleaned) && /(?<![\p{L}\p{N}])bé(?![\p{L}\p{N}])/u.test(raw.normalize("NFC").toLowerCase())) {
       return true;
     }
   }
