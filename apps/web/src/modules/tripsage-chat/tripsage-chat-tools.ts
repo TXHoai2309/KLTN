@@ -286,6 +286,26 @@ export async function repairOvertimeItinerary(input: {
     compactApplied,
   };
 }
+const EXPLICIT_VEHICLE_RENTAL_RE = /(?<!\b(?:khong|ko|k|chua|dung)\s+)\bthue\s+(?:xe(?:\s+(?:may|o\s*to|oto))?|o\s*to|oto)\b/u;
+
+/**
+ * S3a: Returns true only when the traveler explicitly mentions renting a vehicle
+ * ("thuê xe", "thuê ô tô", "thuê xe máy") in their messages — excluding negations ("không thuê xe").
+ */
+export function userExplicitlyRequestedVehicleRental(texts: readonly (string | undefined)[]): boolean {
+  return texts.some((raw) => {
+    if (!raw) return false;
+    const folded = raw
+      .normalize("NFKD")
+      .toLowerCase()
+      .replace(/[\p{M}\p{Cf}]/gu, "")
+      .replace(/đ/gu, "d")
+      .replace(/\s+/gu, " ")
+      .trim();
+    return EXPLICIT_VEHICLE_RENTAL_RE.test(folded);
+  });
+}
+
 /** `journey` comes from the signed-in request or server-built `confirmOrigin`, never from the model. */
 export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerary: (result: PlannerResult) => void; maxProposals?: number; journey?: TripJourney | null;
   /** Trip info recorded by the conversation (request context, updated by `recordTripInfo` in this turn). It, not model input, drives scheduling. */ tripInfo?: TripsageTripInfo | null;
@@ -509,9 +529,21 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     if (transport === "MOTORCYCLE" && isCarTier) return undefined;
     return rentalTier;
   };
+  const resolveEffectiveRentalTier = (
+    info: TripsageTripInfo,
+    rentalTier?: RentalTier,
+  ): RentalTier | undefined => {
+    const usesLocalRental = resolveUsesLocalRental(info);
+    // S3a: Self-driving from home without an access leg uses the traveler's own vehicle unless they explicitly asked to rent.
+    if (!usesLocalRental && !userExplicitlyRequestedVehicleRental([...(context.userHistoryTexts ?? []), context.latestUserText])) {
+      return "OWN_VEHICLE";
+    }
+    return resolveCompatibleRentalTier(info.transport, rentalTier);
+  };
   const emitSyncedCostNow = (selections: CostSelectionsInput & { rentalTier?: RentalTier }) => {
     const { info } = withTripInfoDefaults(tripInfo);
     if (!info.transport || !info.durationDays) return null;
+    const effectiveRentalTier = resolveEffectiveRentalTier(info, selections.rentalTier);
     const cost = computeTieredTripCost({
       transport: info.transport,
       travelers: info.travelers,
@@ -523,7 +555,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       usesLocalRental: resolveUsesLocalRental(info),
       lodgingTier: selections.lodgingTier ?? "HOMESTAY",
       mealTier: selections.mealTier ?? "STANDARD",
-      rentalTier: resolveCompatibleRentalTier(info.transport, selections.rentalTier),
+      rentalTier: effectiveRentalTier,
       extras: selections.extras,
       stopTickets: latestStopTickets,
       accessLeg: latestAccessLeg,

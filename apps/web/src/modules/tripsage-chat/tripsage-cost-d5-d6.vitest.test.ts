@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { TripsageCostCard } from "@/components/tripsage-chat/tripsage-cost-card";
 import { fixtureRoutes, planningCandidate, planningNow } from "@/test/planning-fixtures";
 import { buildAccessLeg, formatAccessLegCostBasis } from "./tripsage-access-leg";
-import { createTripsageChatTools, type TripsagePlanningDeps } from "./tripsage-chat-tools";
+import { createTripsageChatTools, userExplicitlyRequestedVehicleRental, type TripsagePlanningDeps } from "./tripsage-chat-tools";
 import { computeTieredTripCost, parseTicketPriceVnd, type CostPart } from "./tripsage-cost";
 
 describe("D5 & D6: server-computed tiered cost & automatic cross-turn recomputation", () => {
@@ -170,5 +170,63 @@ describe("D5 & D6: server-computed tiered cost & automatic cross-turn recomputat
     const carCost = emittedTurn2.at(-1)!;
     expect(carCost.lines.some(l => l.label === "Thuê ô tô tự lái")).toBe(true);
     expect(carCost.lines.some(l => l.label === "Thuê xe máy số")).toBe(false);
+  });
+
+  it("S3a: forces OWN_VEHICLE for self-driving from home even if model passes CAR_SELF_DRIVE, unless traveler asked to rent", async () => {
+    expect(userExplicitlyRequestedVehicleRental(["Nhà mình tự lái ô tô từ Hà Nội (nhà ở Cầu Giấy)"])).toBe(false);
+    expect(userExplicitlyRequestedVehicleRental(["Không thuê xe, đi xe nhà"])).toBe(false);
+    expect(userExplicitlyRequestedVehicleRental(["Mình muốn thuê ô tô tự lái từ Cầu Giấy"])).toBe(true);
+    expect(userExplicitlyRequestedVehicleRental(["Đi từ Hà Nội", "Cho mình thuê xe máy 3 ngày"])).toBe(true);
+
+    const planning: TripsagePlanningDeps = {
+      candidates: async () => [],
+      routes: fixtureRoutes,
+      now: () => planningNow,
+    };
+    const options = { toolCallId: "tc-s3a", messages: [] } as never;
+    const cauGiayJourney = {
+      origin: { label: "Quận Cầu Giấy, Hà Nội", latitude: 21.0362, longitude: 105.7906, source: "GOOGLE_PLACES" as const, confirmed: true as const },
+      departureMinute: 420,
+      returnDeadlineMinute: 1080,
+    };
+
+    // Case 1: Self-driving own car from Cầu Giấy — model mistakenly selects CAR_SELF_DRIVE
+    const ownCarCosts: CostPart[] = [];
+    const ownCarTools = createTripsageChatTools({
+      planning,
+      emitItinerary: () => {},
+      journey: cauGiayJourney,
+      tripInfo: { transport: "CAR", durationDays: 4, startDate: "2026-12-11", travelers: 3, homeCity: "Hà Nội" },
+      currentItinerary: { days: [{ day: 1, stops: [] }], distanceKm: 850 },
+      latestUserText: "Thêm 1 ngày",
+      userHistoryTexts: ["Nhà mình 2 vợ chồng với 1 bé 7 tuổi, tự lái ô tô từ Hà Nội (nhà ở Cầu Giấy), muốn đi Hà Giang 3 ngày 2 đêm từ 11/12."],
+      emitCost: c => ownCarCosts.push(c),
+    });
+    await ownCarTools.estimateCosts.execute!(
+      { lodgingTier: "HOMESTAY", mealTier: "STANDARD", rentalTier: "CAR_SELF_DRIVE" },
+      options,
+    );
+    const ownCarCost = ownCarCosts.at(-1)!;
+    expect(ownCarCost.lines.some(l => l.label.includes("Thuê ô tô"))).toBe(false);
+    expect(ownCarCost.selections?.rentalTier).toBe("OWN_VEHICLE");
+
+    // Case 2: Traveler from Cầu Giấy explicitly says "thuê ô tô tự lái" -> rental line IS kept
+    const rentalCarCosts: CostPart[] = [];
+    const rentalCarTools = createTripsageChatTools({
+      planning,
+      emitItinerary: () => {},
+      journey: cauGiayJourney,
+      tripInfo: { transport: "CAR", durationDays: 4, startDate: "2026-12-11", travelers: 3, homeCity: "Hà Nội" },
+      currentItinerary: { days: [{ day: 1, stops: [] }], distanceKm: 850 },
+      latestUserText: "Nhà mình muốn thuê ô tô tự lái từ Cầu Giấy đi Hà Giang 4 ngày",
+      emitCost: c => rentalCarCosts.push(c),
+    });
+    await rentalCarTools.estimateCosts.execute!(
+      { lodgingTier: "HOMESTAY", mealTier: "STANDARD", rentalTier: "CAR_SELF_DRIVE" },
+      options,
+    );
+    const rentalCarCost = rentalCarCosts.at(-1)!;
+    expect(rentalCarCost.lines.some(l => l.label === "Thuê ô tô tự lái")).toBe(true);
+    expect(rentalCarCost.selections?.rentalTier).toBe("CAR_SELF_DRIVE");
   });
 });

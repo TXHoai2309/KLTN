@@ -66,7 +66,7 @@ export type CostLineInput = z.infer<typeof costLineInputSchema>;
 export const costSelectionsSchema = z.object({
   lodgingTier: z.enum(LODGING_TIERS).default("HOMESTAY").describe("Hạng lưu trú: DORM (tập thể 125k/người/đêm), HOMESTAY (phòng riêng 450k/phòng/đêm), HOTEL (khách sạn 2-3 sao 750k/phòng/đêm)."),
   mealTier: z.enum(MEAL_TIERS).default("STANDARD").describe("Mức ăn uống: BUDGET (190k/người/ngày), STANDARD (270k/người/ngày), COMFORT (400k/người/ngày)."),
-  rentalTier: z.enum(RENTAL_TIERS).optional().describe("Phương án xe tại Hà Giang: OWN_VEHICLE (xe tự túc từ nhà), SEMI_AUTO (xe số 175k/xe/ngày), MANUAL (xe côn 300k/xe/ngày), EASY_RIDER (có tài xế 850k/người/ngày), CAR_SELF_DRIVE (ô tô tự lái 900k/xe/ngày), CAR_DRIVER (ô tô có tài xế 1.500k/xe/ngày)."),
+  rentalTier: z.enum(RENTAL_TIERS).optional().describe("Phương án xe: OWN_VEHICLE (tự lái xe nhà / xe cá nhân từ nhà — KHÔNG tính tiền thuê, 0đ), SEMI_AUTO (thuê xe máy số 175k/xe/ngày), MANUAL (thuê xe máy côn 300k/xe/ngày), EASY_RIDER (thuê xe máy có tài xế 850k/người/ngày), CAR_SELF_DRIVE (THUÊ ô tô tự lái 900k/xe/ngày — CHỈ chọn khi khách nói rõ muốn thuê ô tô/thuê xe), CAR_DRIVER (thuê ô tô có tài xế 1.500k/xe/ngày). Khách tự lái ô tô/xe máy của nhà từ nơi ở (không đi chặng tiếp cận) PHẢI chọn OWN_VEHICLE."),
   extras: z.array(costLineInputSchema).max(6).optional().describe("CHỈ thêm khoản phát sinh đặc biệt ngoài lưu trú, ăn uống, thuê xe, gửi xe, vé danh mục, xăng và chặng tiếp cận."),
 }).strict();
 export type CostSelectionsInput = z.infer<typeof costSelectionsSchema>;
