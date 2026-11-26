@@ -1048,9 +1048,23 @@ export function streamTripsageChat(input: {
         const found = filter.takeReplies();
         if (found.length > 0) extractedDirectiveReplies.push(...found);
       };
+      // S15: models sometimes restate an earlier paragraph verbatim in a later text block (e.g. after a tool call). Hold a new
+      // block while it only repeats text already sent this turn, release it once it says something new, drop it if it never does.
+      const foldSpaces = (value: string) => value.replace(/\s+/gu, " ").trim();
+      const repeatGuards = new Map<string, { prior: string; held: string }>();
+      const releaseBlockText = (id: string, text: string): string => {
+        const guard = repeatGuards.get(id);
+        if (!guard) return text;
+        guard.held += text;
+        const held = foldSpaces(guard.held);
+        if (!held || guard.prior.includes(held)) return "";
+        repeatGuards.delete(id);
+        return guard.held;
+      };
       const flushRemainingSourceFilters = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {
-        for (const filter of sourceStreamFilters.values()) {
-          const tail = filter.end();
+        for (const [filterId, filter] of sourceStreamFilters) {
+          const tail = releaseBlockText(filterId, filter.end());
+          repeatGuards.delete(filterId);
           collectFilterReplies(filter);
           if (tail) {
             textChunks.push(tail);
@@ -1079,12 +1093,14 @@ export function streamTripsageChat(input: {
           }
           if (chunk.type === "text-start" && "id" in chunk && typeof chunk.id === "string") {
             sourceStreamFilters.set(chunk.id, createInlineSourceStreamFilter({ lang: replyLang }));
+            const prior = foldSpaces(textChunks.join(""));
+            if (prior.length >= 40) repeatGuards.set(chunk.id, { prior, held: "" });
           }
           if (chunk.type === "text-delta" && typeof chunk.delta === "string") {
             const filterId = "id" in chunk && typeof chunk.id === "string" ? chunk.id : "__default__";
             const filter = sourceStreamFilters.get(filterId) ?? createInlineSourceStreamFilter({ lang: replyLang });
             sourceStreamFilters.set(filterId, filter);
-            const filteredDelta = filter.push(chunk.delta);
+            const filteredDelta = releaseBlockText(filterId, filter.push(chunk.delta));
             collectFilterReplies(filter);
             if (!filteredDelta) return;
             textChunks.push(filteredDelta);
@@ -1094,7 +1110,9 @@ export function streamTripsageChat(input: {
             const filter = sourceStreamFilters.get(chunk.id);
             if (filter) {
               sourceStreamFilters.delete(chunk.id);
-              const trailingDelta = filter.end();
+              const trailingDelta = releaseBlockText(chunk.id, filter.end());
+              // A block still held at its end only repeated earlier text: drop it.
+              repeatGuards.delete(chunk.id);
               collectFilterReplies(filter);
               if (trailingDelta) {
                 textChunks.push(trailingDelta);

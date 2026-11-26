@@ -125,3 +125,20 @@ Phát hiện mới:
 - Đoàn có trẻ nhỏ hoặc nhịp nhẹ ⇒ ưu tiên đêm 1 ở TP Hà Giang, phạt khu nghỉ ngoài cung chính (như Bắc Mê).
 - Ghi chú triển khai nhỏ: (a) giữ nguyên `tripInfoSchema` và không đổi schema DB (S3b chưa duyệt); (b) khi `tripInfo.pace` chưa được model ghi (`undefined`), `hasGentlePaceWording` chỉ nhận cụm từ nhịp nhẹ rõ ràng (*đi nhẹ nhàng / đi thư thả / đi thong thả / nhịp nhẹ / ít leo trèo*) và tuyệt đối không kích hoạt bởi *"không vội cũng được"* hay các câu phủ định; (c) khi chế độ giãn lịch bật trên lượt thêm ngày, máy chủ cũng lọc bỏ điểm mới model tự thêm ngoài `shownIds` / `mustIncludeDestinationIds` / tên điểm khách vừa nhắc để bảo đảm tất định không tăng số điểm.
 - S3b (trẻ em / số phòng) và B7 **chưa** duyệt — giữ nguyên.
+
+---
+
+## 6. Smoke test production sau deploy `0b4c623` (S14, S6) — 2026-11-26
+
+Deployment `dpl_3XZRR4hVfutSqNDcfiwarDYhvtie` (= `c6ea687` S14/S6 + `0b4c623` sửa nhận nhầm "bẻ/bề/bệ" là có trẻ nhỏ khi bỏ dấu — Claude rà soát phát hiện, đã thêm test). Hội thoại `fa066ec6-d71f-46dd-ba39-b4e017fe8ad4`, cùng kịch bản gia đình Cầu Giấy.
+
+Đã xác nhận:
+- **S6:** Ngày 1 `Cầu Giấy → TP Hà Giang`, đêm 1 nghỉ TP Hà Giang (không còn Bắc Mê), có gợi ý homestay + quán ăn tối.
+- **S14:** "Về gần 24h thì muộn quá với bé. Cho nhà mình thêm 1 ngày để đi thư thả hơn nhé." ⇒ 4 ngày, **giữ 6 điểm** (trước đây lên 10), đêm 3 ở Quản Bạ, **về Cầu Giấy 14:32** (bản 3 ngày 23:42). Bot nói đúng "đã giãn lịch, giữ nguyên các điểm, đưa đêm cuối về gần TP Hà Giang".
+- S1/S2/S3a/S5 vẫn đúng (trả lời hiện ngay, không hỏi lại Cầu Giấy, không có dòng thuê xe).
+
+Phát hiện mới:
+- **S15 — Đoạn trả lời bị lặp nguyên văn (1/2 lượt).** Lượt đầu của `fa066ec6`: cùng đoạn "Mình xếp lịch theo hướng ngắm cảnh…" xuất hiện 2 lần liền ("…đỡ muộn?Mình xếp lịch…"); bản lưu DB cũng lặp (1 phần text 968 ký tự). Lượt sau không lặp. Chưa rõ nguyên nhân: hoặc model viết lại đoạn sau khi gọi tool (2 bước text gộp thành 1 phần khi lưu), hoặc server ghép `textChunks` 2 lần (nghi vùng `flushRemainingSourceFilters` mới thêm ở S1 / filter `__default__` khi `text-delta` không có `id`). Hướng: ghi log số bước text và độ dài `textChunks` mỗi bước để phân biệt; nếu do model, khử trùng đoạn văn trùng nguyên văn trước khi lưu/hiển thị; nếu do server, sửa chỗ push trùng + test.
+- Ghi nhận (không phải lỗi): bản 3 ngày cho gia đình vẫn về 23:42 vì Hà Nội ↔ cao nguyên đá trong 3 ngày quá xa; bot đã cảnh báo và gợi ý chỉnh.
+
+**S15 — đã sửa (Claude, 2026-11-26).** Bộ lọc nguồn và luồng server không có đường đẩy chữ 2 lần trong cùng một khối; nguồn lặp là model viết lại nguyên đoạn trong một khối text mới (thường sau khi gọi tool). Sửa tại `streamTripsageChat` (`tripsage-chat-service.ts`): mỗi khối text mới trong lượt được giữ lại khi nội dung (bỏ khác biệt khoảng trắng) chỉ lặp lại chữ đã gửi; nhả ra ngay khi có nội dung mới; bỏ hẳn nếu tới hết khối vẫn chỉ là lặp. Chữ lặp không tới trình duyệt và không vào DB. Test hồi quy `S15` trong `tripsage-chat-stream-redaction.vitest.test.ts` (fail trên code cũ, pass sau sửa). Giới hạn: khối mới lặp một phần rồi thêm ý mới vẫn hiện nguyên (chỉ chặn lặp nguyên văn).

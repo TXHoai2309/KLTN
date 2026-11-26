@@ -305,4 +305,36 @@ describe("flight and hotel provider boundaries", () => {
     expect(flushIdx).toBeGreaterThan(-1);
     expect(finishIdx).toBeGreaterThan(flushIdx);
   });
+
+  it("S15: drops a later text block that only restates earlier text, keeps one that adds something new", async () => {
+    const answer = "Mình xếp lịch theo hướng ngắm cảnh, làng bản và hạn chế các điểm leo trèo. Bạn muốn giữ lịch này không?";
+    const streamOf = (second: string) => new MockLanguageModelV4({
+      doStream: async () => ({
+        stream: simulateReadableStream({
+          chunks: [
+            { type: "stream-start", warnings: [] },
+            { type: "text-start", id: "a" },
+            { type: "text-delta", id: "a", delta: answer.slice(0, 40) },
+            { type: "text-delta", id: "a", delta: answer.slice(40) },
+            { type: "text-end", id: "a" },
+            { type: "text-start", id: "b" },
+            { type: "text-delta", id: "b", delta: second.slice(0, 25) },
+            { type: "text-delta", id: "b", delta: second.slice(25) },
+            { type: "text-end", id: "b" },
+            { type: "finish", finishReason: { unified: "stop", raw: "stop" }, usage },
+          ] as never[],
+        }),
+      }),
+    });
+    const textOf = async (second: string) => (parts(await run(streamOf(second))) as { type: string; delta?: string }[])
+      .filter(part => part.type === "text-delta").map(part => part.delta).join("");
+
+    const repeated = await textOf(`\n\n${answer}`);
+    expect(repeated.split("Mình xếp lịch").length - 1).toBe(1);
+
+    const extra = " Ngày cuối về khoảng 14:32.";
+    const added = await textOf(extra);
+    expect(added).toContain(answer);
+    expect(added).toContain("Ngày cuối về khoảng 14:32.");
+  });
 });
