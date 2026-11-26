@@ -380,7 +380,8 @@ export function buildTripsageChatBody(input: {
 }
 
 const OUT_OF_SCOPE_TOURIST_DESTINATIONS_RE =
-  /\b(?:sa\s*pa|m[oộ]c\s+ch[aâ]u|đ[aà]\s+l[aạ]t|ph[uú]\s+qu[oố]c|ninh\s+b[iì]nh|tr[aà]ng\s+an|h[aạ]\s+long|c[aá]t\s+b[aà]|h[oộ]i\s+an|nha\s+trang|m[uù]\s+cang\s+ch[aả]i|t[aà]\s+x[uù]a|y\s+t[yý]|cao\s+b[aằ]ng|b[aả]n\s+gi[oố]c|ba\s+b[eể]|mai\s+ch[aâ]u|p[uù]\s+lu[oô]ng|fansipan|l[aà]o\s+cai)\b/iu;
+  // \b is ASCII-only in JS, so accented names (Đà Lạt, Ba Bể, Y Tý) need Unicode-aware boundaries.
+  /(?<![\p{L}\p{N}])(?:sa\s*pa|m[oộ]c\s+ch[aâ]u|đ[aà]\s+l[aạ]t|ph[uú]\s+qu[oố]c|ninh\s+b[iì]nh|tr[aà]ng\s+an|h[aạ]\s+long|c[aá]t\s+b[aà]|h[oộ]i\s+an|nha\s+trang|m[uù]\s+cang\s+ch[aả]i|t[aà]\s+x[uù]a|y\s+t[yý]|cao\s+b[aằ]ng|b[aả]n\s+gi[oố]c|ba\s+b[eể]|mai\s+ch[aâ]u|p[uù]\s+lu[oô]ng|fansipan|l[aà]o\s+cai)(?![\p{L}\p{N}])/iu;
 
 /** D7 (B11): true when a quick-reply chip assumes an existing itinerary (e.g. "Bỏ … khỏi lịch", "Giữ Cột cờ…") before any plan exists. */
 export function isItineraryActionChipWithoutPlan(reply: string): boolean {

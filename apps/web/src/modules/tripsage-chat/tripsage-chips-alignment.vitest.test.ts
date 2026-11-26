@@ -134,6 +134,9 @@ describe("Point 3 — question-chip alignment & sensible budget savings chips", 
     expect(isOutOfScopeDestinationChip("Khám phá Mộc Châu 2 ngày")).toBe(true);
     expect(isOutOfScopeDestinationChip("Lên lịch Hà Giang nhẹ nhàng")).toBe(false);
     expect(isOutOfScopeDestinationChip("Từ Lào Cai đi Hà Giang")).toBe(false);
+    expect(isOutOfScopeDestinationChip("Đi Đà Lạt cho nhẹ")).toBe(true);
+    expect(isOutOfScopeDestinationChip("Ghé hồ Ba Bể")).toBe(true);
+    expect(isOutOfScopeDestinationChip("Săn mây Y Tý")).toBe(true);
 
     // Tool-level guard in suggestReplies when no itinerary exists
     const tools = createTripsageChatTools({
