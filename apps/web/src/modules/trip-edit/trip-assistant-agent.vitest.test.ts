@@ -7,7 +7,7 @@ import { PreferenceExtractionError } from "../preference-extraction/preference-e
 import * as validatorModule from "../trip-validation/trip-validation";
 import type { TripValidation } from "../trip-validation/trip-validation";
 import { createAiEditProposal, type AiEditServiceDependencies } from "./ai-edit-service";
-import { AGENT_MAX_ROUNDS, TRIP_ASSISTANT_AGENT_INSTRUCTIONS } from "./trip-assistant-agent";
+import { AGENT_MAX_ROUNDS, buildTripAssistantMessages, TRIP_ASSISTANT_AGENT_INSTRUCTIONS } from "./trip-assistant-agent";
 
 const revision = new Date("2026-10-15T12:00:00.000Z");
 const timeReference = new Date("2026-10-16T10:00:00.000Z");
@@ -395,5 +395,84 @@ describe("Saved-trip assistant AI SDK reasoning loop (ADR-40 Ticket 01)", () => 
     expect(TRIP_ASSISTANT_AGENT_INSTRUCTIONS).toContain("apply_to_draft");
     expect(TRIP_ASSISTANT_AGENT_INSTRUCTIONS).toContain("show_options");
     expect(TRIP_ASSISTANT_AGENT_INSTRUCTIONS).toContain("Nguồn tài liệu:");
+  });
+
+  it("S8: supplies verified outbound & return distance (km) and driving duration to the AI edit agent context", () => {
+    const model = scriptedModel([{ text: "Chặng về 421,5 km khá dài." }]);
+    const messages = buildTripAssistantMessages({
+      model,
+      message: "Ngày 5 chạy hơn 400 km có mệt không?",
+      history: [],
+      tripStatus: "UPCOMING",
+      baseCandidate: {
+        startDate: "2026-12-20",
+        durationDays: 5,
+        transport: "MOTORCYCLE",
+        days: [{ dayIndex: 1, visits: [{ visitId: "v1", destinationId: "d1", order: 1, startMinute: 480, plannedDurationMinutes: 60 }] }],
+        journey: {
+          origin: { label: "Hà Nội (bến xe Mỹ Đình)", latitude: 21.0285, longitude: 105.7785, source: "MANUAL", confirmed: true },
+          departureMinute: 420,
+          returnDeadlineMinute: 1200,
+          returnDepartureMinute: 420,
+        },
+      },
+      savedShape: {
+        id: "t1",
+        transport: "MOTORCYCLE",
+        startDate: "2026-12-20",
+        durationDays: 5,
+        days: [],
+      } as never,
+      placeNames: new Map([["d1", "Điểm A"]]),
+      placeDetailsById: new Map(),
+      catalog: [],
+      lockedVisitIds: new Set(),
+      baselinePreview: {
+        candidate: { startDate: "2026-12-20", durationDays: 5, transport: "MOTORCYCLE", days: [] },
+        validation: passValidation(),
+        legs: [],
+        saveEligibility: "SAVEABLE",
+        uncheckedItems: [],
+        journeySummary: {
+          outboundDurationSeconds: 22_080,
+          outboundDistanceMeters: 298_400,
+          outboundRestMinutes: 45,
+          estimatedArrivalAtFirstMinute: 833,
+          firstVisitStartMinute: 840,
+          returnDurationSeconds: 37_980,
+          returnDistanceMeters: 421_500,
+          returnRestMinutes: 90,
+          estimatedReturnArrivalMinute: 1158,
+          returnDeadlineMinute: 1200,
+        },
+      },
+      runPreview: async () => { throw new Error("not called"); },
+      journeyEditable: true,
+      createVisitId: () => "v-new",
+      weather: async () => [],
+      knowledge: async () => null,
+      addedPlaceDetails: () => undefined,
+      timeReference: new Date("2026-12-01T00:00:00Z"),
+    });
+
+    const userMsg = messages.at(-1)!;
+    const parsed = JSON.parse(String(userMsg.content)) as {
+      tripContext: {
+        journey: {
+          outboundDistanceKm: number | null;
+          outboundDriveMinutes: number | null;
+          outboundRestMinutes: number | null;
+          returnDistanceKm: number | null;
+          returnDriveMinutes: number | null;
+          returnRestMinutes: number | null;
+        };
+      };
+    };
+    expect(parsed.tripContext.journey.outboundDistanceKm).toBe(298.4);
+    expect(parsed.tripContext.journey.outboundDriveMinutes).toBe(368);
+    expect(parsed.tripContext.journey.outboundRestMinutes).toBe(45);
+    expect(parsed.tripContext.journey.returnDistanceKm).toBe(421.5);
+    expect(parsed.tripContext.journey.returnDriveMinutes).toBe(633);
+    expect(parsed.tripContext.journey.returnRestMinutes).toBe(90);
   });
 });

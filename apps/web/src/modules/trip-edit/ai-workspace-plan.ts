@@ -1228,13 +1228,23 @@ export function buildGroundedAdvice(input: {
       );
     }
     if (js?.estimatedArrivalAtFirstMinute != null) {
-      journeyBits.push(`dự kiến tới điểm đầu lúc ${minuteClockLabel(js.estimatedArrivalAtFirstMinute)}`);
+      const outMetrics: string[] = [];
+      if (js.outboundDistanceMeters != null) outMetrics.push(`${(js.outboundDistanceMeters / 1000).toFixed(1).replace(".", ",")} km`);
+      if (js.outboundDurationSeconds != null) outMetrics.push(`khoảng ${Math.ceil(js.outboundDurationSeconds / 60)} phút chạy xe`);
+      journeyBits.push(
+        `dự kiến tới điểm đầu lúc ${minuteClockLabel(js.estimatedArrivalAtFirstMinute)}${outMetrics.length ? ` (${outMetrics.join(", ")})` : ""}`,
+      );
     }
     if (js?.estimatedReturnArrivalMinute != null) {
+      const retMetrics: string[] = [];
+      if (js.returnDistanceMeters != null) retMetrics.push(`${(js.returnDistanceMeters / 1000).toFixed(1).replace(".", ",")} km`);
+      if (js.returnDurationSeconds != null) retMetrics.push(`khoảng ${Math.ceil(js.returnDurationSeconds / 60)} phút chạy xe`);
       const deadlineLabel = js.returnDeadlineMinute != null
         ? ` (hạn về ${minuteClockLabel(js.returnDeadlineMinute)})`
         : "";
-      journeyBits.push(`về tới nơi xuất phát lúc ${minuteClockLabel(js.estimatedReturnArrivalMinute)}${deadlineLabel}`);
+      journeyBits.push(
+        `về tới nơi xuất phát lúc ${minuteClockLabel(js.estimatedReturnArrivalMinute)}${retMetrics.length ? ` (${retMetrics.join(", ")})` : ""}${deadlineLabel}`,
+      );
     }
     if (journeyBits.length > 0) {
       const journeyLine = `Lộ trình xuất phát/trở về: ${journeyBits.join("; ")}.`;

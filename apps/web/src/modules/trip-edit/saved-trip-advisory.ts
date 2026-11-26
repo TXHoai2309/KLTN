@@ -133,7 +133,11 @@ export type VerifiedAdvisoryFacts = {
     returnDeadlineTime: string | null;
     estimatedReturnTime: string | null;
     outboundDriveMinutes: number | null;
+    outboundDistanceKm?: number | null;
+    outboundRestMinutes?: number | null;
     returnDriveMinutes: number | null;
+    returnDistanceKm?: number | null;
+    returnRestMinutes?: number | null;
   } | null;
   weatherAndSun: AdvisoryDayWeatherDigest[];
   suggestions: {
@@ -835,9 +839,25 @@ export function buildVerifiedAdvisoryFacts(input: {
             input.journeySummary.outboundDurationSeconds != null
               ? Math.ceil(input.journeySummary.outboundDurationSeconds / 60)
               : null,
+          outboundDistanceKm:
+            input.journeySummary.outboundDistanceMeters != null
+              ? Math.round((input.journeySummary.outboundDistanceMeters / 1000) * 10) / 10
+              : null,
+          outboundRestMinutes:
+            typeof input.journeySummary.outboundRestMinutes === "number"
+              ? input.journeySummary.outboundRestMinutes
+              : null,
           returnDriveMinutes:
             input.journeySummary.returnDurationSeconds != null
               ? Math.ceil(input.journeySummary.returnDurationSeconds / 60)
+              : null,
+          returnDistanceKm:
+            input.journeySummary.returnDistanceMeters != null
+              ? Math.round((input.journeySummary.returnDistanceMeters / 1000) * 10) / 10
+              : null,
+          returnRestMinutes:
+            typeof input.journeySummary.returnRestMinutes === "number"
+              ? input.journeySummary.returnRestMinutes
               : null,
         }
       : null,
