@@ -430,10 +430,12 @@ describe("Saved-trip assistant AI SDK reasoning loop (ADR-40 Ticket 01)", () => 
       catalog: [],
       lockedVisitIds: new Set(),
       baselinePreview: {
+        baseRevision: revision.toISOString(),
+        eligibleForConfirmation: true,
         candidate: { startDate: "2026-12-20", durationDays: 5, transport: "MOTORCYCLE", days: [] },
         validation: passValidation(),
         legs: [],
-        saveEligibility: "SAVEABLE",
+        saveEligibility: "PASS",
         uncheckedItems: [],
         journeySummary: {
           outboundDurationSeconds: 22_080,

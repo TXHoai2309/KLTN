@@ -531,6 +531,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   };
   const resolveEffectiveRentalTier = (
     info: TripsageTripInfo,
+    transport: TripTransport,
     rentalTier?: RentalTier,
   ): RentalTier | undefined => {
     const usesLocalRental = resolveUsesLocalRental(info);
@@ -538,12 +539,12 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     if (!usesLocalRental && !userExplicitlyRequestedVehicleRental([...(context.userHistoryTexts ?? []), context.latestUserText])) {
       return "OWN_VEHICLE";
     }
-    return resolveCompatibleRentalTier(info.transport, rentalTier);
+    return resolveCompatibleRentalTier(transport, rentalTier);
   };
   const emitSyncedCostNow = (selections: CostSelectionsInput & { rentalTier?: RentalTier }) => {
     const { info } = withTripInfoDefaults(tripInfo);
     if (!info.transport || !info.durationDays) return null;
-    const effectiveRentalTier = resolveEffectiveRentalTier(info, selections.rentalTier);
+    const effectiveRentalTier = resolveEffectiveRentalTier(info, info.transport, selections.rentalTier);
     const cost = computeTieredTripCost({
       transport: info.transport,
       travelers: info.travelers,

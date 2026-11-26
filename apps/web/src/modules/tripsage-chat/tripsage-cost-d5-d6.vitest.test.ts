@@ -188,6 +188,7 @@ describe("D5 & D6: server-computed tiered cost & automatic cross-turn recomputat
       origin: { label: "Quận Cầu Giấy, Hà Nội", latitude: 21.0362, longitude: 105.7906, source: "GOOGLE_PLACES" as const, confirmed: true as const },
       departureMinute: 420,
       returnDeadlineMinute: 1080,
+      returnDepartureMinute: null,
     };
 
     // Case 1: Self-driving own car from Cầu Giấy — model mistakenly selects CAR_SELF_DRIVE
