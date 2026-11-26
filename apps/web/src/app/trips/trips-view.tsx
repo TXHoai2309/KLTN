@@ -50,7 +50,8 @@ import {
 } from "lucide-react";
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
-import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
+import { TripCostEstimateSection, TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
+import { journeyVisitFingerprint } from "@/modules/trip-origin/journey-saved-contract";
 import { resolveTravelDaysContext } from "@/modules/tripsage-chat/tripsage-access-leg";
 import { TripsageAccessLegCard } from "@/components/tripsage-chat/tripsage-access-leg-card";
 import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
@@ -862,8 +863,51 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
       ),
     [accessLeg, trip.journey?.journey.origin?.label],
   );
+  const latestCostPin = useMemo(() => {
+    if (!isOwner) return null;
+    const costPins = (trip.pinnedItems ?? []).filter(
+      (item): item is Extract<PinnedItem, { kind: "COST" }> => item.kind === "COST",
+    );
+    return costPins.at(-1) ?? null;
+  }, [isOwner, trip.pinnedItems]);
+  const costNeedsRecompute = useMemo(() => {
+    if (!latestCostPin) return false;
+    const currentFingerprint = journeyVisitFingerprint(
+      trip.days.map((day) => ({
+        dayIndex: day.dayIndex,
+        visits: day.visits.map((visit) => ({
+          destinationId: visit.destination.id,
+          order: visit.order,
+          startMinute: visit.startMinute,
+          plannedDurationMinutes: visit.plannedDurationMinutes,
+        })),
+      })),
+    );
+    if (latestCostPin.visitFingerprint && latestCostPin.visitFingerprint !== currentFingerprint) {
+      return true;
+    }
+    if (trip.journey && !trip.journey.plan) {
+      return true;
+    }
+    const costSightseeingDays = latestCostPin.cost.sightseeingDays ?? latestCostPin.cost.days;
+    if (costSightseeingDays !== trip.durationDays) {
+      return true;
+    }
+    if (accessLeg) {
+      if (latestCostPin.cost.accessLegId && accessLeg.id && latestCostPin.cost.accessLegId !== accessLeg.id) {
+        return true;
+      }
+      if (
+        !latestCostPin.cost.accessLegId &&
+        !latestCostPin.cost.lines.some((line) => line.label === "Chặng tiếp cận (đi và về)")
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }, [latestCostPin, trip.days, trip.durationDays, trip.journey, accessLeg]);
   const nonAccessPins = useMemo(
-    () => (trip.pinnedItems ?? []).filter((item) => item.kind !== "ACCESS"),
+    () => (trip.pinnedItems ?? []).filter((item) => item.kind !== "ACCESS" && item.kind !== "COST"),
     [trip.pinnedItems],
   );
   const outboundDate = useMemo(() => shiftIsoDate(trip.days[0]?.localDate ?? trip.startDate, -1), [trip.days, trip.startDate]);
@@ -1292,6 +1336,14 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
             </div>
           )}
         </section>
+      )}
+
+      {isOwner && (
+        <TripCostEstimateSection
+          costPin={latestCostPin}
+          needsRecompute={costNeedsRecompute}
+          headingLevel={2}
+        />
       )}
 
       {isOwner && nonAccessPins.length > 0 && <TripPinnedSection items={nonAccessPins} headingLevel={2} />}

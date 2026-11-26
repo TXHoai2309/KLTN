@@ -1243,6 +1243,8 @@ export function TripsageChatClient({
                               chosenLodgings={chosenLodgings}
                               suggestions={state.suggestions}
                               pinnedItems={reconciledPinned}
+                              latestCost={state.cost?.data ?? null}
+                              accessLeg={state.accessLeg?.data ?? null}
                               primaryLabel="Lưu chuyến"
                               buttonSize="md"
                               outdatedReason={planOutdated ? STALE_ITINERARY_MESSAGE : null}

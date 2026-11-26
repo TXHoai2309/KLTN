@@ -3,7 +3,10 @@ import type { PlannerResult } from "../trip-planner/planner-contract";
 import { toSaveProposal, toUncheckedSavePlan } from "../trip-save/trip-save-adapter";
 import { submitTripSave, type TripSaveClientResult } from "../trip-save/trip-save-client";
 import type { ChosenLodgingSaveItem, NearbySuggestionSaveItem } from "../trip-save/trip-save-contract";
-import type { PinnedItem } from "../trip-save/trip-pin-contract";
+import { MAX_PINNED_ITEMS, type PinnedItem } from "../trip-save/trip-pin-contract";
+import { costPin } from "../trip-save/trip-pin-builders";
+import type { AccessLegPart } from "./tripsage-access-leg";
+import type { CostPart } from "./tripsage-cost";
 import type { UncheckedItem } from "../trip-save/unchecked-checks";
 import type { TripProposal } from "../trip-validation/trip-proposal-contract";
 import type { TripValidation, ValidationFinding } from "../trip-validation/trip-validation";
@@ -153,6 +156,48 @@ export function describeSaveValidationFailure(
 
 /** All-PASS schedules only (`toSaveProposal` is null otherwise); kept for callers that must not offer unchecked Save. */
 export const chatSaveProposal = (result: PlannerResult): TripProposal | null => toSaveProposal(result);
+
+/**
+ * ADR-58 (Q1, Q5): Checks whether a conversation's latest cost estimate matches the current
+ * `accessLegId` and itinerary duration, and merges it into `pinnedItems` as a `COST` snapshot
+ * (replacing any older pinned `COST` item). Never fabricates or recomputes numbers.
+ */
+export function isCostEstimateMatchingSave(input: {
+  latestCost?: CostPart | null;
+  accessLeg?: AccessLegPart | null;
+  proposal: PlannerResult;
+}): boolean {
+  const { latestCost, accessLeg, proposal } = input;
+  if (!latestCost) return false;
+  if (accessLeg) {
+    if (latestCost.accessLegId && accessLeg.id && latestCost.accessLegId !== accessLeg.id) {
+      return false;
+    }
+    if (!latestCost.accessLegId && !latestCost.lines.some(line => line.label === "Chặng tiếp cận (đi và về)")) {
+      return false;
+    }
+  }
+  const costSightseeingDays = latestCost.sightseeingDays ?? latestCost.days;
+  if (costSightseeingDays !== proposal.requirement.durationDays) {
+    return false;
+  }
+  return true;
+}
+
+export function mergeLatestCostForSave(input: {
+  pinnedItems?: readonly PinnedItem[];
+  latestCost?: CostPart | null;
+  accessLeg?: AccessLegPart | null;
+  proposal: PlannerResult;
+}): PinnedItem[] {
+  const base = input.pinnedItems ? [...input.pinnedItems] : [];
+  if (!input.latestCost || !isCostEstimateMatchingSave(input)) {
+    return base;
+  }
+  const withoutOldCost = base.filter(item => item.kind !== "COST");
+  const capped = withoutOldCost.slice(0, MAX_PINNED_ITEMS - 1);
+  return [...capped, costPin(input.latestCost)];
+}
 
 /**
  * What the Save box may offer: an all-PASS schedule (no unchecked items) or, after explicit confirmation, a schedule whose only

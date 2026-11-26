@@ -258,16 +258,31 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
         seenNearby.add(key);
         return [{ dayIndex, slot: item.slotId.replace(/^d\d+-/, ""), kind: item.kind, placeId: item.placeId, name: item.name, distanceKm: item.distanceKm, sortOrder: seenNearby.size }];
       });
+      const savedVisitFingerprint = journeyVisitFingerprint(request.proposal.days);
+      const normalizedPinnedItems = ((): NonNullable<typeof request.pinnedItems> => {
+        if (!request.pinnedItems?.length) return [];
+        // ADR-58 (Q5): keep at most one COST snapshot (latest wins) and stamp visitFingerprint for Q2 edit drift detection.
+        const lastCostIdx = request.pinnedItems.findLastIndex(item => item.kind === "COST");
+        const out: NonNullable<typeof request.pinnedItems> = [];
+        request.pinnedItems.forEach((item, index) => {
+          if (item.kind !== "COST") {
+            out.push(item);
+          } else if (index === lastCostIdx) {
+            out.push({ ...item, visitFingerprint: item.visitFingerprint ?? savedVisitFingerprint });
+          }
+        });
+        return out;
+      })();
       const trip = await transaction.trip.create({ data: {
         userId: actor.userId,
         startDate: new Date(`${request.proposal.startDate}T00:00:00.000Z`),
         durationDays: request.proposal.durationDays,
         transport: request.proposal.transport,
         ...(unchecked.length ? { uncheckedChecks: JSON.parse(JSON.stringify({ revision: UNCHECKED_REVISION, items: unchecked })), uncheckedConfirmedAt: timeReference } : {}),
-        journeySnapshot: JSON.parse(JSON.stringify({ revision: "journey-save-v1", journey: request.proposal.journey, plan: checked.plan, visitFingerprint: journeyVisitFingerprint(request.proposal.days) })),
+        journeySnapshot: JSON.parse(JSON.stringify({ revision: "journey-save-v1", journey: request.proposal.journey, plan: checked.plan, visitFingerprint: savedVisitFingerprint })),
         ...(chosenLodgingCreates.length ? { chosenLodgings: { create: chosenLodgingCreates } } : {}),
         ...(nearbyCreates.length ? { nearbySuggestions: { create: nearbyCreates } } : {}),
-        ...(request.pinnedItems?.length ? { pinnedItems: { create: request.pinnedItems.map((item, index) => ({ kind: item.kind, payload: JSON.parse(JSON.stringify(item)), sortOrder: index + 1 })) } } : {}),
+        ...(normalizedPinnedItems.length ? { pinnedItems: { create: normalizedPinnedItems.map((item, index) => ({ kind: item.kind, payload: JSON.parse(JSON.stringify(item)), sortOrder: index + 1 })) } } : {}),
         days: { create: request.proposal.days.map(day => ({
           dayIndex: day.dayIndex,
           localDate: new Date(`${tripDayDate(request.proposal.startDate, day.dayIndex)}T00:00:00.000Z`),

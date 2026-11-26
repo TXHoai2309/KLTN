@@ -46,7 +46,12 @@ export const mealPinSchema = z.strictObject({
   distanceKm: z.number().min(0).max(50),
 });
 
-export const costPinSchema = z.strictObject({ kind: z.literal("COST"), cost: costPartSchema });
+export const costPinSchema = z.strictObject({
+  kind: z.literal("COST"),
+  cost: costPartSchema,
+  /** ADR-58 (Q2): optional canonical visit fingerprint at save time so `/trips/[id]` flags stale costs after edits. */
+  visitFingerprint: z.string().min(1).max(8000).optional(),
+});
 
 /** The estimated way from home to the meeting hub and back, kept with the saved trip. Owner-only: it names the home city. */
 export const accessPinSchema = z.strictObject({ kind: z.literal("ACCESS"), leg: accessLegPartSchema });

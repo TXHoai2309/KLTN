@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
+import type { AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
 import type { TripsageTripInfo } from "@/modules/tripsage-chat/tripsage-chat-context";
-import { chatSavePlan, createChatSaveController, type ChatSaveView, type SaveRecoveryAction } from "@/modules/tripsage-chat/tripsage-chat-save";
+import { chatSavePlan, createChatSaveController, mergeLatestCostForSave, type ChatSaveView, type SaveRecoveryAction } from "@/modules/tripsage-chat/tripsage-chat-save";
+import type { CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 import { chosenLodgingMapToList, type ChosenLodgingMap, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
@@ -88,6 +90,8 @@ export function TripsageSaveSection({
   chosenLodgings,
   suggestions,
   pinnedItems,
+  latestCost,
+  accessLeg,
   primaryLabel = "Lưu hành trình",
   buttonSize = "md",
   outdatedReason,
@@ -107,6 +111,9 @@ export function TripsageSaveSection({
   suggestions?: readonly TimelineSuggestion[];
   /** ADR-47: items pinned before saving; they are stored with the trip. */
   pinnedItems?: readonly PinnedItem[];
+  /** ADR-58 (Q1, Q5): latest conversation cost estimate auto-attached on save when matching current itinerary & accessLeg. */
+  latestCost?: CostPart | null;
+  accessLeg?: AccessLegPart | null;
   primaryLabel?: string;
   buttonSize?: "md" | "lg";
   /** Bug 7: when trip requirements changed after this plan was generated, lock Save with a clear reason. */
@@ -235,11 +242,17 @@ export function TripsageSaveSection({
     const nearbyList = (suggestions ?? []).flatMap(item => (item.kind === "ACTIVITY" || item.kind === "EVENING") && item.place?.placeId
       ? [{ slotId: item.slotId, kind: item.kind, placeId: item.place.placeId, name: item.place.name, distanceKm: item.place.distanceKm }]
       : []);
+    const effectivePinnedItems = mergeLatestCostForSave({
+      pinnedItems,
+      latestCost,
+      accessLeg,
+      proposal: effectiveResult,
+    });
     const next = await controller.save(effectiveResult, abortRef.current.signal, {
       confirmUnchecked: confirmed,
       ...(chosenList.length ? { chosenLodgings: chosenList } : {}),
       ...(nearbyList.length ? { nearbySuggestions: nearbyList } : {}),
-      ...(pinnedItems?.length ? { pinnedItems } : {}),
+      ...(effectivePinnedItems.length ? { pinnedItems: effectivePinnedItems } : {}),
     });
     if (next.state === "failed" && next.unchecked.length) setConfirmed(false);
     const snapshot = { ...next };

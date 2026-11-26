@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BedDouble, Plane, UtensilsCrossed, Wallet } from "lucide-react";
 
 import type { PinnedItem, SharedPin } from "@/modules/trip-save/trip-pin-contract";
@@ -84,6 +85,125 @@ function CostCard({ item, cardLevel = 4 }: { item: Extract<Item, { kind: "COST" 
         <p className="trip-pinned-muted">Ước tính, chưa phải báo giá. Ứng dụng không đặt chỗ.</p>
       </div>
     </li>
+  );
+}
+
+/**
+ * ADR-58 (D4 / B9): Dedicated estimated cost section on `/trips/[id]` (always shown for trip owners,
+ * separate from manually pinned flights/hotels/meals). Displays a dated disclaimer, optional
+ * "Cần tính lại" badge when the saved itinerary changed after estimation (Q2), or an empty state
+ * with the existing "Hỏi trợ lý" link when no estimate exists (Q3).
+ */
+export function TripCostEstimateSection({
+  costPin,
+  needsRecompute = false,
+  headingLevel = 2,
+}: {
+  costPin: Extract<PinnedItem, { kind: "COST" }> | null;
+  needsRecompute?: boolean;
+  headingLevel?: 2 | 3;
+}) {
+  const SectionHeading = headingLevel === 2 ? "h2" : "h3";
+  const CardHeading = headingLevel === 2 ? "h3" : "h4";
+
+  if (!costPin) {
+    return (
+      <section
+        className="trip-pinned-section"
+        aria-label="Chi phí ước tính"
+        data-testid="trip-cost-section"
+      >
+        <header>
+          <SectionHeading>Chi phí ước tính</SectionHeading>
+        </header>
+        <div className="trip-pinned-card trip-pinned-wide">
+          <span className="trip-pinned-icon" aria-hidden="true">
+            <Wallet size={18} />
+          </span>
+          <div className="trip-pinned-body">
+            <p className="trip-pinned-muted">Chưa có ước tính chi phí</p>
+            <p className="trip-pinned-links">
+              <Link href="/assistant">Hỏi trợ lý</Link>
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const { cost } = costPin;
+  const referenceDateText = cost.priceReferenceDate
+    ? dateLabel(cost.priceReferenceDate)
+    : null;
+  const isIncomplete = cost.isIncomplete === true || Boolean(cost.missingItems?.length);
+
+  return (
+    <section
+      className="trip-pinned-section"
+      aria-label="Chi phí ước tính"
+      data-testid="trip-cost-section"
+    >
+      <header>
+        <SectionHeading>
+          Chi phí ước tính
+          {needsRecompute && (
+            <>
+              {" "}
+              <span className="tripsage-cost-warn-badge" data-testid="trip-cost-stale-badge">
+                Cần tính lại
+              </span>
+            </>
+          )}
+          {isIncomplete && (
+            <>
+              {" "}
+              <span className="tripsage-cost-warn-badge" data-testid="trip-cost-incomplete-badge">
+                Chưa đầy đủ
+              </span>
+            </>
+          )}
+        </SectionHeading>
+        <p className="trip-pinned-muted">
+          {referenceDateText
+            ? `Ước tính tại ngày ${referenceDateText}, chưa phải báo giá. Ứng dụng không đặt chỗ.`
+            : "Ước tính, chưa phải báo giá. Ứng dụng không đặt chỗ."}
+        </p>
+      </header>
+      <ul className="trip-pinned-grid">
+        <li className="trip-pinned-card trip-pinned-wide">
+          <span className="trip-pinned-icon" aria-hidden="true">
+            <Wallet size={18} />
+          </span>
+          <div className="trip-pinned-body">
+            <CardHeading>
+              {vnd(cost.total)}{" "}
+              <span className="trip-pinned-muted">
+                · {cost.travelers} người · {cost.days} ngày · {vnd(cost.perPersonPerDay)}/người/ngày
+              </span>
+            </CardHeading>
+            {isIncomplete && cost.missingItems && cost.missingItems.length > 0 && (
+              <p className="trip-pinned-muted">Chưa tính: {cost.missingItems.join(", ")}</p>
+            )}
+            <ul className="trip-pinned-costLines">
+              {cost.lines.map((line, index) => (
+                <li key={index}>
+                  <span>
+                    {COST_LABEL[line.category]}: {line.label}
+                    {line.basis ? ` (${line.basis})` : ""}
+                  </span>
+                  <span>{vnd(line.amount)}</span>
+                </li>
+              ))}
+            </ul>
+            {needsRecompute && (
+              <p className="trip-pinned-links">
+                <Link href="/assistant">Hỏi trợ lý</Link>
+              </p>
+            )}
+          </div>
+        </li>
+      </ul>
+    </section>
   );
 }
 

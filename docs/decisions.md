@@ -1385,3 +1385,32 @@ Adopt all approved decisions D1–D7 from [trip-review-lessons-d1ada90d-spec.md]
 - Real-constraint Validator invariants (`CLOSED`/`OUTSIDE_OPENING_HOURS`, `VISIT_TOO_SHORT` unless user-chosen, `TRANSFER_TOO_SHORT`, `SCHEDULE_CONFLICT`, `INSUFFICIENT_DATA`) remain strictly enforced.
 - `journeyPlan` and day timelines include verified overnight town-center legs (`coordinateRoute`), requiring `INSUFFICIENT_DATA` reporting if an overnight town-center leg lacks verified routing rather than fabricating estimates.
 - Existing tests pinning `RETURN_DEADLINE_MISSED` as a `VIOLATION`, `"Hà Nội (bến xe Mỹ Đình)"` for self-drive titles/headers, hidden grouped photos, and two-turn origin loops will be updated alongside regression coverage from `d1ada90d`.
+
+## ADR-58 — Always show estimated trip cost on `/trips/[id]` without requiring manual pin (2026-11-26)
+
+- **Status:** Accepted by the owner (2026-11-26, Q1–Q5 in [trip-review-lessons-demo-2026-11-26-spec.md](specs/trip-review-lessons-demo-2026-11-26-spec.md)). Partially supersedes `ADR-47` for `COST` items only.
+- **Date:** 2026-11-26
+
+### Context
+
+Under `ADR-47`, estimated trip costs were saved onto a trip only when the traveler manually clicked `"Ghim vào chuyến đi"` on the cost card in `/assistant`, and `/trips/[id]` rendered them only inside `"Mục đã ghim"`. During the 2026-11-26 demo run (B9), travelers who saved a trip from chat without manually pinning the cost card opened `/trips/[id]`, saw no cost estimate at all, and assumed the feature was broken.
+
+### Decision
+
+Partially supersede `ADR-47` **for cost estimates (`kind: "COST"`) only** (flights, hotels, and meal places remain manual opt-in pins):
+
+1. **Auto-include latest matching cost on save from chat (Q1, Q5):** Saving a trip from `/assistant` always attaches the conversation's latest cost estimate that matches the current `accessLegId` and current itinerary as a `COST` item in `pinnedItems`, even if the traveler did not click `"Ghim vào chuyến đi"`. If an older `COST` item was manually pinned earlier, the latest matching cost replaces it (preserving the ADR-47 single-cost-pin rule). No server-side recomputation runs during save; the `SUCCESS / FAILED / UNKNOWN` contract and deterministic `Idempotency-Key` hashing remain unchanged (including the `COST` item deterministically in the save signature).
+2. **Dedicated `"Chi phí ước tính"` section on `/trips/[id]` (D4 §2, Q3):** For the trip owner, `/trips/[id]` displays a dedicated `"Chi phí ước tính"` section separate from `"Mục đã ghim"` (flights, hotels, meals stay in `"Mục đã ghim"`), always showing the dated reference disclaimer (`"Ước tính tại ngày …, chưa phải báo giá"`). Trips without a saved cost estimate (saved from the manual form or older trips; no backfill per Q4) still render the `"Chi phí ước tính"` section with empty-state text `"Chưa có ước tính chi phí"` and the existing `"Hỏi trợ lý"` link.
+3. **Stale indicator after `/trips/[id]/edit` (Q2):** Editing a saved trip at `/trips/[id]/edit` does not auto-recompute the saved cost estimate. The saved `COST` snapshot optionally records the itinerary `visitFingerprint` at save time (inside `trip_pinned_item.payload`, no DB schema migration); when the saved itinerary's visits, duration, or access leg differ from the snapshot, `/trips/[id]` displays the existing `"Cần tính lại"` badge.
+4. **Companion sharing invariant preserved:** Companion group views (`shareablePins`) remain strictly governed by `ADR-47` (sharing stays, meals, and only the lodging + food lines of the cost, never fares/transport/full total).
+
+### Alternatives
+
+- Recomputing cost server-side on save or on every `/trips/[id]/edit` apply: rejected (Q1, Q2) to avoid introducing server-side pricing side effects or silent number changes after explicit review.
+- Backfilling existing saved trips: rejected (Q4).
+- Hiding the cost section when empty: rejected (Q3) so travelers understand cost estimation is available via the assistant.
+
+### Consequences
+
+- No Prisma schema migration is required (`trip_pinned_item.payload` stores optional `visitFingerprint` backward-compatibly).
+- Every newly saved chat trip with a matching cost estimate displays `"Chi phí ước tính"` immediately on `/trips/[id]`, while keeping flights/hotels/meals opt-in and companion privacy intact.

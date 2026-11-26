@@ -12,7 +12,9 @@ import { planningCandidate, planningNow } from "../../test/planning-fixtures";
 import { COMPLETE_JOURNEY_FIXTURE } from "../trip-origin/trip-origin-fixtures";
 import { saveTripResponse } from "../trip-save/trip-save-http";
 import type { TripSaveDependencies } from "../trip-save/trip-save-service";
-import { chatSaveProposal, createChatSaveController } from "./tripsage-chat-save";
+import { chatSaveProposal, createChatSaveController, mergeLatestCostForSave } from "./tripsage-chat-save";
+import type { CostPart } from "./tripsage-cost";
+import type { AccessLegPart } from "./tripsage-access-leg";
 import { tripsageChatResponse } from "./tripsage-chat-http";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 
@@ -228,5 +230,76 @@ describe("Tripsage chat Save through POST /api/trips", () => {
     expect(v3).toMatchObject({ state: "success", tripId: "trip-2" });
     expect(sentKeys[2]).not.toBe(sentKeys[0]);
     expect(db.trips).toHaveLength(2);
+  });
+
+  it("D4 / ADR-58 (Q1, Q5): auto-attaches latest matching COST when unpinned, replaces older pinned COST, skips mismatched accessLegId, and updates deterministic Idempotency-Key", async () => {
+    const result = await chatItinerary();
+    const baseCost: CostPart = {
+      currency: "VND",
+      travelers: 4,
+      days: result.requirement.durationDays,
+      sightseeingDays: result.requirement.durationDays,
+      lines: [
+        { category: "lodging", label: "Homestay phòng riêng", amount: 900_000, computed: true },
+        { category: "food", label: "Ăn uống phổ thông", amount: 1_080_000, computed: true },
+      ],
+      total: 1_980_000,
+      perPersonPerDay: 495_000,
+      budgetCap: null,
+      withinCap: null,
+      overBy: null,
+      assumptions: ["Ước tính từ bảng giá tham khảo."],
+      priceReferenceDate: "2026-11-21",
+      accessLegId: "leg-v2",
+    };
+    const matchingLeg = { id: "leg-v2" } as unknown as AccessLegPart;
+    const staleLeg = { id: "leg-v3" } as unknown as AccessLegPart;
+
+    // Q1: unpinned save still attaches matching COST
+    const autoMerged = mergeLatestCostForSave({
+      pinnedItems: [],
+      latestCost: baseCost,
+      accessLeg: matchingLeg,
+      proposal: result,
+    });
+    expect(autoMerged).toEqual([{ kind: "COST", cost: baseCost }]);
+
+    // Q5: newer matching COST replaces an older manually pinned COST while keeping other pins
+    const olderCost: CostPart = { ...baseCost, total: 1_500_000 };
+    const mealPin = { kind: "MEAL" as const, placeId: "p-meal-1", name: "Quán Phở", slotId: "d1-lunch", distanceKm: 1.2 };
+    const replaced = mergeLatestCostForSave({
+      pinnedItems: [mealPin, { kind: "COST", cost: olderCost }],
+      latestCost: baseCost,
+      accessLeg: matchingLeg,
+      proposal: result,
+    });
+    expect(replaced).toEqual([mealPin, { kind: "COST", cost: baseCost }]);
+
+    // Q1 mismatch: different accessLegId is NOT auto-attached
+    const skipped = mergeLatestCostForSave({
+      pinnedItems: [mealPin],
+      latestCost: baseCost,
+      accessLeg: staleLeg,
+      proposal: result,
+    });
+    expect(skipped).toEqual([mealPin]);
+
+    // Deterministic Idempotency-Key changes when COST is attached, and stays identical on retry
+    const db = store();
+    const sentKeys: string[] = [];
+    const inner = fetchTo(db.dependencies);
+    const fetcher: typeof fetch = async (url, init) => {
+      sentKeys.push((init!.headers as Record<string, string>)["Idempotency-Key"]!);
+      return inner(url, init);
+    };
+    const cNoCost = createChatSaveController({ fetcher });
+    await cNoCost.save(result);
+    const cWithCost = createChatSaveController({ fetcher });
+    await cWithCost.save(result, undefined, { pinnedItems: autoMerged });
+    const cWithCostRetry = createChatSaveController({ fetcher });
+    await cWithCostRetry.save(result, undefined, { pinnedItems: autoMerged });
+
+    expect(sentKeys[1]).not.toBe(sentKeys[0]);
+    expect(sentKeys[2]).toBe(sentKeys[1]);
   });
 });
