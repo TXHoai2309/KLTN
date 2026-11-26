@@ -61,6 +61,7 @@ import type { TripsageFeature } from "./tripsage-features";
 import { createTripsageExtraTools, type PriorFlightLookupRecord, type PriorHotelLookupKey, type TripsageResultEmitters } from "./tripsage-extra-tools";
 import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
 import { TRIP_HUBS } from "./trip-hubs";
+import { createTripsageInfoTools, type TripsageInfoToolContext } from "./tripsage-info-tools";
 import {
   arrangeSelectionForOvernightAreas,
   evaluateOvernightConstraints,
@@ -342,6 +343,8 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Prior flight lookups already emitted in earlier turns of this conversation (proactive cap + access leg pricing). */
   priorFlightLookups?: readonly PriorFlightLookupRecord[];
   memory?: MemoryToolContext;
+  /** Read-only weather forecast and saved-trip tools; absent means those tools are not offered. */
+  info?: Omit<TripsageInfoToolContext, "now">;
   maxFlightCalls?: number; maxHotelCalls?: number } & TripsageResultEmitters;
 export type WebSourcePart = { domain: string };
 export type { ChatSourceItem };
@@ -2414,5 +2417,6 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     priorHotelLookups: context.priorHotelLookups,
   });
   const memory = context.features?.has("memory") ? createMemoryTools(context.memory) : {};
-  return { recordTripInfo, findOrigin, confirmOrigin, suggestReplies, listDestinations, getDestinationInfo, estimateRoute, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, planAccessLeg, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
+  const info = context.info ? createTripsageInfoTools({ ...context.info, now }) : {};
+  return { recordTripInfo, findOrigin, confirmOrigin, suggestReplies, listDestinations, getDestinationInfo, estimateRoute, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, planAccessLeg, webSearch, fetchPage, ...extra, ...memory, ...info } satisfies ToolSet;
 }

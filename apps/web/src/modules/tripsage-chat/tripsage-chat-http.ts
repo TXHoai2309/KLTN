@@ -12,6 +12,8 @@ import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import type { MemoryService } from "../tripsage-memory/memory-service";
+import { getMyTrip, listMyTrips, type TripReadDependencies } from "../trip-read/trip-read-service";
+import { todayInVietnam } from "../trip-weather/sun-times";
 import type { ApplicationSettings } from "../runtime-config/runtime-config-contract";
 import type { AssistantConversationStore } from "./assistant-conversation-store";
 import { signOriginCandidates } from "./tripsage-chat-origin";
@@ -39,6 +41,10 @@ export type TripsageChatHttpDependencies = {
   memory?: () => MemoryService;
   /** Reviewed local documents (Q&A retriever); resolved lazily. Absent means the knowledge tool reports unavailable. */
   knowledge?: () => LocalKnowledge;
+  /** Read-only weather forecast (Open-Meteo) for the chat; `true` uses the shared cached forecast. Absent means not offered. */
+  weather?: true;
+  /** Owner-scoped saved-trip reads; the owner always comes from this request's session, never from the model. */
+  tripRead?: () => TripReadDependencies;
   /** Test seam for the per-turn caps; production uses the defaults. */
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
@@ -123,6 +129,19 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
             planning, originSearch: deps.originSearch?.(), places: deps.places?.(), fuelPrice: deps.fuelPrice?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
             flights: deps.flights, hotels: deps.hotels, priorHotelLookups, priorFlightLookups, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
+            info: deps.weather || deps.tripRead
+              ? {
+                  ...(deps.weather ? { weather: deps.weather } : {}),
+                  ...(deps.tripRead
+                    ? {
+                        myTrips: {
+                          list: () => listMyTrips(request.headers, deps.tripRead!(), todayInVietnam()),
+                          get: (tripId: string) => getMyTrip(request.headers, tripId, deps.tripRead!(), todayInVietnam()),
+                        },
+                      }
+                    : {}),
+                }
+              : undefined,
           });
           if (conversation) streamResponse.headers.set("X-Assistant-Conversation-Id", conversation.conversationId);
           resolve(streamResponse);

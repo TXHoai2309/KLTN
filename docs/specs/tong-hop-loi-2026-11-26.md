@@ -170,3 +170,16 @@ Còn chờ quyết: S3b, B7.
 **R1, R2 — đã sửa (Claude, 2026-11-26).**
 - **R1:** trace admin hội thoại `b2cc910f` cho thấy lượt đầu model gọi `recordTripInfo` với `mustIncludeDestinationIds: []` (chưa biết mã điểm vì chưa `listDestinations`) rồi tự chọn lịch thiếu Sông Nho Quế; server không có gì ép. Sửa: `findMustVisitIds` (`tripsage-relax-signals.ts`) tìm tên điểm trong **tin nhắn mới nhất** nằm cùng câu với "nhất định / phải có / bắt buộc / không thể thiếu / không được bỏ"; `proposeItinerary` gộp vào `requiredDestinationIds` và chèn vào lựa chọn nếu model bỏ sót (bộ xếp tuyến sắp lại thứ tự). Chỉ xét tin mới nhất để "bỏ X" ở lượt sau không bị ép lại. Test `R1` trong `tripsage-s14-s6.vitest.test.ts` (fail trên code cũ, pass sau sửa).
 - **R2:** `resolveUsesLocalRental` coi mọi điểm tập kết là thuê xe. Theo ADR-42 điểm tập kết Hà Nội (Mỹ Đình) dành cho khách từ xa — người Hà Nội hẹn ở Mỹ Đình đi xe nhà. Sửa: chỉ TP Hà Giang (bến xe phía Nam), có chặng tiếp cận, hoặc quê ngoài Hà Nội / TP Hà Giang mới mặc định thuê xe. Test `R2` trong `tripsage-cost-d5-d6.vitest.test.ts` (fail trên code cũ, pass sau sửa).
+
+Smoke production `549c0a1` (deployment `dpl_6vwnnueMdK77fYeUQVZiTFi8tSkM`, hội thoại `56f70c4b-dfdc-4ea1-b5e9-f0efcd85173f`, cùng câu xe máy 5 ngày từ Mỹ Đình): **R1 đạt** — bản v1 đã có Cột cờ Lũng Cú, Mã Pì Lèng và Sông Nho Quế (trace: output `proposeItinerary` chứa Nho Quế); **R2 đạt** — chi phí chỉ còn xăng 2 xe, homestay, ăn uống, gửi xe (10,02 tr), không có dòng thuê xe. Ghi nhận: v1 lấp 16 điểm và về 23:46 (giống bản sáng nay, không phải hồi quy; bot đã hỏi có muốn về sớm hơn).
+
+---
+
+## 8. Thêm công cụ chỉ đọc cho trợ lý chat (chủ dự án duyệt 2026-11-26: "Thêm 2 tool đó")
+
+Lý do: hỏi "thời tiết Hà Giang mấy ngày sắp tới" thì trợ lý `/assistant` trả lời "chưa có dự báo" vì chat không có tool thời tiết (dự báo Open-Meteo 16 ngày chỉ dùng ở timeline / trợ lý sửa lịch).
+
+- `getWeatherForecast` — khu vực Hà Giang (mặc định TP Hà Giang; có Đồng Văn, Mèo Vạc, Lũng Cú…), tối đa 7 ngày liên tiếp trong 16 ngày tới; nhiệt độ thấp/cao, khả năng mưa, lượng mưa, tầm nhìn, gió giật, giờ mặt trời mọc/lặn; ngày quá xa ⇒ `NOT_YET_AVAILABLE`, nhà cung cấp lỗi ⇒ `WEATHER_UNAVAILABLE` (không đoán). Tối đa 2 lần/lượt.
+- `listMyTrips` / `getMyTrip` — chỉ đọc chuyến đã lưu của người đang đăng nhập (dùng `listMyTrips` / `getMyTrip` của `trip-read-service`, chủ chuyến xác định từ phiên đăng nhập của request, model không truyền được người dùng); trả lịch từng ngày, chỗ nghỉ đã chọn, chi phí ước tính. Tối đa 3 lần/lượt. Không có tool ghi (lưu/sửa vẫn qua nút bấm, ADR-47).
+- File: `tripsage-info-tools.ts` (mới), `tripsage-chat-tools.ts`, `tripsage-chat-service.ts` (`infoToolInstructions` nối mô tả vào prompt khi tool được bật), `tripsage-chat-http.ts`, `tripsage-chat-runtime.ts`, `app/api/ai/chat/route.ts`. Test: `tripsage-info-tools.vitest.test.ts`.
+- Giới hạn: chưa hiện thẻ thời tiết dạng giao diện trong chat (trả lời bằng chữ từ số liệu tool).

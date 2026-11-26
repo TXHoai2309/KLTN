@@ -18,6 +18,7 @@ import { blockingAssumedFields, formatAssumedConfirmationMessage } from "../trip
 import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type ChatSourceItem, type LocalKnowledge, type OriginLookup, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
+import { INFO_TOOL_DESCRIPTIONS } from "./tripsage-info-tools";
 import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-features";
 import { budgetPartSchema, flightsPartSchema, hotelsPartSchema, LODGING_KINDS, planProgressPartSchema, saveActionPartSchema, type LodgingKind, type SaveActionPart } from "./tripsage-chat-parts";
 import type { PriorFlightLookupRecord, PriorHotelLookupKey } from "./tripsage-extra-tools";
@@ -92,6 +93,17 @@ function tripsageChatInstructions(features?: ReadonlySet<TripsageFeature>): stri
 }
 
 export const TRIPSAGE_CHAT_INSTRUCTIONS = tripsageChatInstructions();
+
+/** Appends the read-only weather / saved-trip tools when this request offers them. */
+export function infoToolInstructions(info?: TripsageToolContext["info"]): string {
+  const offered = [info?.weather ? INFO_TOOL_DESCRIPTIONS.weather : null, info?.myTrips ? INFO_TOOL_DESCRIPTIONS.trips : null].filter(Boolean);
+  if (!offered.length) return "";
+  const rules = [
+    info?.weather ? "Người dùng hỏi thời tiết các ngày cụ thể hoặc mấy ngày tới thì gọi getWeatherForecast (chọn khu vực phù hợp, mặc định TP Hà Giang) rồi tóm tắt nhiệt độ, khả năng mưa, sương mù/tầm nhìn và giờ mặt trời, nói rõ đây là dự báo tham khảo; ngày quá 16 ngày hoặc không có số liệu thì nói rõ chưa có dự báo, không đoán." : null,
+    info?.myTrips ? "Người dùng hỏi về chuyến đã lưu của họ thì gọi listMyTrips rồi getMyTrip; không tự nghĩ ra mã chuyến; muốn sửa chuyến đã lưu thì hướng tới nút Chỉnh sửa hành trình trên trang chuyến." : null,
+  ].filter(Boolean);
+  return `\n\nNgoài ra bạn có thêm công cụ chỉ đọc: ${offered.join("; ")}. ${rules.join(" ")}`;
+}
 
 const MAX_MESSAGES = 40; const MAX_USER_TEXT = 2_000; const MAX_ASSISTANT_TEXT = 30_000; const MAX_MODEL_HISTORY_CHARS = 24_000;
 const messageSchema = z.object({ id: z.string().max(200).optional(), role: z.enum(["user", "assistant"]), parts: z.array(z.object({ type: z.string() }).loose()).max(200) }).loose();
@@ -838,7 +850,7 @@ export function streamTripsageChat(input: {
   onPersistAssistant?: (parts: StoredAssistantPart[], trace: ToolTrace | null) => Promise<MutationOutcome<unknown>>;
   signal?: AbortSignal;
   onSettled?: () => void;
-} & Pick<TripsageToolContext, "flights" | "hotels" | "memory">): Response {
+} & Pick<TripsageToolContext, "flights" | "hotels" | "memory" | "info">): Response {
   const limits = { ...TRIPSAGE_CHAT_TURN_LIMITS, ...input.limits };
   const settle = once(input.onSettled);
   input.signal?.addEventListener("abort", settle, { once: true });
@@ -902,6 +914,7 @@ export function streamTripsageChat(input: {
         priorHotelLookups: input.priorHotelLookups,
         priorFlightLookups: input.priorFlightLookups,
         memory: input.memory,
+        info: input.info,
         planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, userHistoryTexts: input.messages.filter(m => m.role === "user").map(m => String(m.content)), hubOffered: assistantOfferedHub(lastAssistantText(input.messages)), ambiguityResolution, places: input.places, fuelPrice: input.fuelPrice, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, priorCost: input.priorCost ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSuggestions: suggestions => {
           const id = `suggestions-${++suggestionsPart}`;
@@ -1006,7 +1019,8 @@ export function streamTripsageChat(input: {
           }
         },
       });
-      const instructions = input.features?.size ? tripsageChatInstructions(input.features) : TRIPSAGE_CHAT_INSTRUCTIONS;
+      const baseInstructions = input.features?.size ? tripsageChatInstructions(input.features) : TRIPSAGE_CHAT_INSTRUCTIONS;
+      const instructions = baseInstructions + infoToolInstructions(input.info);
       const turnNow = input.planning.now?.() ?? new Date();
       const result = streamText({ model: input.model, instructions: [instructions, buildTripsageContext({ now: turnNow, latestUserText: input.latestUserText, recentMessages: input.messages, catalogPlaceNames, ambiguityResolution, tripInfo: input.tripInfo, itinerary: input.currentItinerary, suggestions: input.suggestions, journey: input.journey, accessLeg: input.accessLeg, originCandidates: input.originCandidates })].filter(Boolean).join("\n\n"), messages: input.messages, abortSignal: signal,
         // One bounded upstream attempt per step: the SDK's silent backoff retries would multiply cost and eat the 60 s budget.

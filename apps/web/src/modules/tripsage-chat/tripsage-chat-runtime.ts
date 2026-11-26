@@ -15,6 +15,7 @@ import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps } from "./trips
 import { createAssistantConversationStore, type AssistantConversationStore } from "./assistant-conversation-store";
 import { createQaRetriever } from "../ai/qa-retrieval";
 import { originSearchDependencies } from "../trip-origin/origin-search-server";
+import { tripReadDependencies } from "../trip-read/trip-read-server";
 
 export { tripsageMemoryRuntime } from "../tripsage-memory/memory-runtime";
 
@@ -87,3 +88,6 @@ export function tripsageHotelRuntime(): HotelLookup | undefined {
   const client = tripsageSerpApiRuntime();
   return client ? createSerpApiHotelLookup(client) : undefined;
 }
+
+/** Owner-scoped saved-trip reads for the chat's listMyTrips / getMyTrip tools. */
+export const tripsageTripReadRuntime = () => tripReadDependencies;
