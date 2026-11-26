@@ -9,6 +9,7 @@ import {
   buildDayTimelineTravelLeg,
   DayTimeline,
   resolveDayRouteLabel,
+  resolveLegGapBreakdown,
   type DayTimelineDay,
   type DayTimelineNearbyItem,
   type DayTimelineStop,
@@ -434,17 +435,31 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
             ) ?? null
           : null;
       const legRoute = transferLeg?.route ?? stop.inbound ?? null;
-      const photoMinutes =
+      const lunchBefore = resolvedLunch !== null && idx === resolvedLunch.afterStopIndex + 1 ? resolvedLunch : null;
+      const legDepartMinute = lunchBefore
+        ? lunchBefore.toMinute
+        : prevStop?.departureMinute ?? transferLeg?.startMinute ?? null;
+      const gapBreakdown =
         proposal.journeyPlan && legRoute?.status === "VERIFIED"
-          ? scenicBufferMinutes(legRoute.durationSeconds, proposal.requirement)
-          : 0;
+          ? legDepartMinute !== null && stop.arrivalMinute !== null
+            ? resolveLegGapBreakdown({
+                transport: proposal.requirement.transport,
+                pace: proposal.requirement.pace,
+                durationSeconds: legRoute.durationSeconds,
+                restMinutes: transferLeg?.restMinutes ?? 0,
+                departMinute: legDepartMinute,
+                arrivalMinute: stop.arrivalMinute,
+              })
+            : { photoMinutes: scenicBufferMinutes(legRoute.durationSeconds, proposal.requirement), waitMinutes: 0 }
+          : { photoMinutes: 0, waitMinutes: 0 };
       const travelFromPrevious =
         idx > 0 || (activePlannerDay.day > 1 && stop.inbound != null)
           ? buildDayTimelineTravelLeg({
               transport: proposal.requirement.transport,
               route: legRoute,
               restMinutes: transferLeg?.restMinutes ?? 0,
-              photoMinutes,
+              photoMinutes: gapBreakdown.photoMinutes,
+              waitMinutes: gapBreakdown.waitMinutes,
             })
           : null;
 

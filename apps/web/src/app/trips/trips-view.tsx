@@ -3,11 +3,11 @@
 import { DaySun, StopWeather, TripWeatherFootnote } from "@/modules/trip-weather/trip-weather-inline";
 import { TripWeatherProvider } from "@/modules/trip-weather/trip-weather-state";
 import Link from "next/link";
-import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE, scenicBufferMinutes } from "@/modules/trip-planner/planner-engine";
+import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
 import { Fragment, useEffect, useRef, useState, useMemo, type CSSProperties } from "react";
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, travelerDayColorVar, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
-import { buildDayTimelineTravelLeg, DayTimeline, resolveDayRouteLabel, type DayTimelineDay, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
+import { buildDayTimelineTravelLeg, DayTimeline, resolveDayRouteLabel, resolveLegGapBreakdown, type DayTimelineDay, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
 import { splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
 import { resolveOvernightCheckinPresentation, resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
@@ -1595,33 +1595,37 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                         ) ?? null
                       : null;
                   const legRoute = inboundTransferLeg?.route ?? visit.inbound ?? null;
+                  const prevDeparture = prevVisit ? prevVisit.startMinute + prevVisit.plannedDurationMinutes : null;
+                  const lunchBefore = prevVisit && prevDeparture !== null
+                    ? lunchBreakAfter(trip.journey?.plan, visit.destination.id, prevDeparture, visit.startMinute)
+                    : null;
+                  const legDepartMinute = lunchBefore
+                    ? lunchBefore.to
+                    : prevDeparture !== null
+                      ? prevDeparture
+                      : inboundTransferLeg?.startMinute ?? MORNING_DEPARTURE_MINUTE;
                   const prevArrivalGap =
                     prevVisit != null
-                      ? visit.startMinute - (inboundTransferLeg?.endMinute ?? prevVisit.startMinute + prevVisit.plannedDurationMinutes)
+                      ? visit.startMinute - (inboundTransferLeg?.endMinute ?? prevDeparture!)
                       : 0;
-                  let photoMinutes = 0;
-                  if (
-                    legRoute?.status === "VERIFIED" &&
-                    legRoute.durationSeconds != null &&
-                    inboundTransferLeg &&
-                    inboundTransferLeg.endMinute != null
-                  ) {
-                    const relaxedScenic = scenicBufferMinutes(legRoute.durationSeconds, { transport: trip.transport, pace: "RELAXED" });
-                    const moderateScenic = scenicBufferMinutes(legRoute.durationSeconds, { transport: trip.transport, pace: "MODERATE" });
-                    const rawGap = Math.max(0, visit.startMinute - inboundTransferLeg.endMinute);
-                    if (relaxedScenic > 0 && rawGap >= relaxedScenic && rawGap <= relaxedScenic + 10) {
-                      photoMinutes = relaxedScenic;
-                    } else if (moderateScenic > 0 && rawGap >= moderateScenic && rawGap <= moderateScenic + 10) {
-                      photoMinutes = moderateScenic;
-                    }
-                  }
+                  const gapBreakdown =
+                    legRoute?.status === "VERIFIED" && legRoute.durationSeconds != null
+                      ? resolveLegGapBreakdown({
+                          transport: trip.transport,
+                          durationSeconds: legRoute.durationSeconds,
+                          restMinutes: inboundTransferLeg?.restMinutes ?? 0,
+                          departMinute: legDepartMinute,
+                          arrivalMinute: visit.startMinute,
+                        })
+                      : { photoMinutes: 0, waitMinutes: 0 };
                   const hasInboundLeg = visitIndex > 0 || inboundTransferLeg !== null || (day.dayIndex > 1 && visit.inbound != null && prevArrivalGap >= 0);
                   const travelFromPrevious = hasInboundLeg
                     ? buildDayTimelineTravelLeg({
                         transport: trip.transport,
                         route: legRoute,
                         restMinutes: inboundTransferLeg?.restMinutes ?? 0,
-                        photoMinutes,
+                        photoMinutes: gapBreakdown.photoMinutes,
+                        waitMinutes: gapBreakdown.waitMinutes,
                       })
                     : null;
                   if (travelFromPrevious) {

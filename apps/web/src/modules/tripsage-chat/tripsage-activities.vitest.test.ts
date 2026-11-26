@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlannerResult } from "../trip-planner/planner-contract";
-import { ACTIVITY_MAX_ANCHORS, ACTIVITY_PER_SLOT, OVERNIGHT_TOWN_CENTERS, activityAnchors, isLodgingPlace, nearbyActivitySuggestions } from "./tripsage-activities";
+import { ACTIVITY_MAX_ANCHORS, ACTIVITY_PER_SLOT, OVERNIGHT_TOWN_CENTERS, activityAnchors, isLodgingPlace, nearbyActivitySuggestions, nearbyLodgingSuggestions } from "./tripsage-activities";
 import type { PlacesSearch } from "./tripsage-places";
 
 const stop = (name: string, latitude: number, longitude: number, departureMinute = 840) => ({ departureMinute, destination: { id: name, name, latitude, longitude } });
@@ -109,5 +109,68 @@ describe("tripsage-activities (ADR-45)", () => {
       latitude: OVERNIGHT_TOWN_CENTERS["Yên Minh"]!.latitude,
       longitude: OVERNIGHT_TOWN_CENTERS["Yên Minh"]!.longitude,
     });
+  });
+
+  it("D6 / B6: anchors Day 1 OUTBOUND_ONLY at TP Hà Giang and fetches LODGING + EVENING suggestions across all 4 nights", async () => {
+    const fiveDayPlan = {
+      days: [
+        { day: 1, journeyDayKind: "OUTBOUND_ONLY", stops: [] },
+        { day: 2, journeyDayKind: "VISITS", stops: [stop("Phố cổ Phố Bảng", 23.237, 105.174)] },
+        { day: 3, journeyDayKind: "VISITS", stops: [stop("Cột cờ Lũng Cú", 23.3638, 105.3189)] },
+        { day: 4, journeyDayKind: "VISITS", stops: [stop("Sông Nho Quế", 23.1907, 105.4695)] },
+        { day: 5, journeyDayKind: "RETURN_ONLY", stops: [] },
+      ],
+      journeyPlan: {
+        legs: [{ kind: "OUTBOUND", day: 1, from: { kind: "ORIGIN" }, to: { kind: "ATTRACTION", destinationId: "d2" } }],
+        overnightStays: [
+          { day: 2, area: "Yên Minh", ...OVERNIGHT_TOWN_CENTERS["Yên Minh"]!, fromDestinationId: "Phố cổ Phố Bảng", distanceFromLastStopKm: 18 },
+          { day: 3, area: "Đồng Văn", ...OVERNIGHT_TOWN_CENTERS["Đồng Văn"]!, fromDestinationId: "Cột cờ Lũng Cú", distanceFromLastStopKm: 24 },
+          { day: 4, area: "Mèo Vạc", ...OVERNIGHT_TOWN_CENTERS["Mèo Vạc"]!, fromDestinationId: "Sông Nho Quế", distanceFromLastStopKm: 8 },
+        ],
+      },
+    } as unknown as PlannerResult;
+
+    const { anchors, stopNames } = activityAnchors(fiveDayPlan);
+    const nightAnchors = anchors.filter(a => a.kind === "EVENING");
+    expect(nightAnchors.map(a => [a.slotId, a.areaLabel])).toEqual([
+      ["d1-overnight", "TP Hà Giang"],
+      ["d2-overnight", "Yên Minh"],
+      ["d3-overnight", "Đồng Văn"],
+      ["d4-overnight", "Mèo Vạc"],
+    ]);
+
+    const places: PlacesSearch = async (query, _s, near) => ({
+      status: "RESULTS",
+      places: query.includes("homestay")
+        ? [
+            {
+              placeId: `lodging-${near!.latitude.toFixed(2)}`,
+              name: `Homestay Trung Tâm ${near!.latitude.toFixed(2)}`,
+              latitude: near!.latitude + 0.002,
+              longitude: near!.longitude,
+              types: ["lodging"],
+            },
+          ]
+        : [
+            {
+              placeId: `eat-${near!.latitude.toFixed(2)}`,
+              name: `Quán Ăn Đêm ${near!.latitude.toFixed(2)}`,
+              latitude: near!.latitude + 0.001,
+              longitude: near!.longitude,
+              types: ["restaurant"],
+            },
+          ],
+    });
+
+    const lodgings = await nearbyLodgingSuggestions({ places, anchors, now: () => 2e10 });
+    expect(lodgings.map(s => [s.slotId, s.kind])).toEqual([
+      ["d1-overnight", "LODGING"],
+      ["d2-overnight", "LODGING"],
+      ["d3-overnight", "LODGING"],
+      ["d4-overnight", "LODGING"],
+    ]);
+
+    const evenings = await nearbyActivitySuggestions({ places, anchors: nightAnchors, stopNames, now: () => 2e10 });
+    expect(evenings.filter(s => s.slotId === "d1-overnight" && s.kind === "EVENING")).toHaveLength(1);
   });
 });

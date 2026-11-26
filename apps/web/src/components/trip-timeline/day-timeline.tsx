@@ -27,6 +27,7 @@ import {
   cleanTravelerDisplay,
 } from "@/lib/traveler-display-clean";
 import { formatDistanceKm } from "@/lib/traveler-number-format";
+import { scenicBufferMinutes } from "@/modules/trip-planner/planner-engine";
 
 export type DayTimelineVariant = "full" | "compact";
 
@@ -55,6 +56,7 @@ export interface DayTimelineTravelLeg {
   durationMinutes: number | null;
   restMinutes?: number | null;
   photoMinutes?: number | null;
+  waitMinutes?: number | null;
   verified: boolean;
 }
 
@@ -82,7 +84,67 @@ export function formatTravelLegLine(leg: DayTimelineTravelLeg): string {
   ];
   if (leg.restMinutes && leg.restMinutes > 0) parts.push(`nghỉ ${leg.restMinutes} phút`);
   if (leg.photoMinutes && leg.photoMinutes > 0) parts.push(`+${leg.photoMinutes} phút chụp ảnh`);
+  if (leg.waitMinutes && leg.waitMinutes > 0) parts.push(`chờ mở cửa ${leg.waitMinutes} phút`);
   return parts.join(" · ");
+}
+
+/**
+ * D6 (B4): Explains every minute between the preceding event (after lunch if lunch came first,
+ * otherwise previous stop departure or morning departure) and the next stop's start clock:
+ * drive + roadside rest + scenic photo buffer (+ waiting for opening hours when >= 5 min remains
+ * beyond 5-minute clock rounding).
+ */
+export function resolveLegGapBreakdown(args: {
+  transport: "MOTORCYCLE" | "CAR";
+  pace?: "RELAXED" | "MODERATE" | "PACKED" | null;
+  durationSeconds: number | null;
+  restMinutes?: number | null;
+  departMinute: number | null;
+  arrivalMinute: number | null;
+}): { photoMinutes: number; waitMinutes: number } {
+  if (
+    args.durationSeconds == null ||
+    !Number.isFinite(args.durationSeconds) ||
+    args.departMinute == null ||
+    args.arrivalMinute == null
+  ) {
+    return { photoMinutes: 0, waitMinutes: 0 };
+  }
+  const driveMinutes = Math.max(1, Math.ceil(args.durationSeconds / 60));
+  const rest = Math.max(0, args.restMinutes ?? 0);
+  const expectedArrival = args.departMinute + driveMinutes + rest;
+  const rawGap = Math.max(0, args.arrivalMinute - expectedArrival);
+  if (rawGap === 0) return { photoMinutes: 0, waitMinutes: 0 };
+
+  let photoMinutes = 0;
+  if (args.pace) {
+    const expectedScenic = scenicBufferMinutes(args.durationSeconds, {
+      transport: args.transport,
+      pace: args.pace,
+    });
+    if (expectedScenic > 0 && rawGap >= expectedScenic) {
+      photoMinutes = expectedScenic;
+    }
+  } else {
+    const relaxedScenic = scenicBufferMinutes(args.durationSeconds, {
+      transport: args.transport,
+      pace: "RELAXED",
+    });
+    const moderateScenic = scenicBufferMinutes(args.durationSeconds, {
+      transport: args.transport,
+      pace: "MODERATE",
+    });
+    if (relaxedScenic > 0 && rawGap >= relaxedScenic && rawGap <= relaxedScenic + 5) {
+      photoMinutes = relaxedScenic;
+    } else if (moderateScenic > 0 && rawGap >= moderateScenic) {
+      photoMinutes = moderateScenic;
+    }
+  }
+
+  const remaining = Math.max(0, rawGap - photoMinutes);
+  // Up to 4 minutes can come from 5-minute clock rounding (ceil5); >= 5 minutes is a real wait (e.g. opening hours).
+  const waitMinutes = remaining >= 5 ? remaining : 0;
+  return { photoMinutes, waitMinutes };
 }
 
 export function buildDayTimelineTravelLeg(args: {
@@ -94,6 +156,7 @@ export function buildDayTimelineTravelLeg(args: {
   } | null;
   restMinutes?: number | null;
   photoMinutes?: number | null;
+  waitMinutes?: number | null;
 }): DayTimelineTravelLeg {
   const verified =
     args.route?.status === "VERIFIED" &&
@@ -113,6 +176,7 @@ export function buildDayTimelineTravelLeg(args: {
     durationMinutes: Math.max(1, Math.ceil(args.route.durationSeconds! / 60)),
     restMinutes: args.restMinutes ?? 0,
     photoMinutes: args.photoMinutes ?? 0,
+    waitMinutes: args.waitMinutes ?? 0,
     verified: true,
   };
 }

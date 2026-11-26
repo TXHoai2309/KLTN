@@ -16,7 +16,8 @@ import { QUESTION_BY_FIELD } from "../trip-requirement/trip-clarification-rules"
 import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
-import { activityAnchors, nearbyActivitySuggestions, type EveningAnchorDiagnostic } from "./tripsage-activities";
+import { resolveOvernightAnchorTown } from "../../lib/overnight-anchor";
+import { activityAnchors, nearbyActivitySuggestions, nearbyLodgingSuggestions, OVERNIGHT_TOWN_CENTERS, type EveningAnchorDiagnostic } from "./tripsage-activities";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
 import { computeBudgetSavingsChips, computeCostDateSpan, computeTieredTripCost, costSelectionsSchema, parseTicketPriceVnd, type CostPart, type CostSelectionsInput, type RentalTier } from "./tripsage-cost";
 import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
@@ -441,6 +442,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   let currentJourney: TripJourney | null = context.journey ?? null;
   /** Stop ids per day of the itinerary suggestions attach to: this turn's newest proposal, else the one the browser shows. */
   let latestDays: string[][] | null = context.currentItinerary?.days.map(day => day.stops.map(stop => stop.id)) ?? null;
+  let latestOvernightStays: readonly { day: number; area: string; latitude: number; longitude: number }[] = [];
+  let latestOutboundOnlyDay1 = false;
   let latestDistanceKm: number | null = context.currentItinerary?.distanceKm ?? null;
   let latestAccessLeg: AccessLegPart | null = context.accessLeg ?? null;
   const initialAccessStartDate = context.tripInfo?.startDate;
@@ -1329,15 +1332,24 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     if (!anchors.length) return { eveningAnchors: 0, eveningSuggestions: 0, activitySuggestions: 0 };
     try {
       const deadline = AbortSignal.timeout(20_000);
+      const combinedSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
       const eveningDetails: EveningAnchorDiagnostic[] = [];
-      const suggestions = await nearbyActivitySuggestions({
-        places: context.places,
-        anchors,
-        stopNames,
-        signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
-        onEveningDiagnostics: details => eveningDetails.push(...details),
-      });
-      for (let index = 0; index < suggestions.length; index += 16) context.emitSuggestions(suggestions.slice(index, index + 16));
+      const [suggestions, lodgingSuggestions] = await Promise.all([
+        nearbyActivitySuggestions({
+          places: context.places,
+          anchors,
+          stopNames,
+          signal: combinedSignal,
+          onEveningDiagnostics: details => eveningDetails.push(...details),
+        }),
+        nearbyLodgingSuggestions({
+          places: context.places,
+          anchors,
+          signal: combinedSignal,
+        }),
+      ]);
+      const combined = [...suggestions, ...lodgingSuggestions];
+      for (let index = 0; index < combined.length; index += 16) context.emitSuggestions(combined.slice(index, index + 16));
       const eveningSuggestions = suggestions.filter(s => s.kind === "EVENING").length;
       return {
         eveningAnchors,
@@ -1695,6 +1707,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           context.emitQuickReplies?.(["Đổi ngày", "Xem bảng chi phí", "Đổi nhịp đi"]);
         }
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
+        latestOvernightStays = result.journeyPlan?.overnightStays ?? [];
+        latestOutboundOnlyDay1 =
+          result.days[0]?.journeyDayKind === "OUTBOUND_ONLY"
+          || Boolean(result.days[0]?.stops.length === 0 && result.journeyPlan?.legs.some(leg => leg.day === 1 && leg.kind === "OUTBOUND"));
         latestDistanceKm = itineraryDistanceKm(result);
         latestStopTickets = collectStopTicketsFromCandidates(latestDays, all);
         stopTicketsResolvedKey = latestDays.map(d => d.join(",")).join("|");
@@ -1899,6 +1915,23 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           const anchor = anchorId ? await destinationPoint(anchorId) : null;
           let distanceKm = anchor ? haversine(anchor, found) : null;
           const limit = item.kind === "EVENING" || item.kind === "LODGING" ? SUGGESTION_RADIUS_KM[item.kind] : 15;
+          if ((distanceKm === null || distanceKm > limit) && (item.kind === "LODGING" || item.kind === "EVENING") && isNight) {
+            // D3 / D6 (B6): align overnight LODGING/EVENING acceptance with canonical overnightStays town centers (and Day 1 TP Hà Giang).
+            const stayAnchor = latestOvernightStays.find(s => s.day === day);
+            const canonicalTownPoint = stayAnchor
+              ? { latitude: stayAnchor.latitude, longitude: stayAnchor.longitude }
+              : day === 1 && latestOutboundOnlyDay1
+                ? OVERNIGHT_TOWN_CENTERS["TP Hà Giang"] ?? null
+                : anchor
+                  ? resolveOvernightAnchorTown(anchor)
+                  : null;
+            if (canonicalTownPoint) {
+              const distToTown = haversine(canonicalTownPoint, found);
+              if (distToTown <= limit) {
+                distanceKm = distToTown;
+              }
+            }
+          }
           if ((distanceKm === null || distanceKm > limit) && item.kind === "LODGING" && isNight) {
             const nightConstraint = tripInfo.overnightAreas?.find(c => c.afterDay === day);
             if (nightConstraint && anchor) {

@@ -38,6 +38,7 @@ import {
   buildDayTimelineTravelLeg,
   DayTimeline,
   resolveDayRouteLabel,
+  resolveLegGapBreakdown,
   type DayTimelineDay,
 } from "@/components/trip-timeline/day-timeline";
 import { splitTripNearbyBySlot } from "@/components/trip-timeline/suggestion-markers";
@@ -1209,12 +1210,30 @@ function CompanionGroupContent({
                                 leg.from.destinationId === prevVisit.destination.destinationId),
                           ) ?? null
                         : null;
+                    const groupTransport = currentGroup.introduction.transport === "CAR" ? "CAR" : "MOTORCYCLE";
+                    const prevDeparture = prevVisit ? prevVisit.startMinute + prevVisit.plannedDurationMinutes : null;
+                    const lunchBefore = dayLunch && visitIdx === dayLunch.afterStopIndex + 1 ? dayLunch : null;
+                    const legDepartMinute = lunchBefore
+                      ? lunchBefore.toMinute
+                      : prevDeparture ?? transferLeg?.startMinute ?? null;
+                    const gapBreakdown =
+                      transferLeg?.route.status === "VERIFIED"
+                        ? resolveLegGapBreakdown({
+                            transport: groupTransport,
+                            durationSeconds: transferLeg.route.durationSeconds,
+                            restMinutes: transferLeg.restMinutes ?? 0,
+                            departMinute: legDepartMinute,
+                            arrivalMinute: visit.startMinute,
+                          })
+                        : { photoMinutes: 0, waitMinutes: 0 };
                     const travelFromPrevious =
                       visitIdx > 0 || transferLeg !== null
                         ? buildDayTimelineTravelLeg({
-                            transport: currentGroup.introduction.transport === "CAR" ? "CAR" : "MOTORCYCLE",
+                            transport: groupTransport,
                             route: transferLeg?.route ?? null,
                             restMinutes: transferLeg?.restMinutes ?? 0,
+                            photoMinutes: gapBreakdown.photoMinutes,
+                            waitMinutes: gapBreakdown.waitMinutes,
                           })
                         : null;
                     return {

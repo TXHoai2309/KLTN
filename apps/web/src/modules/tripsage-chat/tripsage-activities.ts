@@ -172,26 +172,49 @@ export function activityAnchors(
     const last = day.stops.at(-1);
     const freeAfternoon = last && index < result.days.length - 1 && last.departureMinute !== null && last.departureMinute < EARLY_DAY_END_MINUTE;
     if (last && freeAfternoon) frees.push({ slotId: `d${day.day}-free`, kind: "FREE", latitude: last.destination.latitude, longitude: last.destination.longitude });
-    if (last && index < result.days.length - 1) {
+    if (index < result.days.length - 1) {
       const overnightStay = result.journeyPlan?.overnightStays?.find((stay) => stay.day === day.day) ?? null;
-      const resolved = resolveEveningAnchorPoint({
-        lastStop: {
-          name: last.destination.name,
-          area: last.destination.area,
-          latitude: last.destination.latitude,
-          longitude: last.destination.longitude,
-        },
-        lodging: options?.overnightLodgings?.[day.day] ?? null,
-        overnightStay,
-      });
-      nights.push({
-        slotId: `d${day.day}-overnight`,
-        kind: "EVENING",
-        latitude: resolved.latitude,
-        longitude: resolved.longitude,
-        anchorSource: resolved.anchorSource,
-        areaLabel: resolved.areaLabel,
-      });
+      if (last) {
+        const resolved = resolveEveningAnchorPoint({
+          lastStop: {
+            name: last.destination.name,
+            area: last.destination.area,
+            latitude: last.destination.latitude,
+            longitude: last.destination.longitude,
+          },
+          lodging: options?.overnightLodgings?.[day.day] ?? null,
+          overnightStay,
+        });
+        nights.push({
+          slotId: `d${day.day}-overnight`,
+          kind: "EVENING",
+          latitude: resolved.latitude,
+          longitude: resolved.longitude,
+          anchorSource: resolved.anchorSource,
+          areaLabel: resolved.areaLabel,
+        });
+      } else {
+        // D6 (B6): Day 1 OUTBOUND_ONLY (0 sightseeing stops) arrives at TP Hà Giang — still anchor d1-overnight!
+        const isOutboundOnlyDay1 =
+          day.day === 1
+          && (day.journeyDayKind === "OUTBOUND_ONLY"
+            || Boolean(result.journeyPlan?.legs.some(leg => leg.day === 1 && leg.kind === "OUTBOUND")));
+        if (overnightStay || isOutboundOnlyDay1) {
+          const areaLabel = overnightStay?.area ?? "TP Hà Giang";
+          const center = overnightStay
+            ? { latitude: overnightStay.latitude, longitude: overnightStay.longitude }
+            : OVERNIGHT_TOWN_CENTERS[areaLabel] ?? OVERNIGHT_TOWN_CENTERS["TP Hà Giang"]!;
+          const lodging = options?.overnightLodgings?.[day.day] ?? null;
+          nights.push({
+            slotId: `d${day.day}-overnight`,
+            kind: "EVENING",
+            latitude: lodging?.latitude ?? center.latitude,
+            longitude: lodging?.longitude ?? center.longitude,
+            anchorSource: lodging ? lodging.source : "town_center",
+            areaLabel,
+          });
+        }
+      }
     }
   });
   // Reserve anchor budget for every night (Days 1..N-1) so multi-day trips never lose their "Tối nay" slots (PARITY AC-6).
@@ -337,6 +360,95 @@ export async function nearbyActivitySuggestions(input: {
   }
   if (input.onEveningDiagnostics && eveningDiagnostics.length > 0) {
     input.onEveningDiagnostics(eveningDiagnostics);
+  }
+  return out;
+}
+
+export const LODGING_PER_SLOT = 3;
+export const LODGING_RADIUS_KM = 5;
+const LODGING_QUERY = "homestay khách sạn nhà nghỉ";
+
+/**
+ * D6 (B6): Server-side lodging suggestion lookup anchored on the canonical D3 overnight stay town centers
+ * (`dN-overnight`, including Day 1 OUTBOUND_ONLY at TP Hà Giang), so every overnight night reliably
+ * receives up to 3 unchecked Google Maps lodging suggestions without relying on extra LLM steps.
+ */
+export async function nearbyLodgingSuggestions(input: {
+  places: PlacesSearch;
+  anchors: readonly ActivityAnchor[];
+  signal?: AbortSignal;
+  now?: () => number;
+}): Promise<TimelineSuggestion[]> {
+  const now = input.now ?? Date.now;
+  const nightAnchors = input.anchors.filter(a => a.kind === "EVENING" && a.slotId.endsWith("-overnight"));
+  if (nightAnchors.length === 0) return [];
+
+  const found: ({ anchor: ActivityAnchor; places: ExternalPlaceSuggestion[] } | undefined)[] = new Array(nightAnchors.length);
+  let cursor = 0;
+  const worker = async () => {
+    for (;;) {
+      const idx = cursor++;
+      const anchor = nightAnchors[idx];
+      if (!anchor || input.signal?.aborted) return;
+      const key = `LODGING|${anchor.latitude.toFixed(3)}|${anchor.longitude.toFixed(3)}`;
+      const hit = cache.get(key);
+      if (hit && now() >= hit.at && now() - hit.at < CACHE_TTL_MS) {
+        found[idx] = { anchor, places: hit.places };
+        continue;
+      }
+      try {
+        const outcome = await input.places(LODGING_QUERY, input.signal, {
+          latitude: anchor.latitude,
+          longitude: anchor.longitude,
+          radiusKm: LODGING_RADIUS_KM,
+        });
+        const places = outcome.status === "RESULTS" ? outcome.places : [];
+        if (outcome.status === "RESULTS") {
+          if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
+          cache.set(key, { at: now(), places });
+        }
+        found[idx] = { anchor, places };
+      } catch {
+        found[idx] = { anchor, places: [] };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, nightAnchors.length) }, worker));
+
+  const out: TimelineSuggestion[] = [];
+  for (const entry of found) {
+    if (!entry) continue;
+    const ranked = entry.places
+      .map(place => ({
+        place: { ...place, name: cleanPlaceDisplayName(place.name) },
+        distanceKm: haversine(entry.anchor, place),
+      }))
+      .filter(({ place, distanceKm }) =>
+        distanceKm <= LODGING_RADIUS_KM
+        && isLodgingPlace(place)
+        && !isGenericActivityPlaceName(place.name),
+      )
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    const takenIds = new Set<string>();
+    const takenNames = new Set<string>();
+    let taken = 0;
+    for (const { place, distanceKm } of ranked) {
+      if (taken >= LODGING_PER_SLOT) break;
+      const folded = foldName(place.name);
+      if (takenIds.has(place.placeId) || (folded && takenNames.has(folded))) continue;
+      const parsed = suggestionSchema.safeParse({
+        slotId: entry.anchor.slotId,
+        kind: "LODGING",
+        title: place.name,
+        place: { placeId: place.placeId, name: place.name, distanceKm: Math.round(distanceKm * 10) / 10 },
+      });
+      if (!parsed.success) continue;
+      takenIds.add(place.placeId);
+      if (folded) takenNames.add(folded);
+      out.push(parsed.data);
+      taken += 1;
+    }
   }
   return out;
 }

@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { DayTimeline, resolveDayRouteLabel, type DayTimelineDay } from "./day-timeline";
+import { buildDayTimelineTravelLeg, DayTimeline, formatTravelLegLine, resolveDayRouteLabel, resolveLegGapBreakdown, type DayTimelineDay } from "./day-timeline";
 import { buildDayEveningPlan } from "./evening-plan";
 import { buildDaySuggestionMarkers, estimateCheckinTravelMinutes, splitTripNearbyBySlot } from "./suggestion-markers";
 import { resolvePreviousOvernightArea } from "@/lib/overnight-anchor";
@@ -767,5 +767,45 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
         previousDays: [{ dayIndex: 1, lastStop: null }],
       }),
     ).toBe("TP Hà Giang");
+  });
+
+  it("D6 / B4: explains post-lunch scenic photo buffer (+20m) alongside rest and flags opening-hours wait minutes", () => {
+    // Exact B4 case: lunch 13:00-14:00 (depart 840), 60 km / 1h49 (6540s) + 15m rest -> 16:04, next stop 16:25 (985)
+    const b4Gap = resolveLegGapBreakdown({
+      transport: "MOTORCYCLE",
+      durationSeconds: 109 * 60,
+      restMinutes: 15,
+      departMinute: 14 * 60,
+      arrivalMinute: 16 * 60 + 25,
+    });
+    expect(b4Gap).toEqual({ photoMinutes: 20, waitMinutes: 0 });
+    const leg = buildDayTimelineTravelLeg({
+      transport: "MOTORCYCLE",
+      route: { status: "VERIFIED", distanceMeters: 60_000, durationSeconds: 109 * 60 },
+      restMinutes: 15,
+      photoMinutes: b4Gap.photoMinutes,
+      waitMinutes: b4Gap.waitMinutes,
+    });
+    expect(formatTravelLegLine(leg)).toBe("🛵 60 km · khoảng 1 giờ 49 phút · nghỉ 15 phút · +20 phút chụp ảnh");
+
+    // Opening-hours wait gap: depart 07:30 (450), drive 20m, scenic 5m -> 07:55, stop opens 08:30 (510) -> 35m wait
+    const waitGap = resolveLegGapBreakdown({
+      transport: "MOTORCYCLE",
+      pace: "MODERATE",
+      durationSeconds: 20 * 60,
+      restMinutes: 0,
+      departMinute: 450,
+      arrivalMinute: 510,
+    });
+    expect(waitGap).toEqual({ photoMinutes: 5, waitMinutes: 35 });
+    const waitLeg = buildDayTimelineTravelLeg({
+      transport: "MOTORCYCLE",
+      route: { status: "VERIFIED", distanceMeters: 12_000, durationSeconds: 20 * 60 },
+      restMinutes: 0,
+      photoMinutes: waitGap.photoMinutes,
+      waitMinutes: waitGap.waitMinutes,
+    });
+    expect(formatTravelLegLine(waitLeg)).toContain("+5 phút chụp ảnh");
+    expect(formatTravelLegLine(waitLeg)).toContain("chờ mở cửa 35 phút");
   });
 });
