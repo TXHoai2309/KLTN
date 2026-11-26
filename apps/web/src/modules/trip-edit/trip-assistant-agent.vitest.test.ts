@@ -7,6 +7,8 @@ import { PreferenceExtractionError } from "../preference-extraction/preference-e
 import * as validatorModule from "../trip-validation/trip-validation";
 import type { TripValidation } from "../trip-validation/trip-validation";
 import { createAiEditProposal, type AiEditServiceDependencies } from "./ai-edit-service";
+import { buildPreSunriseDepartureWarnings } from "./saved-trip-advisory";
+import { redactAssistantText } from "./trip-assistant-stream-redaction";
 import { AGENT_MAX_ROUNDS, buildTripAssistantMessages, TRIP_ASSISTANT_AGENT_INSTRUCTIONS } from "./trip-assistant-agent";
 
 const revision = new Date("2026-10-15T12:00:00.000Z");
@@ -474,5 +476,60 @@ describe("Saved-trip assistant AI SDK reasoning loop (ADR-40 Ticket 01)", () => 
     expect(parsed.tripContext.journey.returnDistanceKm).toBe(421.5);
     expect(parsed.tripContext.journey.returnDriveMinutes).toBe(633);
     expect(parsed.tripContext.journey.returnRestMinutes).toBe(90);
+  });
+
+  it("S9: strips internal technical jargon ('máy chủ', 'PASS') from advice prose and forbids them in instructions", () => {
+    expect(TRIP_ASSISTANT_AGENT_INSTRUCTIONS).toContain("KHÔNG dùng từ kỹ thuật nội bộ");
+    const cleaned = redactAssistantText("Máy chủ vẫn báo PASS cho phương án này, và máy chủ đã kiểm tra xong.");
+    expect(cleaned).not.toMatch(/m[aá]y\s+ch[uủ]/iu);
+    expect(cleaned).not.toMatch(/\bPASS\b/u);
+    expect(cleaned).toContain("đạt yêu cầu");
+  });
+
+  it("S11: warns about dark mountain roads & fog when a December departure (05:30) is before sunrise, especially on motorbike", () => {
+    const warnings = buildPreSunriseDepartureWarnings({
+      candidate: {
+        startDate: "2026-12-20",
+        durationDays: 5,
+        transport: "MOTORCYCLE",
+        days: [
+          { dayIndex: 1, visits: [{ visitId: "v1", destinationId: "d1", order: 1, startMinute: 480, plannedDurationMinutes: 60 }] },
+          { dayIndex: 5, visits: [] },
+        ],
+        journey: {
+          origin: { label: "Hà Nội (bến xe Mỹ Đình)", latitude: 21.0285, longitude: 105.7785, source: "MANUAL", confirmed: true },
+          departureMinute: 420,
+          returnDeadlineMinute: 1200,
+          returnDepartureMinute: 330, // 05:30 in December (sunrise ~06:36)
+        },
+      },
+      catalogById: new Map([
+        ["d1", { id: "d1", name: "Mèo Vạc", latitude: 23.1647, longitude: 105.3886, suggestedDurationMinutes: 60 }],
+      ]),
+    });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.dayIndex).toBe(5);
+    expect(warnings[0]!.kind).toBe("RETURN");
+    expect(warnings[0]!.departureTime).toBe("05:30");
+    expect(warnings[0]!.message).toContain("trước bình minh");
+    expect(warnings[0]!.message).toContain("sương mù");
+    expect(warnings[0]!.message).toContain("xe máy");
+
+    // Departing after sunrise (07:00) produces no pre-sunrise warning
+    const safeWarnings = buildPreSunriseDepartureWarnings({
+      candidate: {
+        startDate: "2026-12-20",
+        durationDays: 5,
+        transport: "MOTORCYCLE",
+        days: [{ dayIndex: 1, visits: [] }, { dayIndex: 5, visits: [] }],
+        journey: {
+          origin: { label: "Hà Nội", latitude: 21.0285, longitude: 105.7785, source: "MANUAL", confirmed: true },
+          departureMinute: 420,
+          returnDeadlineMinute: 1200,
+          returnDepartureMinute: 420,
+        },
+      },
+    });
+    expect(safeWarnings).toHaveLength(0);
   });
 });

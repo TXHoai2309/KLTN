@@ -1206,7 +1206,7 @@ export function buildGroundedAdvice(input: {
       `Kiểm tra ràng buộc phát hiện ${findings.length} lưu ý:\n${sample}`,
     );
   } else if (input.saveEligibility === "BLOCKED" || !input.validation.canConfirm) {
-    lines.push("Kiểm tra tổng thể chưa đạt điều kiện PASS; cần rà lại các mục thiếu dữ liệu hoặc xung đột trên bảng kiểm tra.");
+    lines.push("Kiểm tra tổng thể chưa đạt yêu cầu; cần rà lại các mục thiếu dữ liệu hoặc xung đột trên bảng kiểm tra.");
   } else if (input.saveEligibility === "NEEDS_UNCHECKED_ACK") {
     const count = input.uncheckedItems?.length ?? 1;
     lines.push(

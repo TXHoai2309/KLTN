@@ -300,6 +300,97 @@ function buildDayWeatherRequest(
   return { days, legs: [] };
 }
 
+export type PreSunriseDepartureWarning = {
+  dayIndex: number;
+  kind: "OUTBOUND" | "RETURN";
+  departureTime: string;
+  sunriseTime: string;
+  transport: EditCandidate["transport"];
+  message: string;
+};
+
+/** Representative Hà Giang plateau coordinates (Đồng Văn / Mèo Vạc) used when a travel-only day has no stop coords. */
+const HA_GIANG_SUN_FALLBACK = { latitude: 23.1647, longitude: 105.3886 } as const;
+
+function resolveCoordsForDay(
+  candidate: EditCandidate,
+  dayIndex: number,
+  catalogById?: ReadonlyMap<string, AdvisoryCatalogDestination>,
+): { latitude: number; longitude: number } {
+  const day = candidate.days.find((d) => d.dayIndex === dayIndex);
+  const direct = day?.visits
+    .map((v) => catalogById?.get(v.destinationId))
+    .find((d) => typeof d?.latitude === "number" && typeof d?.longitude === "number");
+  if (direct && typeof direct.latitude === "number" && typeof direct.longitude === "number") {
+    return { latitude: direct.latitude, longitude: direct.longitude };
+  }
+  // For a return-only last day, anchor sunrise on the previous sightseeing stop (overnight mountain area).
+  for (let prev = dayIndex - 1; prev >= 1; prev -= 1) {
+    const prevDay = candidate.days.find((d) => d.dayIndex === prev);
+    const tail = [...(prevDay?.visits ?? [])]
+      .reverse()
+      .map((v) => catalogById?.get(v.destinationId))
+      .find((d) => typeof d?.latitude === "number" && typeof d?.longitude === "number");
+    if (tail && typeof tail.latitude === "number" && typeof tail.longitude === "number") {
+      return { latitude: tail.latitude, longitude: tail.longitude };
+    }
+  }
+  const origin = candidate.journey?.origin;
+  if (origin && typeof origin.latitude === "number" && typeof origin.longitude === "number") {
+    return { latitude: origin.latitude, longitude: origin.longitude };
+  }
+  return HA_GIANG_SUN_FALLBACK;
+}
+
+/**
+ * S11: Detects departure clocks (Day 1 outbound or final-day return) earlier than solar sunrise
+ * and returns deterministic dark-road / fog safety warnings (with extra caution for motorbikes).
+ */
+export function buildPreSunriseDepartureWarnings(input: {
+  candidate: EditCandidate;
+  catalogById?: ReadonlyMap<string, AdvisoryCatalogDestination>;
+  sunTimesByDay?: ReadonlyMap<number, SunTimes>;
+}): PreSunriseDepartureWarning[] {
+  const { candidate, catalogById, sunTimesByDay } = input;
+  if (!candidate.startDate || !candidate.journey) return [];
+  const warnings: PreSunriseDepartureWarning[] = [];
+  const lastDayIndex = candidate.days.at(-1)?.dayIndex ?? candidate.durationDays;
+
+  const checkDeparture = (dayIndex: number, kind: "OUTBOUND" | "RETURN", departMinute: number | null | undefined) => {
+    if (departMinute == null || !Number.isFinite(departMinute)) return;
+    const localDate = tripDayDate(candidate.startDate, dayIndex);
+    if (!localDate) return;
+    const sun =
+      sunTimesByDay?.get(dayIndex) ??
+      (() => {
+        const coords = resolveCoordsForDay(candidate, dayIndex, catalogById);
+        return computeSunTimes(coords.latitude, coords.longitude, localDate);
+      })();
+    if (sun.sunriseMinute == null || departMinute >= sun.sunriseMinute) return;
+    const depText = minuteClockLabel(departMinute);
+    const sunText = formatMinute(sun.sunriseMinute);
+    const legLabel = kind === "RETURN" ? `chặng về Ngày ${dayIndex}` : `Ngày ${dayIndex}`;
+    const vehicleNote =
+      candidate.transport === "MOTORCYCLE"
+        ? "đặc biệt nguy hiểm khi đi xe máy trên đường đèo"
+        : "cần thận trọng khi lái xe qua đèo dốc";
+    warnings.push({
+      dayIndex,
+      kind,
+      departureTime: depText,
+      sunriseTime: sunText,
+      transport: candidate.transport,
+      message: `Lưu ý an toàn (${legLabel}): xuất phát lúc ${depText} là trước bình minh (~${sunText}), trời còn tối, đường đèo dễ có sương mù và tầm nhìn hạn chế — ${vehicleNote}.`,
+    });
+  };
+
+  checkDeparture(1, "OUTBOUND", candidate.journey.departureMinute);
+  if (lastDayIndex > 0) {
+    checkDeparture(lastDayIndex, "RETURN", candidate.journey.returnDepartureMinute);
+  }
+  return warnings;
+}
+
 export async function gatherWeatherAndSunDigest(input: {
   candidate: EditCandidate;
   placeNames: ReadonlyMap<string, string>;
@@ -348,12 +439,8 @@ export async function gatherWeatherAndSunDigest(input: {
     let sunTimes: SunTimes | null = liveDay?.sunTimes ?? null;
 
     if (!sunTimes && localDate) {
-      const firstCoord = day.visits
-        .map((v) => catalogById.get(v.destinationId))
-        .find((d) => typeof d?.latitude === "number" && typeof d?.longitude === "number");
-      if (firstCoord && typeof firstCoord.latitude === "number" && typeof firstCoord.longitude === "number") {
-        sunTimes = computeSunTimes(firstCoord.latitude, firstCoord.longitude, localDate);
-      }
+      const coords = resolveCoordsForDay(candidate, day.dayIndex, catalogById);
+      sunTimes = computeSunTimes(coords.latitude, coords.longitude, localDate);
     }
 
     const afterSunsetOutdoorVisits: AdvisoryDayWeatherDigest["afterSunsetOutdoorVisits"] = [];
@@ -377,6 +464,14 @@ export async function gatherWeatherAndSunDigest(input: {
     }
 
     const weatherNotices: string[] = [];
+    if (sunTimes) {
+      const sunMap = new Map<number, SunTimes>([[day.dayIndex, sunTimes]]);
+      for (const warn of buildPreSunriseDepartureWarnings({ candidate, catalogById, sunTimesByDay: sunMap })) {
+        if (warn.dayIndex === day.dayIndex) {
+          weatherNotices.push(warn.message);
+        }
+      }
+    }
     if (liveWeather) {
       const dayAdvisories = liveWeather.advisories.filter((a) => a.day === day.dayIndex && a.kind !== "AFTER_SUNSET");
       for (const adv of dayAdvisories.slice(0, 3)) {
@@ -904,6 +999,7 @@ export function groundedAdviceRejection(
     const falsePassPatterns = [
       /(?<!chua\s)(?<!khong\s)\bdat\s+pass\b/u,
       /(?<!chua\s)(?<!khong\s)\btrang\s+thai\s+pass\b/u,
+      /(?<!chua\s)(?<!khong\s)\b(?:da\s+)?dat\s+yeu\s+cau\b/u,
       /(?<!chua\s)(?<!khong\s)\bhoan\s+toan\s+hop\s+le\b/u,
       /(?<!chua\s)(?<!khong\s)\bkhong\s+co\s+(?:bat\s+ky\s+)?(?:loi|vi\s+pham|xung\s+dot)\s+nao\b/u,
       /(?<!chua\s)(?<!khong\s)\bmoi\s+kiem\s+tra\s+deu\s+dat\b/u,
@@ -1001,6 +1097,8 @@ const ADVISORY_COMPOSER_SYSTEM_PROMPT = [
   "- `tripStatus = UPCOMING` nghĩa là chuyến chưa khởi hành: nói theo ngữ cảnh kế hoạch dự kiến, không nói như đã đi.",
   "- Nếu `overallStatus` là `VIOLATION` hoặc `INSUFFICIENT_DATA`, không được nói lịch đã hợp lệ, đạt PASS hay sẵn sàng lưu.",
   "- Không cam kết an toàn thời tiết tuyệt đối; thời tiết/hoàng hôn chỉ là tham khảo.",
+  "- Khi giờ xuất phát (chặng đi hoặc chặng về) sớm hơn giờ bình minh (`sunrise`), bắt buộc kèm cảnh báo về trời tối, sương mù và tầm nhìn hạn chế trên đường đèo (nhất là xe máy).",
+  "- KHÔNG dùng từ kỹ thuật nội bộ như 'máy chủ', 'server', 'PASS', 'VIOLATION', 'INSUFFICIENT_DATA' trong lời gửi người dùng; diễn đạt tự nhiên ('kiểm tra lịch trình đạt yêu cầu', 'hợp lệ', 'chưa đạt').",
   "- Không chèn URL, thẻ HTML hay bất kỳ mã ID nội bộ nào (như visitId, destination ID).",
 ].join(" ");
 

@@ -491,7 +491,9 @@ describe("Saved-trip assistant streaming route (ADR-40 Ticket 02)", () => {
       correctionNote?: string;
     };
     expect(result.status).toBe("ADVISED");
-    expect(result.advice).toContain("đạt PASS");
+    // S9: technical token "PASS" is sanitized to natural Vietnamese while FALSE_PASS still triggers the Correction note.
+    expect(result.advice).not.toMatch(/\bPASS\b/u);
+    expect(result.advice).toContain("đạt yêu cầu");
     expect(result.correctionNote).toBe(note);
     expect(logEvents(info)).toContainEqual(
       expect.objectContaining({ stage: "AGENT", outcome: "MODEL", correction: true }),

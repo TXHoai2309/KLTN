@@ -7,6 +7,9 @@ const URL_PATTERN = /https?:\/\/[^\s<>)\]]+/giu;
 const HTML_TAG_PATTERN = /<\/?[a-z][^>]*>/giu;
 const INTERNAL_ID_PATTERN = /\b(?:ext:[a-z0-9:_-]+|dest-[a-z0-9_-]+|visit-[a-z0-9_-]+|sim-\d+|c[a-z0-9]{20,})\b/giu;
 const TEMP_PREFIX_PATTERN = /(?:\[\s*t[aạ]m\s*\][^\S\n]*[:\-–—]?[^\S\n]*)+/giu;
+// S9: Never expose internal technical jargon ("máy chủ", "PASS", "VIOLATION", "INSUFFICIENT_DATA") in traveler prose.
+const TECH_SERVER_PATTERN = /(?<![\p{L}\p{N}])m[aá]y\s+ch[uủ](?![\p{L}\p{N}])/giu;
+const TECH_PASS_PHRASE_PATTERN = /(?<![\p{L}\p{N}])(?:đ[aạ]t\s+(?:đi[eề]u\s+ki[eệ]n\s+)?)?PASS(?![\p{L}\p{N}])/gu;
 const MAX_PENDING_CHARS = 2048;
 
 function escapeRegex(value: string): string {
@@ -28,6 +31,10 @@ function redactSegment(raw: string, knownIdsPattern: RegExp | null): { text: str
   text = text.replace(HTML_TAG_PATTERN, "");
   text = text.replace(INTERNAL_ID_PATTERN, "");
   text = text.replace(TEMP_PREFIX_PATTERN, "");
+  text = text.replace(TECH_SERVER_PATTERN, (match) =>
+    match[0] === match[0]?.toUpperCase() ? "Hệ thống kiểm tra" : "hệ thống kiểm tra",
+  );
+  text = text.replace(TECH_PASS_PHRASE_PATTERN, "đạt yêu cầu");
   if (knownIdsPattern) {
     text = text.replace(knownIdsPattern, "");
   }
@@ -100,6 +107,11 @@ function findSafeSplitIndex(pending: string): number {
 
   for (let idx = searchLimit - 1; idx >= 0; idx -= 1) {
     if (/\s/u.test(pending[idx]!)) {
+      // S9: Keep two-word "máy chủ" / "đạt PASS" together across chunk boundaries.
+      const prefix = pending.slice(0, idx + 1);
+      if (/(?<![\p{L}\p{N}])(?:m[aá]y|đ[aạ]t)\s+$/iu.test(prefix)) {
+        continue;
+      }
       return idx + 1;
     }
   }

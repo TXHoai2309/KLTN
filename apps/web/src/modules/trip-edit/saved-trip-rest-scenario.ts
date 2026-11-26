@@ -537,7 +537,7 @@ export async function runRestAndCompoundScenario(input: {
       const reasonDesc = baselineTraps.trappedDescriptions.slice(0, 2).join("; ");
       return {
         kind: "APPLY_DIRECT",
-        analysisSummary: `Lịch Ngày ${dayIndex} trước đó bị vướng (${reasonDesc || "thiếu khoảng thời gian hợp lý"}). AI đã dời/giãn lại giờ trên bản nháp (${nonDestructiveClean.diffSummaryLines.slice(0, 2).join("; ")}) để đạt PASS mà vẫn giữ nguyên đủ mọi điểm. Bạn có thể bấm Hoàn tác bước AI này nếu muốn quay lại.`,
+        analysisSummary: `Lịch Ngày ${dayIndex} trước đó bị vướng (${reasonDesc || "thiếu khoảng thời gian hợp lý"}). Trợ lý đã dời/giãn lại giờ trên bản nháp (${nonDestructiveClean.diffSummaryLines.slice(0, 2).join("; ")}) để lịch đạt yêu cầu mà vẫn giữ nguyên đủ mọi điểm. Bạn có thể bấm Hoàn tác bước AI này nếu muốn quay lại.`,
         suggestion: nonDestructiveClean,
       };
     }

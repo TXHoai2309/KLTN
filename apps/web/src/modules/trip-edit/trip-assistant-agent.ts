@@ -30,6 +30,7 @@ import type { EditCandidate, EditCandidateDiff, SavedTripForEdit } from "./edit-
 import { minuteClockLabel, rescheduleDraftFromOrigin } from "./edit-journey-helper";
 import { assertOngoingCompletedVisitsUnchanged } from "./edit-ongoing";
 import {
+  buildPreSunriseDepartureWarnings,
   buildVerifiedAdvisoryFacts,
   deriveOverallStatus,
   describeCandidateDiff,
@@ -39,6 +40,7 @@ import {
   type AdviceSuggestionChangedVisitIds,
   type AdvisoryCatalogDestination,
   type AdvisoryDayWeatherDigest,
+  type PreSunriseDepartureWarning,
   type RunPreviewFn,
   type VerifiedAdvisoryFacts,
 } from "./saved-trip-advisory";
@@ -104,6 +106,7 @@ export type AgentSimulation = {
   intent: EditIntentResult;
   preview: PreviewEditResult;
   status: VerifiedAdvisoryFacts["overallStatus"];
+  preSunriseWarnings?: PreSunriseDepartureWarning[];
 };
 
 export type TripAssistantStatusPart = {
@@ -164,7 +167,9 @@ export const TRIP_ASSISTANT_AGENT_INSTRUCTIONS = [
   "- Chỉ dùng visitId có trong `tripContext` và destination id trả về từ `search_destinations`. Không đụng vào các visitId trong `lockedVisitIds` (lượt đã qua giờ).",
   "- Ngày bắt đầu, số ngày và phương tiện của chuyến là trường khung cố định, không thể đổi tại đây.",
   "- Chỉ dùng `originClocks` khi `journeyEditable` là true. Khi thêm điểm luôn điền `startTime` và `durationMinutes` (lấy thời lượng gợi ý từ `search_destinations`).",
-  "- Kết quả PASS/VIOLATION/INSUFFICIENT_DATA chỉ lấy từ máy chủ. Nếu lịch hiện tại có vi phạm hoặc thiếu dữ liệu, tuyệt đối không nói lịch hiện tại đã hợp lệ hay sẵn sàng lưu.",
+  "- Kết quả kiểm tra tính hợp lệ luôn lấy từ hệ thống. Nếu lịch hiện tại có vi phạm hoặc thiếu dữ liệu, tuyệt đối không nói lịch hiện tại đã hợp lệ hay sẵn sàng lưu.",
+  "- KHÔNG dùng từ kỹ thuật nội bộ như 'máy chủ', 'server', 'PASS', 'VIOLATION', 'INSUFFICIENT_DATA', 'Constraint Validator' trong lời trả lời gửi người dùng; hãy diễn đạt tự nhiên (ví dụ 'kiểm tra lịch trình đạt yêu cầu', 'hợp lệ', 'chưa đạt', 'thiếu dữ liệu tuyến đường').",
+  "- Khi đề xuất hoặc áp dụng giờ xuất phát sớm hơn bình minh (`preSunriseWarnings` từ `simulate_changes` hoặc `sunrise` từ `get_weather`), BẮT BUỘC cảnh báo rõ về trời tối, sương mù và tầm nhìn hạn chế trên đường đèo, đặc biệt nhấn mạnh rủi ro nếu đi xe máy.",
   "- Không bịa tên điểm, giá tiền, giờ mở cửa hay số liệu đường đi; thiếu dữ liệu thì nói thẳng. Thời tiết chỉ mang tính tham khảo, không cam kết an toàn tuyệt đối. Phần kiến thức ngoài tài liệu địa phương phải ghi rõ `[Kiến thức mở rộng]`. TUYỆT ĐỐI không tự viết dòng 'Nguồn tài liệu:', 'Nguồn:' hay 'Source:' trong lời văn vì giao diện đã hiển thị nguồn riêng.",
   "- Với chuyến `UPCOMING` (chưa khởi hành), nói theo ngữ cảnh kế hoạch dự kiến.",
   "- Tuyệt đối không viết visitId, destination id, simulationId, URL hay thẻ HTML trong lời trả lời gửi người dùng. Không lặp nguyên văn câu trả lời lượt trước.",
@@ -421,6 +426,8 @@ async function simulateChanges(
 
   const id = `sim-${state.simulations.size + 1}`;
   const status = deriveOverallStatus(preview.validation, preview.saveEligibility);
+  const catalogById = new Map(ctx.catalog.map((d) => [d.id, d]));
+  const preSunriseWarnings = buildPreSunriseDepartureWarnings({ candidate, catalogById });
   state.simulations.set(id, {
     id,
     title: args.title.trim() ? args.title.trim().slice(0, 120) : `Phương án ${state.simulations.size + 1}`,
@@ -431,6 +438,7 @@ async function simulateChanges(
     intent: planToPrimaryEditIntent(plan, described.diff),
     preview,
     status,
+    ...(preSunriseWarnings.length > 0 ? { preSunriseWarnings } : {}),
   });
 
   const affectedDays = new Set<number>();
@@ -462,6 +470,9 @@ async function simulateChanges(
           returnRestMinutes: js.returnRestMinutes,
         }
       : null,
+    ...(preSunriseWarnings.length > 0
+      ? { preSunriseWarnings: preSunriseWarnings.map((w) => w.message) }
+      : {}),
   };
 }
 
@@ -810,11 +821,23 @@ function finalizeAgentOutcome(input: {
   state: TripAssistantAgentState;
   reply: string;
   knownIds: ReadonlySet<string>;
-}): { outcome: TripAssistantAgentOutcome; correction: boolean } {
+}): { outcome: TripAssistantAgentOutcome; correction: boolean; appendedPreSunriseNotice?: string } {
   const { ctx, state, knownIds } = input;
   const rawReply = state.knowledge?.citations?.length ? stripInlineSourceLines(input.reply) || input.reply : input.reply;
-  const reply = cleanTravelerProse(rawReply) || rawReply;
+  const cleanedReply = redactAssistantText(rawReply, knownIds) || cleanTravelerProse(rawReply) || rawReply;
   const { proposed, suggestionSims, guardStatus } = resolveAgentDecision(ctx, state);
+  // S11: Guarantee a pre-sunrise dark-road/fog safety notice whenever an offered/applied option departs before sunrise.
+  const activePreSunrise = [
+    ...(proposed?.preSunriseWarnings ?? []),
+    ...suggestionSims.flatMap((sim) => sim.preSunriseWarnings ?? []),
+  ];
+  const uniquePreSunrise = [...new Map(activePreSunrise.map((w) => [`${w.dayIndex}:${w.kind}:${w.departureTime}`, w])).values()];
+  const replyMentionsPreSunrise = /(?:b[iì]nh\s+minh|tr[oờ]i\s+(?:c[oò]n\s+)?t[oố]i|s[uươ]ng\s+m[uù]|thi[eế]u\s+s[aá]ng)/iu.test(cleanedReply);
+  const appendedPreSunriseNotice =
+    uniquePreSunrise.length > 0 && !replyMentionsPreSunrise
+      ? uniquePreSunrise.map((w) => w.message).join("\n")
+      : undefined;
+  const reply = appendedPreSunriseNotice ? `${cleanedReply}\n\n${appendedPreSunriseNotice}` : cleanedReply;
   const rejection = groundedAdviceRejection(reply, { overallStatus: guardStatus }, knownIds);
   let correctionNote: string | undefined;
   if (rejection === "FALSE_PASS" || rejection === "ABSOLUTE_SAFETY") {
@@ -826,6 +849,7 @@ function finalizeAgentOutcome(input: {
   if (proposed) {
     return {
       correction: Boolean(correctionNote),
+      ...(appendedPreSunriseNotice ? { appendedPreSunriseNotice } : {}),
       outcome: {
         kind: "PROPOSED",
         reply,
@@ -836,6 +860,7 @@ function finalizeAgentOutcome(input: {
   }
   return {
     correction: Boolean(correctionNote),
+    ...(appendedPreSunriseNotice ? { appendedPreSunriseNotice } : {}),
     outcome: {
       kind: "ADVISED",
       reply,
@@ -1022,6 +1047,13 @@ export async function streamTripAssistantAgent(
     }
 
     const finalized = finalizeAgentOutcome({ ctx, state, reply, knownIds });
+    if (finalized.appendedPreSunriseNotice) {
+      const noticeId = "pre-sunrise-notice";
+      const suffix = `\n\n${finalized.appendedPreSunriseNotice}`;
+      writer.write({ type: "text-start", id: noticeId });
+      writer.write({ type: "text-delta", id: noticeId, delta: suffix });
+      writer.write({ type: "text-end", id: noticeId });
+    }
     log("MODEL", null, finalized.outcome.kind, finalized.correction);
     return finalized.outcome;
   } catch (error) {
