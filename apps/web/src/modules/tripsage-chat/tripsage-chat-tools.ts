@@ -5,7 +5,7 @@ import { cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
 import { formatDistanceKm } from "../../lib/traveler-number-format";
 import { isUsablePlanningCandidate, scheduleSelection } from "../assistant-planning/planning-engine";
 import type { JourneyBalancePreferences } from "../trip-origin/journey-planner";
-import { detectRelaxAndFamilySignals, foldSignalText } from "./tripsage-relax-signals";
+import { detectRelaxAndFamilySignals, findMustVisitIds, foldSignalText } from "./tripsage-relax-signals";
 import { applyGroupSizeDurationScale, selectPlannerDays } from "../trip-planner/planner-engine";
 import { arrangeTripRoute, orderRoundTrip, stopValue } from "../trip-planner/planner-route";
 import type { TravelTimeCacheBundle } from "../trip-planner/destination-travel-cache";
@@ -60,6 +60,7 @@ import type { FlightLookup } from "./tripsage-serpapi-flights";
 import type { TripsageFeature } from "./tripsage-features";
 import { createTripsageExtraTools, type PriorFlightLookupRecord, type PriorHotelLookupKey, type TripsageResultEmitters } from "./tripsage-extra-tools";
 import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
+import { TRIP_HUBS } from "./trip-hubs";
 import {
   arrangeSelectionForOvernightAreas,
   evaluateOvernightConstraints,
@@ -520,9 +521,12 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       // Keep last known ticket list when candidate catalog cannot be loaded.
     }
   };
+  const HA_NOI_HUB_LABEL = TRIP_HUBS.find(hub => hub.id === "HA_NOI")!.name;
+  // R2: starting at the Hà Nội hub (Mỹ Đình) alone does not mean renting — Hà Nội riders often meet there on their own bikes.
+  // Only the TP Hà Giang hub, an access leg, or a home city outside Hà Nội / TP Hà Giang implies renting at the destination.
   const resolveUsesLocalRental = (info: TripsageTripInfo) =>
     Boolean(latestAccessLeg)
-    || isHubOrigin(currentJourney?.origin?.label)
+    || (isHubOrigin(currentJourney?.origin?.label) && currentJourney?.origin?.label !== HA_NOI_HUB_LABEL)
     || (Boolean(info.homeCity) && !sameAccessPlace(info.homeCity!, "Hà Nội") && !sameAccessPlace(info.homeCity!, "TP Hà Giang"));
   const resolveCompatibleRentalTier = (transport: TripTransport, rentalTier?: RentalTier): RentalTier | undefined => {
     if (!rentalTier || rentalTier === "OWN_VEHICLE") return rentalTier;
@@ -1536,7 +1540,20 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             ? arrangeSelectionForOvernightAreas(picked, effectiveOvernightAreas, usableById, usableBase)
             : picked;
         };
-        const requiredDestinationIds = [...new Set((effective.mustIncludeDestinationIds ?? []).map(resolveCatalogRef))];
+        // R1: places the traveler just named as must-visit count as required even if the model has not recorded them yet.
+        const statedMustVisitIds = findMustVisitIds(context.latestUserText ?? "", usableBase);
+        const requiredDestinationIds = [...new Set([...(effective.mustIncludeDestinationIds ?? []).map(resolveCatalogRef), ...statedMustVisitIds])];
+        const selectedIds = new Set(resolvedSelection.days.flat());
+        const unselectedRequired = statedMustVisitIds.filter(id => !selectedIds.has(id));
+        if (unselectedRequired.length > 0 && resolvedSelection.days.length > 0) {
+          // The route arranger re-orders the whole chain, so the seed day only matters as a starting point.
+          const days = resolvedSelection.days.map(day => [...day]);
+          for (const id of unselectedRequired) {
+            const target = days.reduce((best, day, idx) => (idx > 0 && day.length < days[best]!.length ? idx : best), days.length > 1 ? 1 : 0);
+            days[target]!.push(id);
+          }
+          resolvedSelection = { days };
+        }
         if (requiredDestinationIds.length > 0) {
           const usableIds = new Set(usableBase.map(item => item.id));
           if (requiredDestinationIds.some(id => !usableIds.has(id))) {

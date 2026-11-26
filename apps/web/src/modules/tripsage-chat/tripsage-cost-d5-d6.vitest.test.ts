@@ -7,6 +7,7 @@ import { fixtureRoutes, planningCandidate, planningNow } from "@/test/planning-f
 import { buildAccessLeg, formatAccessLegCostBasis } from "./tripsage-access-leg";
 import { createTripsageChatTools, userExplicitlyRequestedVehicleRental, type TripsagePlanningDeps } from "./tripsage-chat-tools";
 import { computeTieredTripCost, parseTicketPriceVnd, type CostPart } from "./tripsage-cost";
+import { TRIP_HUBS } from "./trip-hubs";
 
 describe("D5 & D6: server-computed tiered cost & automatic cross-turn recomputation", () => {
   it("computes c6be04d7 trip costs (5 nights, 5 bikes, 7 whole-trip meal days, /7 divisor)", () => {
@@ -229,5 +230,36 @@ describe("D5 & D6: server-computed tiered cost & automatic cross-turn recomputat
     const rentalCarCost = rentalCarCosts.at(-1)!;
     expect(rentalCarCost.lines.some(l => l.label === "Thuê ô tô tự lái")).toBe(true);
     expect(rentalCarCost.selections?.rentalTier).toBe("CAR_SELF_DRIVE");
+  });
+
+  it("R2: riding from the Hà Nội hub (Mỹ Đình) uses own bikes; the TP Hà Giang hub still rents", async () => {
+    const planning: TripsagePlanningDeps = { candidates: async () => [], routes: fixtureRoutes, now: () => planningNow };
+    const options = { toolCallId: "tc-r2", messages: [] } as never;
+    const costFrom = async (hub: (typeof TRIP_HUBS)[number]) => {
+      const costs: CostPart[] = [];
+      const tools = createTripsageChatTools({
+        planning,
+        emitItinerary: () => {},
+        journey: {
+          origin: { label: hub.name, latitude: hub.latitude, longitude: hub.longitude, source: "HUB" as never, confirmed: true as const },
+          departureMinute: 420,
+          returnDeadlineMinute: 1080,
+          returnDepartureMinute: null,
+        },
+        tripInfo: { transport: "MOTORCYCLE", durationDays: 5, startDate: "2026-12-20", travelers: 4 },
+        currentItinerary: { days: [{ day: 1, stops: [] }], distanceKm: 972 },
+        latestUserText: "Nhóm mình 4 người, xuất phát từ bến xe Mỹ Đình Hà Nội, đi 5 ngày 4 đêm",
+        emitCost: c => costs.push(c),
+      });
+      await tools.estimateCosts.execute!({ lodgingTier: "HOMESTAY", mealTier: "STANDARD", rentalTier: "SEMI_AUTO" }, options);
+      return costs.at(-1)!;
+    };
+
+    const fromHaNoi = await costFrom(TRIP_HUBS.find(hub => hub.id === "HA_NOI")!);
+    expect(fromHaNoi.selections?.rentalTier).toBe("OWN_VEHICLE");
+    expect(fromHaNoi.lines.some(l => l.label.toLowerCase().includes("thuê"))).toBe(false);
+
+    const fromHaGiang = await costFrom(TRIP_HUBS.find(hub => hub.id === "HA_GIANG_CITY")!);
+    expect(fromHaGiang.selections?.rentalTier).toBe("SEMI_AUTO");
   });
 });

@@ -142,3 +142,31 @@ Phát hiện mới:
 - Ghi nhận (không phải lỗi): bản 3 ngày cho gia đình vẫn về 23:42 vì Hà Nội ↔ cao nguyên đá trong 3 ngày quá xa; bot đã cảnh báo và gợi ý chỉnh.
 
 **S15 — đã sửa (Claude, 2026-11-26).** Bộ lọc nguồn và luồng server không có đường đẩy chữ 2 lần trong cùng một khối; nguồn lặp là model viết lại nguyên đoạn trong một khối text mới (thường sau khi gọi tool). Sửa tại `streamTripsageChat` (`tripsage-chat-service.ts`): mỗi khối text mới trong lượt được giữ lại khi nội dung (bỏ khác biệt khoảng trắng) chỉ lặp lại chữ đã gửi; nhả ra ngay khi có nội dung mới; bỏ hẳn nếu tới hết khối vẫn chỉ là lặp. Chữ lặp không tới trình duyệt và không vào DB. Test hồi quy `S15` trong `tripsage-chat-stream-redaction.vitest.test.ts` (fail trên code cũ, pass sau sửa). Giới hạn: khối mới lặp một phần rồi thêm ý mới vẫn hiện nguyên (chỉ chặn lặp nguyên văn).
+
+---
+
+## 7. Test lại toàn bộ trên production `e10f7f2` (2026-11-26)
+
+Deployment `dpl_31sWrzfK9pSfATp5Jk12F86kLGAL`. Dữ liệu thử tạo trên tài khoản demo: hội thoại `b2cc910f-2137-4f18-85a7-c3e07274f15d` (luồng demo xe máy 5 ngày), `385c5c60-e987-4dfa-b708-26690589699e` (khám phá), chuyến đã lưu `/trips/cmwxehav4000108l5tr6tsbig` (bản sửa lịch AI chưa áp dụng, chưa lưu).
+
+| Luồng | Kết quả |
+|---|---|
+| Hỏi thời tiết tháng 12 | Đạt — trả lời đúng, chip phù hợp |
+| Lập lịch xe máy 5 ngày từ Mỹ Đình, phải có Lũng Cú / Mã Pì Lèng / Nho Quế | Đạt có lưu ý — v1 12 điểm **thiếu Nho Quế**, về 21:59; bấm "Giữ 5 ngày, bớt điểm phụ" ⇒ v2 11 điểm có Nho Quế, về 19:18. Không lặp chữ (S15), hiện ngay (S1) |
+| Chi phí | Có lưu ý — v1/v2 tính "thuê 2 xe máy số" dù nhóm chạy xe từ Hà Nội; khách nói "xe máy nhà, không thuê" ⇒ tính lại đúng 10,03 tr (2,51 tr/người) |
+| Hỏi chợ phiên Đồng Văn | Đạt — đối chiếu ngày trong lịch, có nguồn |
+| Lưu chuyến ⇒ trang chuyến | Đạt — chi phí tự lưu đúng bản mới nhất (D4/ADR-58); nhãn "bảng giá tham khảo cập nhật 21/11" (S4); tiêu đề ngày nối khu nghỉ (B5/S7); nhận phòng khớp (B3); "Dự báo có từ ngày 06/12" (S13); có gợi ý chỗ nghỉ (B6) |
+| Màn 375px | Đạt — dòng "Ăn sáng" một hàng (B10) |
+| Sửa lịch bằng AI | Đạt — 2 thẻ phương án (B8), có 421,5 km (S8), cảnh báo đi trước bình minh (S11), không "máy chủ/PASS" (S9), không lặp dòng (S10) |
+| Khám phá (Sa Pa / Ba Bể / Lũng Cú cho mẹ yếu chân) | Có lưu ý — trả lời Lũng Cú tốt, có nguồn; bỏ qua phần so sánh Sa Pa/Ba Bể; không có chip nào |
+
+Vấn đề còn lại (mới):
+- **R1 — Điểm bắt buộc bị rơi ở bản đầu.** Khách nói "nhất định phải có … sông Nho Quế" nhưng v1 không có (bot có nói rõ và đưa chip). Sáng nay cùng câu thì có. Nghi `prioritizeIds`/lấp điểm (D2/S14) không đảm bảo `mustIncludeDestinationIds` khi lịch đầy. Hướng: điểm bắt buộc phải xếp trước khi lấp điểm phụ; chỉ rơi khi thật sự không vừa, kèm lý do.
+- **R2 — Xuất phát Mỹ Đình bằng xe máy vẫn bị tính thuê xe.** `resolveUsesLocalRental` coi "Hà Nội (bến xe Mỹ Đình)" là điểm tập kết (hub) ⇒ mặc định thuê xe máy số, dù lộ trình 972 km gồm cả chặng Hà Nội ↔ Hà Giang bằng xe máy (tức đi xe nhà). Hướng: khi phương tiện là xe máy/ô tô và chặng lên Hà Giang do chính xe đó chạy (không có chặng tiếp cận xe khách/tàu/máy bay) ⇒ `OWN_VEHICLE`.
+- **R3 (nhỏ) — Câu hỏi so sánh với nơi ngoài Hà Giang bị bỏ qua và không còn chip.** Nên trả lời ngắn rằng ứng dụng chỉ hỗ trợ Hà Giang (hoặc so sánh 1 câu) và luôn còn chip Hà Giang thay thế khi bộ lọc B12 chặn hết chip.
+
+Còn chờ quyết: S3b, B7.
+
+**R1, R2 — đã sửa (Claude, 2026-11-26).**
+- **R1:** trace admin hội thoại `b2cc910f` cho thấy lượt đầu model gọi `recordTripInfo` với `mustIncludeDestinationIds: []` (chưa biết mã điểm vì chưa `listDestinations`) rồi tự chọn lịch thiếu Sông Nho Quế; server không có gì ép. Sửa: `findMustVisitIds` (`tripsage-relax-signals.ts`) tìm tên điểm trong **tin nhắn mới nhất** nằm cùng câu với "nhất định / phải có / bắt buộc / không thể thiếu / không được bỏ"; `proposeItinerary` gộp vào `requiredDestinationIds` và chèn vào lựa chọn nếu model bỏ sót (bộ xếp tuyến sắp lại thứ tự). Chỉ xét tin mới nhất để "bỏ X" ở lượt sau không bị ép lại. Test `R1` trong `tripsage-s14-s6.vitest.test.ts` (fail trên code cũ, pass sau sửa).
+- **R2:** `resolveUsesLocalRental` coi mọi điểm tập kết là thuê xe. Theo ADR-42 điểm tập kết Hà Nội (Mỹ Đình) dành cho khách từ xa — người Hà Nội hẹn ở Mỹ Đình đi xe nhà. Sửa: chỉ TP Hà Giang (bến xe phía Nam), có chặng tiếp cận, hoặc quê ngoài Hà Nội / TP Hà Giang mới mặc định thuê xe. Test `R2` trong `tripsage-cost-d5-d6.vitest.test.ts` (fail trên code cũ, pass sau sửa).

@@ -11,6 +11,7 @@ import { TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 import { createTripsageChatTools } from "./tripsage-chat-tools";
 import {
   detectRelaxAndFamilySignals,
+  findMustVisitIds,
   hasGentlePaceWording,
   hasRelaxReasonSignal,
   hasYoungChildSignal,
@@ -473,4 +474,42 @@ describe("S6 — gentle/family trip prefers Day 1 overnight in TP Hà Giang, pen
     expect(day1Last?.id).toBe(DONG_VAN.id);
     expect(resolveOvernightAnchorTown(day1Last!)?.area).toBe("Đồng Văn");
   });
+});
+
+describe("R1 — must-visit places named by the traveler are always required", () => {
+  it("findMustVisitIds only picks places named in a 'must' sentence", () => {
+    const pool = [LUNG_CU, MA_PI_LENG, NHO_QUE, DONG_VAN, { id: "dest-sung-la-pao", name: "Sủng Là (Nhà của Pao)" }];
+    const text = "Bọn mình thích ngắm đèo, phố cổ Đồng Văn cũng được. Nhất định phải có cột cờ Lũng Cú, đèo Mã Pì Lèng và sông Nho Quế.";
+    expect(findMustVisitIds(text, pool).sort()).toEqual([LUNG_CU.id, MA_PI_LENG.id, NHO_QUE.id].sort());
+    expect(findMustVisitIds("bat buoc phai ghe sung la nhe", pool)).toEqual(["dest-sung-la-pao"]);
+    expect(findMustVisitIds("Mình muốn đi sông Nho Quế nếu kịp", pool)).toEqual([]);
+    expect(findMustVisitIds("", pool)).toEqual([]);
+  });
+
+  it("proposeItinerary schedules a must-visit place the model left out of its selection", async () => {
+    const shown = [[], [QUAN_BA, YEN_MINH], [SUNG_LA, VUONG], [LUNG_CU, DONG_VAN, MA_PI_LENG], []];
+    const currentItinerary = {
+      days: shown.map((stops, idx) => ({ day: idx + 1, stops: stops.map((c, i) => ({ id: c.id, name: c.name, arrivalMinute: 480 + i * 120, departureMinute: 540 + i * 120 })) })),
+    };
+    const emitted: PlannerResult[] = [];
+    const tools = createTripsageChatTools({
+      planning: { candidates: async () => FULL_POOL, routes: REALISTIC_ROUTES, now: () => new Date("2026-11-26T08:00:00Z") },
+      emitItinerary: r => emitted.push(r),
+      journey: CAU_GIAY_JOURNEY,
+      currentItinerary,
+      tripInfo: { transport: "MOTORCYCLE", durationDays: 5, startDate: "2026-12-20", travelers: 4, mustIncludeDestinationIds: [] },
+      latestUserText: "Lịch ổn nhưng nhất định phải có sông Nho Quế nhé bạn.",
+    });
+
+    // The model re-sends the plan already shown and forgets the river.
+    const res = await tools.proposeItinerary.execute!(
+      { selection: { days: shown.map(day => day.map(c => c.id)) } },
+      { toolCallId: "t-r1", messages: [], context: {} },
+    ) as { ok: boolean };
+
+    expect(res.ok).toBe(true);
+    const ids = emitted.at(-1)!.days.flatMap(d => d.stops.map(s => s.destination.id));
+    expect(ids).toContain(NHO_QUE.id);
+  });
+
 });

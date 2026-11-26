@@ -103,6 +103,23 @@ export function hasGentlePaceWording(texts: readonly string[]): boolean {
   return false;
 }
 
+const MUST_VISIT_CUE = /\b(?:nhat\s+dinh|phai\s+co|bat\s+buoc|khong\s+the\s+thieu|khong\s+duoc\s+bo)\b/u;
+
+/**
+ * R1: catalog places the traveler names in a "must" sentence ("nhất định phải có cột cờ Lũng Cú, đèo Mã Pì Lèng và sông Nho Quế").
+ * Deterministic so a must-visit place never depends on the model remembering to record it. Parenthetical name parts are ignored.
+ */
+export function findMustVisitIds(text: string, candidates: readonly { id: string; name: string }[]): string[] {
+  const sentences = (text ?? "").split(/[.!?\n;]+/u).map(foldSignalText).filter(sentence => MUST_VISIT_CUE.test(sentence));
+  if (sentences.length === 0) return [];
+  return candidates
+    .filter(candidate => {
+      const name = foldSignalText(candidate.name.replace(/\([^)]*\)/gu, " "));
+      return name.length >= 4 && sentences.some(sentence => ` ${sentence} `.includes(` ${name} `));
+    })
+    .map(candidate => candidate.id);
+}
+
 export type RelaxAndFamilySignals = {
   hasYoungChild: boolean;
   hasRelaxReason: boolean;
