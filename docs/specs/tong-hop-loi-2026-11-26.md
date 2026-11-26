@@ -1,0 +1,103 @@
+# Tổng hợp lỗi, nguyên nhân và hướng sửa — 2026-11-26
+
+Bản tóm tắt để đọc nhanh. Chi tiết tái hiện từng lỗi: [trip-review-lessons-demo-2026-11-26.md](trip-review-lessons-demo-2026-11-26.md). Spec đợt sửa đầu (đã xong): [trip-review-lessons-demo-2026-11-26-spec.md](trip-review-lessons-demo-2026-11-26-spec.md).
+
+Production hiện tại: commit `e2dbee9` (deployment `dpl_AiKqED7L9rgZpeiKT7sqsKgpViuT`). Phần **đang làm dở chưa commit** trong working tree (điểm xuất phát + khôi phục stream chat) **chưa** lên production.
+
+---
+
+## 1. Đã sửa và đã kiểm trên production (không cần làm gì)
+
+| Lỗi | Nội dung | Kết quả kiểm |
+|---|---|---|
+| B8 | Sửa lịch bằng AI luôn báo "Kết nối bị ngắt", không có thẻ phương án | Có 3 thẻ, Áp dụng + Hoàn tác chạy |
+| B1, B2 | Bot tự đặt "nghỉ đêm" giả, lịch rơi điểm; "Thêm 1 ngày" ra ngày trống | Thêm ngày: 3 ngày/9 điểm → 4 ngày/11 điểm, về sớm hơn 4 tiếng |
+| B9 | Chi phí không hiện trên trang chuyến nếu chưa ghim | Có mục "Chi phí ước tính" riêng (ADR-58) |
+| B3, B5 | Nhãn nhận phòng lệch khu nghỉ; tiêu đề Ngày 1 lấy điểm Ngày 2 | "Nhận phòng · Yên Minh"; "Hà Nội → TP Hà Giang" |
+| B4 | Khoảng 20 phút không giải thích sau nghỉ trưa | Hiện "+20 phút chụp ảnh" |
+| B6 | Không có gợi ý chỗ nghỉ / ăn tối | Lịch mới có gợi ý homestay + quán ăn |
+| B10 | Màn hẹp: dòng "Ăn sáng" vỡ dọc | Đã sửa CSS (chưa kiểm tay trên điện thoại) |
+| B11–B13 | Chip nhắc "lịch" khi chưa có lịch; chip ngoài Hà Giang; định dạng danh sách | Đã chặn (thêm sửa regex chữ có dấu ở `e2dbee9`) |
+
+Còn mở từ đợt đầu: **B7** (ngày cuối 421 km xe máy) — chờ anh quyết, chưa sửa.
+
+---
+
+## 2. Lỗi còn lại — xếp theo ưu tiên
+
+### Ưu tiên 1 — ảnh hưởng demo, sửa trước
+
+**S1 — Câu trả lời trống, phải F5 mới thấy** — **[ĐÃ SỬA · commit `8f668d0`]**
+- Nguyên nhân: (a) cuối lượt chat, phần chữ còn giữ trong bộ lọc `sourceStreamFilters` (`tripsage-chat-service.ts`) chỉ được lưu DB, không gửi xuống stream ⇒ trình duyệt không nhận chữ, DB có đủ. (b) `onFinish` trong `tripsage-chat-client.tsx` không khôi phục từ DB khi stream kết thúc "bình thường" mà không có chữ.
+- Đã sửa: phát `flush-tail-*` (`text-start`/`text-delta`/`text-end`) trước chunk `finish` và trong `flush()`, hoàn tất `shouldRecoverFinishedTurn` + `needsServerSync` khôi phục từ DB khi stream kết thúc sạch nhưng trống text; bổ sung test hồi quy (c) & (d).
+
+**S2 — Lặp hỏi xác nhận điểm xuất phát** — **[ĐÃ SỬA · commit `1384f8a`]**
+- Nguyên nhân: bản cũ chỉ tự xác nhận khi đúng 1 kết quả tìm kiếm và câu khớp mẫu hẹp; chip đồng ý `"Đúng, Cầu Giấy"` không khớp tập ứng viên khi có nhiều kết quả và `stripConversationalOriginWrappers` chưa bóc tiền tố đồng ý (`Đúng, `) + tiền tố hành chính (`Quận `).
+- Đã sửa: hoàn tất `resolveUniqueOriginMatch`, `STRONG_ORIGIN_CUE_RE` ("nhà ở …"), gộp ứng viên cùng cụm trong `origin-search-contract.ts`, và bóc tiền tố đồng ý có dấu `"Đúng, …"` (an toàn với `"dùng"`) cùng tiền tố hành chính trong `permitsOriginConfirmation`/`statesSoleOrigin`; bổ sung test hồi quy (a) & (b).
+
+**S3a — Tính tiền thuê ô tô (3,6 triệu) cho gia đình tự lái xe nhà** — **[ĐÃ SỬA · commit `72b0e36`]**
+- Nguyên nhân: server mặc định đúng (`OWN_VEHICLE`), nhưng model tự chọn `rentalTier: "CAR_SELF_DRIVE"` khi gọi `estimateCosts` (nhầm "tự lái ô tô" với "Thuê ô tô tự lái"); server không chặn.
+- Đã sửa: thêm `userExplicitlyRequestedVehicleRental` và `resolveEffectiveRentalTier` trong `tripsage-chat-tools.ts` (áp dụng trong `emitSyncedCostNow` / `estimateCosts`): khi `resolveUsesLocalRental(info) === false` ép `rentalTier = "OWN_VEHICLE"` trừ khi lịch sử hoặc tin nhắn gần nhất có `"thuê xe"` / `"thuê ô tô"` / `"thuê xe máy"` (không tính phủ định `"không thuê xe"`). Cập nhật mô tả `rentalTier` trong `tripsage-cost.ts` và thêm test trong `tripsage-cost-d5-d6.vitest.test.ts`.
+
+**S4 — Trang chuyến ghi "Ước tính tại ngày 21/11/2026" (sai so với hôm nay)** — **[ĐÃ SỬA · commit `29d253b`]**
+- Nguyên nhân: đó là ngày cập nhật bảng giá tham khảo (`PRICE_REFERENCE.updatedAt` trong `tripsage-cost.ts:10`), nhưng nhãn ở `trip-pinned-section.tsx:168` ghi là "Ước tính tại ngày".
+- Đã sửa: đổi thành `"Theo bảng giá tham khảo cập nhật ${referenceDateText}, chưa phải báo giá. Ứng dụng không đặt chỗ."` và cập nhật `trip-cost-section.vitest.test.ts`.
+
+**S7 — Tiêu đề Ngày 2 là "Dốc Bắc Sum → …" thay vì "TP Hà Giang → …"** — **[ĐÃ SỬA · commit `dc0ec1e`]**
+- Nguyên nhân: Ngày 1 chỉ có chặng lên (0 điểm tham quan) nên không có `overnightStays` cho đêm 1 ⇒ `resolveDayRouteLabel` (`day-timeline.tsx`) không có khu nghỉ trước, lấy điểm đầu Ngày 2.
+- Đã sửa: bổ sung nhận diện ngày trước chỉ có chặng lên (`previousDayOutboundOnly` / leg `OUTBOUND` ngày trước với `previousDayStops.length === 0`) trong `resolveDayRouteLabel` để lấy khu nghỉ đêm đó (mặc định `"TP Hà Giang"` khi thiếu `overnightStays`), áp dụng đồng nhất tại `trips-view.tsx`, `tripsage-plan-panel.tsx`, `companion-group-view.tsx`; thêm test trong `day-timeline.vitest.test.ts`.
+
+### Ưu tiên 2 — cần anh quyết trước khi sửa
+
+**S3b — Gia đình 2 người lớn + bé 7 tuổi bị tính 2 phòng, 3 suất ăn người lớn**
+- Nguyên nhân: hệ thống không có khái niệm trẻ em; `travelers = 3` ⇒ `ceil(3/2) = 2` phòng (`tripsage-cost.ts:325`).
+- Hướng sửa: thêm `children` vào `tripInfoSchema`, trích "bé X tuổi" từ lời khách; phòng tính theo người lớn, ăn uống trẻ em hệ số ~0,5. **Đổi hợp đồng dữ liệu ⇒ cần duyệt.**
+
+**S6 — Gia đình có bé, "đi nhẹ nhàng" nhưng Ngày 1 lái 349 km rồi ngủ ở Bắc Mê (lệch cung chính)**
+- Nguyên nhân: bộ xếp tuyến ADR-55 không có trọng số "có trẻ nhỏ"; ràng buộc "đêm 1 Đồng Văn" không đạt nên chọn khu nghỉ lệch.
+- Hướng sửa đề xuất: khách có trẻ nhỏ / nhịp nhẹ ⇒ ưu tiên đêm 1 ở TP Hà Giang, phạt khu nghỉ ngoài cung chính. **Quyết định sản phẩm.**
+
+**B7 — Ngày cuối 421 km xe máy (về 19:18)**
+- Hệ thống đã cảnh báo đúng, không chặn lưu. Có thể gợi ý đêm cuối gần TP Hà Giang hoặc xe khách chiều về. **Quyết định sản phẩm.**
+
+### Ưu tiên 3 — đã điều tra rõ nguyên nhân & đã sửa
+
+**S5 — Sau "Thêm 1 ngày", chip là "Đi xe khách lên TP Hà Giang / Đi tàu hỏa ra Hà Nội / Đi máy bay ra Hà Nội" cho khách ở Hà Nội tự lái** — **[ĐÃ SỬA · commit `7b58d87`]**
+- Nguyên nhân thật (đã xác minh từ code):
+  1. `shouldSuggestHub(result)` (`tripsage-access-leg.ts:554`) chỉ loại trừ `isHubOrigin(originLabel)` (khớp cứng `"Hà Nội (bến xe Mỹ Đình)"` / `"TP Hà Giang (bến xe phía Nam)"`), nên điểm cụ thể trong nội thành Hà Nội như `"Quận Cầu Giấy, Hà Nội"` vẫn bị tính như nơi ở xa khi `durationDays <= 4` (`SHORT_TRIP_MAX_DAYS`) và chặng Ngày 1 dài `>= 300 km` / `>= 360 phút` (ca demo là 348,7 km).
+  2. Khi `shouldSuggestHub(result)` trả `true`, `proposeItinerary` (`tripsage-chat-tools.ts:1747-1752`) phát cứng bộ chip `["Đi xe khách lên TP Hà Giang", "Đi tàu hỏa ra Hà Nội", "Đi máy bay ra Hà Nội"]` và gửi `hubHint` bảo model hỏi cách ra Hà Nội.
+  3. `hubTransportChipsFor` và `reconcileQuickRepliesWithQuestion` (`tripsage-chat-service.ts`) cũng không kiểm tra khách đã ở Hà Nội hay đối chiếu bộ chip chặng tiếp cận với câu hỏi kết `"Bạn muốn ưu tiên điều chỉnh nào?"`.
+- Đã sửa: loại trừ nơi xuất phát trong Hà Nội / TP Hà Giang ở `shouldSuggestHub` (`isHaNoiOriginOrHome`), chặn phát `hubHint`/chip chặng tiếp cận ở `proposeItinerary` và `suggestReplies` khi khách đã ở Hà Nội, cập nhật `hubTransportChipsFor` và bổ sung lớp đối chiếu ở `reconcileQuickRepliesWithQuestion` để đổi chip khớp câu hỏi điều chỉnh lịch; thêm test trong `tripsage-timeline-fixes.vitest.test.ts`.
+
+**S8 — Trợ lý sửa lịch nói "chưa có số km chặng về" dù trang ghi 421,5 km** — **[ĐÃ SỬA · commit `7bfac2c`]**
+- Nguyên nhân thật (đã xác minh từ code): `PreviewJourneySummary` (`edit-journey-helper.ts`) đã có đầy đủ `outboundDistanceMeters`, `returnDistanceMeters`, `outboundDurationSeconds`, `returnDurationSeconds`, nhưng:
+  1. `buildVerifiedAdvisoryFacts` (`saved-trip-advisory.ts:815-843`) — hàm dựng `tripContext.journey` cho `/api/trips/[id]/edits/ai` — chỉ đưa `outboundDriveMinutes` và `returnDriveMinutes`, **bỏ sót hoàn toàn** `outboundDistanceMeters`/`returnDistanceMeters` và thời gian nghỉ dọc đường.
+  2. Công cụ `simulate_changes` (`trip-assistant-agent.ts:452-458`) chỉ trả `arrivalAtFirstTime`, `estimatedReturnTime`, `returnDeadlineTime` trong `journeyAfter`, cũng không trả km/phút chặng đi/về.
+  3. Tóm tắt lộ trình tất định trong `ai-workspace-plan.ts:1220-1244` cũng chưa hiển thị km/phút chặng đi/về.
+- Đã sửa: đưa `outboundDistanceKm`, `returnDistanceKm`, `outboundRestMinutes`, `returnRestMinutes` vào `VerifiedAdvisoryFacts.journey`, bổ sung đầy đủ vào `journeyAfter` của `simulate_changes`, cập nhật prompt hệ thống & `ai-workspace-plan.ts`, thêm test trong `trip-assistant-agent.vitest.test.ts`.
+
+### Ưu tiên 4 — chữ / giao diện nhỏ (đã sửa S9–S13)
+
+| Mục | Hiện tượng | Trạng thái & cách sửa |
+|---|---|---|
+| S9 | Trợ lý sửa lịch nói "Máy chủ vẫn báo PASS…" | **ĐÃ SỬA (`167ac9a`)** — Cấm trong prompt (`trip-assistant-agent.ts`, `saved-trip-advisory.ts`), sửa chuỗi fallback (`ai-workspace-plan.ts`, `saved-trip-rest-scenario.ts`), và lọc tự động ở `trip-assistant-stream-redaction.ts` (giữ nguyên Fact Guard `FALSE_PASS`). |
+| S10 | Mỗi thẻ phương án lặp dòng "Đổi giờ bắt đầu về sang 05:30" | **ĐÃ SỬA (`1f4c718`)** — Thêm `visibleSuggestionDiffLines` trong `ai-edit-bar.tsx` loại dòng diff trùng `summary` hoặc trùng nhau. |
+| S11 | Khuyên xuất phát 05:30 tháng 12 không cảnh báo trời tối / sương mù (bình minh ~06:38) | **ĐÃ SỬA (`167ac9a`)** — Thêm `buildPreSunriseDepartureWarnings` (dùng `computeSunTimes`) trong `saved-trip-advisory.ts`, trả `preSunriseWarnings` từ `simulate_changes`, đưa vào `gatherWeatherAndSunDigest`, và tự động kèm lưu ý an toàn trời tối/sương mù (nhất là xe máy) nếu câu trả lời bỏ sót. |
+| S12 | Toast "Đã áp dụng phương án…" che chữ tin nhắn | **ĐÃ SỬA (`1f4c718`)** — Đổi `.toastPill` trong `edit-trip.module.css` từ `position: absolute` sang `position: relative` nằm trong luồng `.workspaceStage` phía trên `.content` (vẫn tự ẩn sau 6s), không đè tin nhắn ở mọi kích thước màn hình. |
+| S13 | "Dự báo có từ ngày 2026-12-06" dạng ISO | **ĐÃ SỬA (`9cfc2cb`)** — Thêm `formatShortViDate` (`sun-times.ts`) hiển thị `"06/12"` tại `trip-weather-inline.tsx`, `trip-weather-panel.tsx`, `destination-weather-card.tsx` và cập nhật 3 bộ test thời tiết. |
+
+---
+
+## 3. Thứ tự làm đề xuất
+
+1. Hoàn tất phần đang làm dở ⇒ sửa **S1, S2**; thêm test; smoke 5 lượt chat không F5.
+2. Sửa nhanh **S3a, S4, S7** (nhỏ, chắc chắn).
+3. Commit, deploy, smoke lại đúng kịch bản "gia đình 3 người tự lái từ Cầu Giấy, 3 ngày, tối ngày 1 nghỉ Đồng Văn".
+4. Anh quyết **S3b, S6, B7** ⇒ viết spec rồi làm.
+5. Điều tra và sửa **S5, S8**; dọn **S9–S13**.
+
+## 4. Việc phải dọn trước buổi demo
+
+- Xóa đoạn chat thử `e39ff975-32ee-4588-a587-63536f8c4267` (gia đình đi ô tô, có lỗi trả lời trống) trên tài khoản demo.
+- Giữ đoạn chat demo `e6beafeb-ce49-406e-b4f5-903df3f0e1f6` và chuyến `cmwwzo14a000108jvryf9zvs8` (đã kiểm: chi phí, timeline, sửa lịch bằng AI đều chạy).
+- Đoạn chat khám phá `6e56fb64-1ea8-4a4d-badf-70f0c3658087` dùng được, tránh bấm chip Sa Pa.

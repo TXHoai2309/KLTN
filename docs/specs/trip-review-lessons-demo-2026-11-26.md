@@ -106,3 +106,54 @@ Lượt đầu, trong 4 gạch đầu dòng chỉ `Dốc Thẩm Mã` và `Đèo 
 
 1. Tái hiện B1–B2 trên bản `master` cục bộ (có thể đã khác production).
 2. Chủ dự án duyệt hướng sửa từng mục, rồi chuyển thành spec chính thức / test hồi quy.
+
+---
+
+## Smoke test sau deploy `e2dbee9` (2026-11-26, ~30 phút, production)
+
+Deployment `dpl_AiKqED7L9rgZpeiKT7sqsKgpViuT` (commit `e2dbee9` = D1–D7 + sửa regex D7). Phần đang làm dở chưa commit (điểm xuất phát, khôi phục stream chat) **không** có trong bản này.
+
+### Đã xác nhận sửa xong
+- **B8:** `/trips/cmwwzo14a000108jvryf9zvs8/edit` — hỏi "Ngày 5 chạy 400 km mệt quá…" ⇒ đủ 3 thẻ phương án ("Hợp lệ · Đạt kiểm tra"), bấm "Áp dụng" chạy, "Hoàn tác bước AI này" chạy. Không còn "Kết nối bị ngắt".
+- **B9:** trang chuyến có mục "Chi phí ước tính" riêng.
+- **B3, B5:** Ngày 1 `Hà Nội → TP Hà Giang`; Ngày 2 `Nhận phòng · Yên Minh` khớp "Về khu vực Yên Minh".
+- **B4:** chặng sau nghỉ trưa hiện `nghỉ 15 phút · +20 phút chụp ảnh` (khớp 16:25).
+- **B2:** "Thêm 1 ngày" ⇒ 3 ngày/9 điểm thành 4 ngày/11 điểm, về 18:41 (trước đó 22:36).
+- **B6:** lịch mới (hội thoại `e39ff975-32ee-4588-a587-63536f8c4267`) có gợi ý homestay và quán ăn tối.
+- Ràng buộc nghỉ đêm thật ("tối ngày 1 nghỉ ở Đồng Văn") được ghi nhận và giải thích rõ vì sao chưa xếp được, kèm chip giải quyết.
+
+### Vấn đề mới / còn lại (cần sửa)
+
+**Nghiêm trọng**
+- **S1 — Câu trả lời trống, phải F5 mới thấy (tái hiện 3/4 lượt).** Hội thoại `e39ff975`: gửi tin ⇒ khung "Trợ lý AI" trống, ô nhập mở lại; `POST /api/ai/chat` 200 rồi `ERR_ABORTED`, client gọi `GET /api/ai/assistant-conversations/{id}` 3 lần nhưng không hiện; F5 thì có đầy đủ câu trả lời + lịch. Trùng mục tiêu của phần đang làm dở chưa commit (`shouldRecoverFinishedTurn`, `flush-tail-*` trong `tripsage-chat-service.ts` / `tripsage-streamed-text.tsx` / `tripsage-chat-client.tsx`) ⇒ cần hoàn tất, test và deploy phần đó.
+- **S2 — Vòng lặp xác nhận điểm xuất phát.** Khách nói rõ "tự lái ô tô từ Hà Nội (nhà ở Cầu Giấy)" ⇒ bot hỏi xác nhận Cầu Giấy; bấm chip `Đúng, Cầu Giấy` ⇒ bot lại hỏi "Mình tìm thấy điểm xuất phát là Cầu Giấy. Bạn xác nhận…" (lặp). Phải gõ tay "Đúng rồi, xuất phát từ Cầu Giấy…" mới qua. Trùng phần đang làm dở `resolveUniqueOriginMatch` (chưa commit).
+- **S3 — Chi phí tính sai cho gia đình tự lái xe nhà.** Bảng chi phí v2 có `Thuê ô tô tự lái 1 xe × 4 ngày × 900.000đ = 3.600.000đ` dù khách "tự lái ô tô từ Hà Nội" (xe nhà) và `Homestay 3 đêm × 2 phòng` cho 2 người lớn + 1 bé 7 tuổi (nên 1 phòng). Tổng nhảy 5,55 tr (v1, 3 ngày) ⇒ 10,93 tr (v2, 4 ngày). Kỳ vọng: xe nhà ⇒ không có dòng thuê xe (chỉ xăng/gửi xe); trẻ em ≤ 10 tuổi ở chung phòng bố mẹ.
+
+**Trung bình**
+- **S4 — Ngày ước tính chi phí sai:** trang chuyến ghi "Ước tính tại ngày 21/11/2026" cho chi phí tạo ngày 26/11/2026 (nghi lấy nhầm ngày khác — ví dụ `lookupDate`/ngày tạo hội thoại — thay vì thời điểm ước tính).
+- **S5 — Chip lạc ngữ cảnh sau "Thêm 1 ngày":** câu hỏi "Bạn muốn ưu tiên điều chỉnh nào?" nhưng chip là `Đi xe khách lên TP Hà Giang` / `Đi tàu hỏa ra Hà Nội` / `Đi máy bay ra Hà Nội` — khách ở Hà Nội, tự lái xe nhà.
+- **S6 — Lịch gia đình có trẻ nhỏ quá nặng ngày đầu:** v2 Ngày 1 chạy Cầu Giấy → Di tích Căng Bắc Mê 348,7 km (~7 giờ lái + nghỉ) rồi nghỉ ở Bắc Mê (lệch khỏi cung chính; khách muốn Đồng Văn). Với yêu cầu "bé còn nhỏ, đi nhẹ nhàng" nên ưu tiên đêm 1 ở TP Hà Giang.
+- **S7 — Tiêu đề Ngày 2 không bắt đầu từ khu nghỉ đêm trước:** chuyến demo Ngày 2 là `Dốc Bắc Sum → Dốc Chín Khoanh` trong khi Ngày 3 là `Yên Minh → …` (đúng kiểu). Kỳ vọng `TP Hà Giang → Dốc Chín Khoanh`.
+
+**Nhỏ (văn phong / UI)**
+- **S8 — AI sửa lịch nói "mình chưa có số km được xác nhận riêng cho chặng này"** dù trang có `421,5 km` (dữ liệu km chặng về chưa đưa vào ngữ cảnh tool).
+- **S9 — Lộ từ kỹ thuật:** "Máy chủ vẫn báo PASS…" trong lời tư vấn sửa lịch.
+- **S10 — Thẻ phương án lặp dòng:** mỗi thẻ hiện `Đổi giờ bắt đầu về sang 05:30` hai lần (tóm tắt + dòng diff).
+- **S11 — Chưa cảnh báo an toàn khi khuyên xuất phát 05:30 tháng 12** (bình minh ~06:38, đèo tối/sương mù) với xe máy.
+- **S12 — Toast "Đã áp dụng phương án…" che chữ tin nhắn phía trên** ở khung ~800px.
+- **S13 — "Dự báo có từ ngày 2026-12-06"** hiển thị ngày dạng ISO, nên là `06/12`.
+
+### Nguyên nhân & hướng sửa S1–S13 (điều tra code 2026-11-26)
+
+| Mục | Nguyên nhân | Mức chắc chắn | Hướng sửa |
+|---|---|---|---|
+| **S1** trả lời trống, F5 mới thấy | (a) `tripsage-chat-service.ts` (bản đã deploy): ở cuối lượt, phần đuôi văn bản còn giữ trong `sourceStreamFilters` chỉ được đẩy vào `textChunks` để **lưu DB**, không `enqueue` xuống stream ⇒ client không nhận chữ nào, DB có đủ. (b) `tripsage-chat-client.tsx` `onFinish`: khi stream kết thúc không lỗi nhưng không có chữ, chỉ đánh dấu xong, **không** kích hoạt khôi phục từ DB. | Cao (khớp triệu chứng: F5 luôn có đủ nội dung) | Phần đang làm dở đã sửa cả hai: phát `text-start/delta/end` cho `flush-tail-*` và `shouldRecoverFinishedTurn` (khôi phục khi thiếu `finishReason` hoặc không có chữ). Cần: chạy test, smoke 5 lượt liền không F5, commit & deploy. |
+| **S2** lặp xác nhận Cầu Giấy | Bản đã deploy chỉ tự xác nhận khi đúng 1 kết quả tìm kiếm và câu khớp mẫu hẹp; chip "Đúng, Cầu Giấy" không được nhận là đồng ý với tập ứng viên hiện có. | Trung bình–cao | Phần đang làm dở `resolveUniqueOriginMatch` + `STRONG_ORIGIN_CUE_RE` ("nhà ở …"). Đã chạy thử hàm: câu đầu "…(nhà ở Cầu Giấy)…" tự xác nhận ngay (cả khi có 2–3 kết quả cùng khu vực); chip có nhánh dự phòng. Cần test hồi quy đúng câu này rồi deploy. |
+| **S3a** tính thuê ô tô cho xe nhà | Mặc định server đúng (`defaultRentalTierForTrip` ⇒ `OWN_VEHICLE` khi xuất phát Cầu Giấy). Dòng thuê xe đến từ **model tự chọn** `rentalTier: "CAR_SELF_DRIVE"` trong `estimateCosts` (nhiều khả năng do "tự lái ô tô" trùng nhãn "Thuê ô tô tự lái"); server không chặn. | Cao | Trong `estimateCosts`/`emitSyncedCostNow`: nếu `resolveUsesLocalRental(info) === false` (xuất phát từ nhà, không có chặng tiếp cận) thì ép `OWN_VEHICLE` trừ khi lời người dùng có "thuê xe/thuê ô tô"; sửa mô tả `rentalTier` phân biệt "tự lái xe nhà" và "thuê ô tô tự lái". |
+| **S3b** 2 phòng cho 2 người lớn + 1 bé | `tripInfo` không có khái niệm trẻ em; `travelers = 3` ⇒ `rooms = ceil(3/2) = 2` (`tripsage-cost.ts:325`), ăn uống tính 3 suất người lớn. | Chắc chắn | Thêm `children` (hoặc `childrenUnder10`) vào `tripInfoSchema` + trích xuất "bé 7 tuổi"; phòng tính theo người lớn; ăn uống trẻ em hệ số (ví dụ 0,5). Cần chủ dự án duyệt (đổi hợp đồng tripInfo). |
+| **S4** "Ước tính tại ngày 21/11/2026" | Không phải lỗi dữ liệu: `priceReferenceDate = PRICE_REFERENCE.updatedAt = "2026-11-21"` (ngày cập nhật bảng giá tham khảo, `tripsage-cost.ts:10`), nhưng `trip-pinned-section.tsx:168` ghi nhãn "Ước tính tại ngày". | Chắc chắn | Đổi nhãn: "Theo bảng giá tham khảo cập nhật 21/11/2026, chưa phải báo giá"; (tùy chọn) thêm ngày lưu chuyến. |
+| **S5** chip xe khách/tàu/máy bay cho khách ở Hà Nội tự lái | Chưa đọc code; nghi nhánh gợi ý "cách đi" (hub / chặng tiếp cận) vẫn sinh chip khi `transport = CAR` và xuất phát tại Hà Nội. | Thấp | Điều tra `shouldSuggestHub` / chip chặng tiếp cận; không gợi ý cách ra Hà Nội khi khách đã ở Hà Nội và tự lái. |
+| **S6** ngày 1 lái 349 km, ngủ Bắc Mê | Thuật toán xếp tuyến ADR-55 + ràng buộc "đêm 1 Đồng Văn" không đạt ⇒ chọn khu nghỉ lệch cung; không có trọng số "có trẻ nhỏ". | Trung bình | Khi khách có trẻ nhỏ / "nhẹ nhàng": ưu tiên đêm 1 tại TP Hà Giang, phạt khu nghỉ ngoài cung chính. Cần quyết định sản phẩm. |
+| **S7** tiêu đề Ngày 2 không bắt đầu từ TP Hà Giang | `resolveDayRouteLabel` lấy `prevOvernight` từ `overnightStays`; D2 chỉ ghi stay khi điểm cuối ngày cách tâm thị trấn > 1 km ⇒ Ngày 1 (không có điểm) không có stay ⇒ Ngày 2 dùng điểm đầu. | Cao (đọc code) | Ngày sau một ngày `OUTBOUND_ONLY` lấy `prevOvernight = "TP Hà Giang"` (cùng quy tắc D3 đã làm cho tiêu đề Ngày 1). |
+| **S8** AI nói chưa có km chặng về | Ngữ cảnh tool của trợ lý sửa lịch không chứa `returnDistanceMeters` (có trong `journeySummary` của thẻ). | Trung bình | Đưa km/giờ chặng đi/về đã xác minh vào ngữ cảnh model của `/edits/ai`. |
+| **S9–S13** | Văn phong / UI: từ "Máy chủ … PASS" trong prompt kết quả; thẻ phương án in `summary` và `diffSummaryLines` trùng nhau; thiếu cảnh báo chạy đèo trước bình minh; toast đè nội dung; ngày dự báo dạng ISO. | — | Sửa nhỏ từng chỗ; S11 thêm quy tắc: giờ xuất phát trước bình minh ⇒ kèm cảnh báo trời tối/sương mù. |
