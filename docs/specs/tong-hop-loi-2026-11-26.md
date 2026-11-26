@@ -53,9 +53,9 @@ Còn mở từ đợt đầu: **B7** (ngày cuối 421 km xe máy) — chờ anh
 - Nguyên nhân: hệ thống không có khái niệm trẻ em; `travelers = 3` ⇒ `ceil(3/2) = 2` phòng (`tripsage-cost.ts:325`).
 - Hướng sửa: thêm `children` vào `tripInfoSchema`, trích "bé X tuổi" từ lời khách; phòng tính theo người lớn, ăn uống trẻ em hệ số ~0,5. **Đổi hợp đồng dữ liệu ⇒ cần duyệt.**
 
-**S6 — Gia đình có bé, "đi nhẹ nhàng" nhưng Ngày 1 lái 349 km rồi ngủ ở Bắc Mê (lệch cung chính)**
-- Nguyên nhân: bộ xếp tuyến ADR-55 không có trọng số "có trẻ nhỏ"; ràng buộc "đêm 1 Đồng Văn" không đạt nên chọn khu nghỉ lệch.
-- Hướng sửa đề xuất: khách có trẻ nhỏ / nhịp nhẹ ⇒ ưu tiên đêm 1 ở TP Hà Giang, phạt khu nghỉ ngoài cung chính. **Quyết định sản phẩm.**
+**S6 — Gia đình có bé, "đi nhẹ nhàng" nhưng Ngày 1 lái 349 km rồi ngủ ở Bắc Mê (lệch cung chính)** — **[ĐÃ SỬA · commit `c6ea687`]**
+- Nguyên nhân: bộ xếp tuyến ADR-55 không có trọng số "có trẻ nhỏ / nhịp nhẹ"; `idleCost` phạt Ngày 1 nghỉ sớm ở TP Hà Giang khi đến nơi khoảng 13:00 sau chặng Hà Nội, và `townCost` coi Bắc Mê ngang các thị trấn trên cung chính QL4C.
+- Đã sửa: thêm bộ nhận diện tín hiệu tất định không dấu `tripsage-relax-signals.ts` (`hasYoungChildSignal`, `hasRelaxReasonSignal`, `hasGentlePaceWording`, `detectRelaxAndFamilySignals`), xuất `MAIN_LOOP_OVERNIGHT_AREAS` (`TP Hà Giang`, `Quản Bạ`, `Yên Minh`, `Đồng Văn`, `Mèo Vạc`, `Lũng Cú`) tại `overnight-anchor.ts`; bổ sung `JourneyBalancePreferences.gentleFamily` trong `journey-planner.ts`, `planner-day-balance.ts`, `planner-route.ts` và `planning-engine.ts` để ưu tiên đêm 1 ở TP Hà Giang khi xuất phát xa (`>= 80 km`), phạt khu nghỉ ngoài cung chính (như Bắc Mê, Hoàng Su Phì, Du Già) và không tự lấp điểm ngoài cung chính trong `fill`; bảo toàn tuyệt đối ràng buộc nghỉ đêm người dùng nêu rõ (ADR-53) qua `explicitOvernightDays`.
 
 **B7 — Ngày cuối 421 km xe máy (về 19:18)**
 - Hệ thống đã cảnh báo đúng, không chặn lưu. Có thể gợi ý đêm cuối gần TP Hà Giang hoặc xe khách chiều về. **Quyết định sản phẩm.**
@@ -101,3 +101,27 @@ Còn mở từ đợt đầu: **B7** (ngày cuối 421 km xe máy) — chờ anh
 - Xóa đoạn chat thử `e39ff975-32ee-4588-a587-63536f8c4267` (gia đình đi ô tô, có lỗi trả lời trống) trên tài khoản demo.
 - Giữ đoạn chat demo `e6beafeb-ce49-406e-b4f5-903df3f0e1f6` và chuyến `cmwwzo14a000108jvryf9zvs8` (đã kiểm: chi phí, timeline, sửa lịch bằng AI đều chạy).
 - Đoạn chat khám phá `6e56fb64-1ea8-4a4d-badf-70f0c3658087` dùng được, tránh bấm chip Sa Pa.
+
+---
+
+## 5. Smoke test production sau deploy `33b2495` (2026-11-26)
+
+Deployment `dpl_2R37wix3VmoBPEEyjF4iTKAmKr45`. Kịch bản: hội thoại mới `6bcbc4b7-e8ad-433d-a31a-4ccd9df4f349`, "Nhà mình 2 vợ chồng với 1 bé 7 tuổi, tự lái ô tô từ Hà Nội (nhà ở Cầu Giấy), 3 ngày 2 đêm từ 11/12…", sau đó "Về gần 23h thì muộn quá với bé. Cho nhà mình thêm 1 ngày để đi thư thả hơn nhé."
+
+Đã xác nhận trên production:
+- **S1:** cả 2 lượt hiện câu trả lời + lịch ngay, không cần F5.
+- **S2:** không hỏi lại Cầu Giấy; lập lịch ngay ở lượt đầu.
+- **S3a:** bảng chi phí v1 và v2 không còn dòng "Thuê ô tô tự lái" (chỉ xăng, lưu trú, ăn uống).
+- **S5:** chip đúng ngữ cảnh ("Đi sớm hơn ngày cuối", "Rút bớt điểm xa phía Bắc"…), không còn chip xe khách/tàu/máy bay.
+- Typecheck 0 lỗi; vitest 4938 pass, 1 fail có sẵn (`tripsage-cost-card` Bug 3 CSS).
+
+Vẫn còn (chờ quyết định, đã biết): **S3b** — vẫn "2 phòng" và 3 suất ăn cho 2 người lớn + bé 7 tuổi; **S6** — ngày cuối về 23:21 (3 ngày) / 22:05 (4 ngày) với gia đình có trẻ nhỏ.
+
+Phát hiện mới:
+- **S14 — "Thêm 1 ngày để đi thư thả hơn" lại lấp thêm điểm.** — **[ĐÃ SỬA · commit `c6ea687`]** v1 3 ngày/6 điểm về 23:21 ⇒ v2 4 ngày/10 điểm về 22:05. Khách muốn giãn lịch, nhưng bộ xếp ADR-55 lấp giờ trống (`fill`) bằng điểm mới. Đã sửa theo quyết định bên dưới: khi số ngày tăng và có tín hiệu tất định (`hasRelaxReason || isRelaxedPace || hasYoungChild`), `proposeItinerary` bật chế độ giãn lịch (`fill = false`, giữ nguyên điểm hiện có + chỉ khôi phục `mustIncludeDestinationIds` bị rơi và lọc bỏ điểm phát sinh ngoài yêu cầu nếu model tự chèn), `arrangeTripRoute` + `balanceJourneyDays` chia lại đều sang số ngày mới, thử hướng/xoay vòng kết thúc gần TP Hà Giang (giới hạn `<= 1,25×` quãng đường gốc, không tạo `LONG_DRIVING_DAY` Ngày 1) để kéo đêm áp chót về gần TP Hà Giang và rút giờ về sớm hơn; trả `relaxSpreadApplied: true` kèm chỉ dẫn prompt nói rõ *"đã giãn lịch, giữ số điểm, về sớm hơn"* và không gợi ý thêm điểm.
+
+**Quyết định (chủ dự án duyệt 2026-11-26: "ok đồng ý"):** làm theo hướng đề xuất cho **S14** và **S6** (đã triển khai ở commit `c6ea687`, test tại `tripsage-s14-s6.vitest.test.ts`):
+- Thêm ngày với lý do "thư thả / đỡ mệt / về sớm", hoặc nhịp RELAXED, hoặc đoàn có trẻ nhỏ ⇒ dùng ngày thêm để **giãn lịch**: không lấp điểm mới (giữ số điểm hiện có, chỉ bổ sung lại điểm bắt buộc nếu trước đó bị rơi), đưa đêm cuối về gần TP Hà Giang để rút chặng về.
+- Đoàn có trẻ nhỏ hoặc nhịp nhẹ ⇒ ưu tiên đêm 1 ở TP Hà Giang, phạt khu nghỉ ngoài cung chính (như Bắc Mê).
+- Ghi chú triển khai nhỏ: (a) giữ nguyên `tripInfoSchema` và không đổi schema DB (S3b chưa duyệt); (b) khi `tripInfo.pace` chưa được model ghi (`undefined`), `hasGentlePaceWording` chỉ nhận cụm từ nhịp nhẹ rõ ràng (*đi nhẹ nhàng / đi thư thả / đi thong thả / nhịp nhẹ / ít leo trèo*) và tuyệt đối không kích hoạt bởi *"không vội cũng được"* hay các câu phủ định; (c) khi chế độ giãn lịch bật trên lượt thêm ngày, máy chủ cũng lọc bỏ điểm mới model tự thêm ngoài `shownIds` / `mustIncludeDestinationIds` / tên điểm khách vừa nhắc để bảo đảm tất định không tăng số điểm.
+- S3b (trẻ em / số phòng) và B7 **chưa** duyệt — giữ nguyên.
