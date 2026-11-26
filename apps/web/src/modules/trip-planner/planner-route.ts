@@ -173,6 +173,44 @@ function idleMinutes(requirement: TripRequirementInput, days: readonly PlannerDa
   }, 0);
 }
 
+/** Evaluate a fixed day partition (no boundary repartition) under cached DB roads / estimates (D2 / Q6). */
+async function fitFixedDays(
+  requirement: TripRequirementInput,
+  days: readonly PlannerCandidate[][],
+  travelLookup?: TravelTimeLookup,
+  windingFactor = DEFAULT_WINDING_FACTOR,
+  coordinateRoute?: RouteProvider["coordinateRoute"],
+): Promise<Fit> {
+  const count = (checks: { status: string }[], status: string) => checks.filter(check => check.status === status).length;
+  const chain = days.flat();
+  const provider = estimateProvider(requirement.transport, travelLookup, windingFactor, coordinateRoute);
+  if (requirement.journey) {
+    const result = await planJourney(requirement, days, provider, 5_000, false, undefined, false);
+    const byId = new Map(chain.map(candidate => [candidate.id, candidate]));
+    const checks = validatePlannerDays(requirement, result.days, chain, result.travelOnlyDays).checks;
+    return {
+      days: result.days.map(day => day.stops.map(stop => byId.get(stop.destination.id)!)),
+      violations: count(checks, "VIOLATION") + Number(result.check.status === "VIOLATION"),
+      insufficient: count(checks, "INSUFFICIENT_DATA") + Number(result.check.status === "INSUFFICIENT_DATA"),
+      idle: idleMinutes(requirement, result.days),
+      dayIdle: dayIdleList(requirement, result.days),
+    };
+  }
+  const routes = new Map<string, TravelLeg>();
+  for (const [index, to] of chain.entries()) {
+    if (index) routes.set(to.id, await provider.route({ from: chain[index - 1]!, to, transport: requirement.transport }, AbortSignal.abort()));
+  }
+  const scheduled = schedulePlannerDays(requirement, days, routes);
+  const checks = validatePlannerDays(requirement, scheduled, chain).checks;
+  return {
+    days: days.map(day => [...day]),
+    violations: count(checks, "VIOLATION"),
+    insufficient: count(checks, "INSUFFICIENT_DATA"),
+    idle: idleMinutes(requirement, scheduled),
+    dayIdle: dayIdleList(requirement, scheduled),
+  };
+}
+
 /** Best day split of this chain under cached DB roads (with calibrated D2 fallback), judged by the same scheduler and Validator as the real plan. */
 async function fitDays(
   requirement: TripRequirementInput,
@@ -243,6 +281,10 @@ export async function arrangeTripRoute(input: {
   days: readonly PlannerCandidate[][];
   pool: readonly PlannerCandidate[];
   excludedIds?: ReadonlySet<string>;
+  /** Stops prioritized when filling free time (e.g. mustIncludeDestinationIds after adding a day). */
+  prioritizeIds?: ReadonlySet<string>;
+  /** 0-based day indices whose final stop is locked by a traveler-stated overnight constraint (Q6). */
+  lockedDayEndIndices?: ReadonlySet<number>;
   fill?: boolean;
   budgetMs?: number;
   travelLookup?: TravelTimeLookup;
@@ -267,14 +309,9 @@ export async function arrangeTripRoute(input: {
   const windingFactor = calibrateFromLookup([...input.days.flat(), ...input.pool], requirement.transport, travelLookup, input.windingFactor);
   const orderOpts: OrderRoundTripOptions = { transport: requirement.transport, travelLookup, windingFactor };
   const value = (candidate: PlannerCandidate) => stopValue(candidate, requirement.interests);
-  let chain = orderRoundTrip(input.days.flat(), origin, orderOpts);
   const added: PlannerCandidate[] = [];
-  if (!chain.length) return { days: input.days.map(day => [...day]), added, stretched: new Map() };
-  let fit = await fitDays(requirement, chain, travelLookup, windingFactor, memoizedCoordinateRoute);
-  // Clocks are unknown without a departure time, so fitting cannot tell what fits: order only.
   const timed = !requirement.journey || requirement.journey.departureMinute != null;
   const limit = Math.min(28, requirement.durationDays * MAX_STOPS_PER_DAY);
-  const inChain = (candidate: PlannerCandidate) => chain.some(stop => stop.id === candidate.id);
   const legKm = (a: Point & { id?: string }, b: Point & { id?: string }) => {
     const hit = travelLookup && a.id && b.id ? travelLookup(a.id, b.id, requirement.transport) : null;
     return hit ? hit.distanceMeters / 1000 : estimatedRoadKm(a, b, windingFactor);
@@ -283,6 +320,93 @@ export async function arrangeTripRoute(input: {
     const hit = travelLookup && a.id && b.id ? travelLookup(a.id, b.id, requirement.transport) : null;
     return hit ? hit.durationSeconds : (legKm(a, b) / MAX_AVERAGE_KMH[requirement.transport]) * 3600;
   };
+
+  // D2 / Q6: when real traveler-stated overnight constraints lock specific day-end stops, keep those
+  // constrained days fixed and fill free time (or newly added empty days) in unconstrained days.
+  if (input.lockedDayEndIndices && input.lockedDayEndIndices.size > 0) {
+    let currentDays = input.days.map(day => [...day]);
+    if (!currentDays.flat().length) return { days: currentDays, added, stretched: new Map() };
+    let fit = await fitFixedDays(requirement, currentDays, travelLookup, windingFactor, memoizedCoordinateRoute);
+    const inDays = (candidate: PlannerCandidate) => currentDays.some(day => day.some(stop => stop.id === candidate.id));
+    while (input.fill && timed && !fit.violations && currentDays.flat().length < limit && Date.now() < deadline) {
+      const openDayIndices = currentDays
+        .map((day, idx) => ({ day, idx }))
+        .filter(({ day, idx }) =>
+          !input.lockedDayEndIndices!.has(idx)
+          && day.length < MAX_STOPS_PER_DAY
+          && (day.length === 0 || (fit.dayIdle[idx] ?? 0) >= MIN_FILL_SAFETY_MARGIN_MINUTES),
+        )
+        .map(({ idx }) => idx);
+      if (openDayIndices.length === 0) break;
+
+      const proposals: { candidate: PlannerCandidate; dayIdx: number; insertAt: number; priority: number; fillsEmpty: number; ratio: number }[] = [];
+      for (const candidate of input.pool) {
+        if (!usableForFill(candidate) || inDays(candidate) || input.excludedIds?.has(candidate.id)) continue;
+        const priority = input.prioritizeIds?.has(candidate.id) ? 1 : 0;
+        for (const dayIdx of openDayIndices) {
+          const day = currentDays[dayIdx]!;
+          const prevAnchor = dayIdx > 0 ? currentDays.slice(0, dayIdx).flat().at(-1) ?? origin : origin;
+          const nextAnchor = currentDays.slice(dayIdx + 1).flat()[0] ?? origin;
+          let bestDetour = Infinity;
+          let bestAt = day.length;
+          for (let at = 0; at <= day.length; at++) {
+            const before = at > 0 ? day[at - 1]! : prevAnchor;
+            const after = at < day.length ? day[at]! : nextAnchor;
+            const extra = (before ? legSecs(before, candidate) : 0) + (after ? legSecs(candidate, after) : 0) - (before && after ? legSecs(before, after) : 0);
+            if (extra < bestDetour) {
+              bestDetour = extra;
+              bestAt = at;
+            }
+          }
+          const duplicateNearby = hasNearbySameCategoryPeer(candidate, day, legSecs);
+          const adjustedValue = duplicateNearby ? value(candidate) * 0.5 : value(candidate);
+          const minutes = Math.max(0, bestDetour) / 60 + visitDuration(candidate)! + scenicBufferMinutes(Math.max(0, bestDetour), requirement);
+          const roadside = bestDetour < 600 && visitDuration(candidate)! <= 30 ? (duplicateNearby ? 0.5 : 1) : 0;
+          proposals.push({
+            candidate,
+            dayIdx,
+            insertAt: bestAt,
+            priority,
+            fillsEmpty: day.length === 0 ? 1 : 0,
+            ratio: (adjustedValue + roadside) / Math.max(1, minutes),
+          });
+        }
+      }
+      proposals.sort((a, b) =>
+        b.priority - a.priority
+        || b.fillsEmpty - a.fillsEmpty
+        || b.ratio - a.ratio
+        || a.candidate.id.localeCompare(b.candidate.id, "en"),
+      );
+      let accepted = false;
+      for (const prop of proposals.slice(0, 6)) {
+        if (Date.now() >= deadline) break;
+        const trialDays = currentDays.map((day, idx) =>
+          idx === prop.dayIdx ? [...day.slice(0, prop.insertAt), prop.candidate, ...day.slice(prop.insertAt)] : [...day],
+        );
+        const trial = await fitFixedDays(requirement, trialDays, travelLookup, windingFactor, memoizedCoordinateRoute);
+        const isLastDay = prop.dayIdx === currentDays.length - 1;
+        const marginOk = isLastDay
+          ? (trial.dayIdle[prop.dayIdx] ?? 0) >= 0
+          : (trial.dayIdle[prop.dayIdx] ?? 0) >= MIN_FILL_SAFETY_MARGIN_MINUTES;
+        if (!trial.violations && trial.insufficient <= fit.insufficient && marginOk) {
+          currentDays = trialDays;
+          fit = trial;
+          added.push(prop.candidate);
+          accepted = true;
+          break;
+        }
+      }
+      if (!accepted) break;
+    }
+    return { days: currentDays, added, stretched: new Map() };
+  }
+
+  let chain = orderRoundTrip(input.days.flat(), origin, orderOpts);
+  if (!chain.length) return { days: input.days.map(day => [...day]), added, stretched: new Map() };
+  let fit = await fitDays(requirement, chain, travelLookup, windingFactor, memoizedCoordinateRoute);
+  // Clocks are unknown without a departure time, so fitting cannot tell what fits: order only.
+  const inChain = (candidate: PlannerCandidate) => chain.some(stop => stop.id === candidate.id);
   while (input.fill && timed && !fit.violations && fit.idle >= MIN_FILL_SAFETY_MARGIN_MINUTES && chain.length < limit && Date.now() < deadline) {
     const dayIndexAtChainPos = (pos: number): number => {
       let seen = 0;
@@ -309,9 +433,10 @@ export async function arrangeTripRoute(input: {
         const adjustedValue = duplicateNearby ? value(candidate) * 0.5 : value(candidate);
         const minutes = detourSeconds / 60 + visitDuration(candidate)! + scenicBufferMinutes(detourSeconds, requirement);
         const roadside = detourSeconds < 600 && visitDuration(candidate)! <= 30 ? (duplicateNearby ? 0.5 : 1) : 0;
-        return { candidate, ratio: (adjustedValue + roadside) / Math.max(1, minutes) };
+        const priority = input.prioritizeIds?.has(candidate.id) ? 1 : 0;
+        return { candidate, priority, ratio: (adjustedValue + roadside) / Math.max(1, minutes) };
       })
-      .sort((a, b) => b.ratio - a.ratio || a.candidate.id.localeCompare(b.candidate.id, "en"));
+      .sort((a, b) => b.priority - a.priority || b.ratio - a.ratio || a.candidate.id.localeCompare(b.candidate.id, "en"));
     let accepted = false;
     for (const option of options.slice(0, 4)) {
       if (Date.now() >= deadline) break;

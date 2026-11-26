@@ -60,6 +60,7 @@ import {
   arrangeSelectionForOvernightAreas,
   evaluateOvernightConstraints,
   extractOvernightConstraintsFromText,
+  filterEvidencedOvernightConstraints,
   isStopNearOvernightArea,
   mergeOvernightAreaConstraints,
   normalizeOvernightAreaName,
@@ -379,7 +380,7 @@ const recordInputSchema = tripInfoSchema.omit({ assumedFields: true }).extend({
   mealSuggestionsDeclined: tripInfoSchema.shape.mealSuggestionsDeclined.describe("Ghi true khi người dùng từ chối gợi ý tìm quán ăn để không hỏi lại trong chuyến này."),
   lodgingKind: tripInfoSchema.shape.lodgingKind.describe("Loại chỗ ở người dùng thích (HOTEL khách sạn, HOMESTAY, GUESTHOUSE nhà nghỉ bình dân, ANY không quan trọng)."),
   flightDeclined: tripInfoSchema.shape.flightDeclined.describe("Ghi true khi người dùng từ chối đi máy bay ra Hà Nội để không tra vé máy bay cho chuyến này."),
-  overnightAreas: tripInfoSchema.shape.overnightAreas.describe("Yêu cầu nghỉ đêm cụ thể theo ngày (ví dụ [{ afterDay: 2, area: 'Đồng Văn' }] khi người dùng nói 'tối ngày 2 nghỉ ở Đồng Văn'; gửi [] để bỏ yêu cầu nghỉ đêm)."),
+  overnightAreas: tripInfoSchema.shape.overnightAreas.describe("CHỈ ghi khi người dùng trực tiếp nói rõ muốn nghỉ/ngủ đêm ngày N ở khu vực X hoặc bấm chip nghỉ đêm (ví dụ [{ afterDay: 2, area: 'Đồng Văn' }]); TUYỆT ĐỐI KHÔNG tự đặt để rút ngắn chặng về (hãy dùng departureMinute hoặc bớt/đổi điểm ngày cuối); gửi [] để bỏ."),
 }).strict();
 
 const UNAVAILABLE_TEXT = "Chưa lập được lịch trình lúc này. Hãy thử lại sau.";
@@ -720,12 +721,26 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         if (normalizedRequired.length > 0) nextTripInfo.mustIncludeDestinationIds = normalizedRequired;
         else delete nextTripInfo.mustIncludeDestinationIds;
       }
+      let rejectedOvernightAreas: OvernightAreaConstraint[] = [];
       if (input.overnightAreas !== undefined) {
-        const cleanedOvernight = input.overnightAreas
-          .map(item => ({ afterDay: item.afterDay, area: normalizeOvernightAreaName(item.area) || item.area }))
-          .filter(item => item.area.length >= 2);
-        if (cleanedOvernight.length > 0) nextTripInfo.overnightAreas = cleanedOvernight.sort((a, b) => a.afterDay - b.afterDay);
-        else delete nextTripInfo.overnightAreas;
+        if (input.overnightAreas.length === 0) {
+          delete nextTripInfo.overnightAreas;
+        } else {
+          const userTexts = [...(context.userHistoryTexts ?? []), context.latestUserText ?? ""].filter(Boolean);
+          const { accepted, rejected } = filterEvidencedOvernightConstraints({
+            requested: input.overnightAreas,
+            existing: tripInfo.overnightAreas,
+            userTexts,
+          });
+          rejectedOvernightAreas = rejected;
+          if (accepted.length > 0) {
+            nextTripInfo.overnightAreas = accepted;
+          } else if (tripInfo.overnightAreas && tripInfo.overnightAreas.length > 0) {
+            nextTripInfo.overnightAreas = [...tripInfo.overnightAreas];
+          } else {
+            delete nextTripInfo.overnightAreas;
+          }
+        }
       }
       const remainingAssumed = (tripInfo.assumedFields ?? []).filter(field =>
         !(field === "transport" && input.transport !== undefined)
@@ -753,7 +768,16 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       ) {
         await syncCostIfTracked();
       }
-      return { ok: true as const, tripInfo, defaulted, missing: missingTripInfo(info, effectiveJourney).map(m => m.field) };
+      const overnightIgnoredNote = rejectedOvernightAreas.length > 0
+        ? `Đã bỏ yêu cầu nghỉ đêm không do người dùng nêu (${rejectedOvernightAreas.map(r => `đêm ${r.afterDay}: ${r.area}`).join(", ")}). Để ngày cuối đi/về sớm hơn, hãy chỉnh departureMinute, bớt/đổi điểm ngày cuối hoặc dời điểm xa sang ngày trước — không tự đặt overnightAreas.`
+        : undefined;
+      return {
+        ok: true as const,
+        tripInfo,
+        defaulted,
+        missing: missingTripInfo(info, effectiveJourney).map(m => m.field),
+        ...(rejectedOvernightAreas.length > 0 ? { overnightAreasIgnored: rejectedOvernightAreas, note: overnightIgnoredNote } : {}),
+      };
     },
   });
 
@@ -1478,24 +1502,64 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             : all,
           effective.travelers,
         );
-        // ADR-55: the server orders the loop, splits the days and fills free time. Re-proposing the plan already shown with the
-        // same places keeps the traveler's arrangement; explicit overnight areas keep their own arranger (ADR-53).
+        // ADR-55 + D2 (B1, B2, Q6): the server orders the loop, splits the days and fills free time.
+        // Re-proposing the exact same day count and same stops keeps the traveler's arrangement;
+        // increasing durationDays ("Thêm 1 ngày") always rebuilds to use all days and restores missing required stops.
+        // When real traveler-stated overnight areas exist, arrangeTripRoute still fills free time in unconstrained days
+        // without moving any constrained day's final stop.
         const shownIds = latestDays?.flat() ?? [];
-        const pickedIds = resolvedSelection.days.flat();
+        const previousDayCount = latestDays?.length ?? 0;
+        const durationIncreased = previousDayCount > 0 && effective.durationDays > previousDayCount;
         const chosenById = new Map(chosen.map(c => [c.id, c]));
-        const reshuffleOfShown = shownIds.length > 0 && shownIds.length === pickedIds.length && pickedIds.every(id => shownIds.includes(id));
+        if (durationIncreased && requiredDestinationIds.length > 0) {
+          const existingIds = new Set(resolvedSelection.days.flat());
+          const missingReq = requiredDestinationIds.filter(id => !existingIds.has(id) && chosenById.has(id));
+          if (missingReq.length > 0) {
+            const seededDays = resolvedSelection.days.map(day => [...day]);
+            for (const reqId of missingReq) {
+              const emptyIdx = seededDays.findIndex(day => day.length === 0);
+              const targetIdx = emptyIdx >= 0 ? emptyIdx : Math.max(0, seededDays.length - 1);
+              seededDays[targetIdx]!.push(reqId);
+            }
+            resolvedSelection = {
+              days: effectiveOvernightAreas.length > 0
+                ? arrangeSelectionForOvernightAreas(seededDays, effectiveOvernightAreas, usableById, usableBase)
+                : seededDays,
+            };
+          }
+        }
+        const pickedIds = resolvedSelection.days.flat();
+        const reshuffleOfShown =
+          !durationIncreased
+          && previousDayCount === effective.durationDays
+          && shownIds.length > 0
+          && shownIds.length === pickedIds.length
+          && pickedIds.every(id => shownIds.includes(id));
+        const lockedDayEndIndices = new Set<number>();
+        for (const constraint of effectiveOvernightAreas) {
+          const dayIdx = constraint.afterDay - 1;
+          if (dayIdx >= 0 && dayIdx < resolvedSelection.days.length - 1) {
+            const lastId = resolvedSelection.days[dayIdx]?.at(-1);
+            const stop = lastId ? usableById.get(lastId) : undefined;
+            if (stop && isStopNearOvernightArea(stop, constraint.area, usableBase)) {
+              lockedDayEndIndices.add(dayIdx);
+            }
+          }
+        }
         const travelCache = context.planning.travelLookup
           ? await context.planning.travelLookup(requirement.transport, chosen).catch(() => null)
           : null;
         let addedStops: string[] = [];
-        if (effectiveOvernightAreas.length === 0 && !reshuffleOfShown && pickedIds.length > 0 && pickedIds.every(id => chosenById.has(id))) {
+        if (!reshuffleOfShown && pickedIds.length > 0 && pickedIds.every(id => chosenById.has(id))) {
           const arranged = await arrangeTripRoute({
             requirement,
             days: resolvedSelection.days.map(day => day.map(id => chosenById.get(id)!)),
             pool: chosen.filter(isUsablePlanningCandidate),
-            // A place the traveler just removed is never added back.
-            excludedIds: new Set(shownIds.filter(id => !pickedIds.includes(id))),
-            fill: shownIds.length === 0 || pickedIds.length >= shownIds.length,
+            // A place the traveler just removed is never added back unless they expanded durationDays to recover dropped stops.
+            excludedIds: durationIncreased ? new Set<string>() : new Set(shownIds.filter(id => !pickedIds.includes(id))),
+            prioritizeIds: requiredDestinationIds.length > 0 ? new Set(requiredDestinationIds) : undefined,
+            lockedDayEndIndices: lockedDayEndIndices.size > 0 ? lockedDayEndIndices : undefined,
+            fill: durationIncreased || shownIds.length === 0 || pickedIds.length >= shownIds.length,
             travelLookup: travelCache?.lookup,
             windingFactor: travelCache?.windingFactor,
             coordinateRoute: context.planning.routes.coordinateRoute,
@@ -1671,6 +1735,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const nearbySummary = nearbyOutcome.status === "fulfilled" ? nearbyOutcome.value : null;
         if (shouldSuggestHub(result)) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
+        const scheduledIds = new Set(result.days.flatMap(day => day.stops.map(stop => stop.destination.id)));
+        const missingRequiredIds = requiredDestinationIds.filter(id => !scheduledIds.has(id));
+        const missingRequiredNote = missingRequiredIds.length > 0
+          ? ` CHƯA XẾP ĐƯỢC ĐIỂM BẮT BUỘC (${missingRequiredIds.map(cleanStopName).join(", ")}) do giới hạn thời gian/chặng di chuyển — hãy giải thích rõ lý do cho người dùng và gợi ý phương án (thêm ngày hoặc bớt điểm).`
+          : "";
         const unmetOvernightNote = overnightCheck.unmet.length > 0
           ? ` QUAN TRỌNG — CHƯA XẾP ĐƯỢC NGHỈ ĐÊM THEO YÊU CẦU: ${overnightCheck.unmet.map(u => u.explanation).join(" ")} Hãy giải thích lý do cụ thể này cho người dùng và đặt câu hỏi kết xoay quanh đúng vấn đề nghỉ đêm kèm các nút giải quyết ${JSON.stringify(overnightCheck.unmet[0]!.chips)} (TUYỆT ĐỐI KHÔNG chuyển sang hỏi vé xe hay quán ăn).`
           : "";
@@ -1688,6 +1757,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           ...(nearbySummary && nearbySummary.eveningAnchors > 0 ? { nearbySummary } : {}),
           ...(droppedChosenStops.length ? { droppedStops: `Đã bỏ bớt ${droppedChosenStops.length} điểm để kịp giờ (${droppedChosenStops.map(cleanStopName).join(", ")}). Hãy nói tự nhiên theo góc nhìn người dùng kèm tên điểm cụ thể; KHÔNG dùng từ 'hệ thống đã lược' và KHÔNG gọi proposeItinerary lại trong lượt này.` } : droppedStops.length ? { droppedStops: `Đã bỏ bớt ${droppedStops.length} điểm gợi ý thêm để kịp giờ (${droppedStops.map(cleanStopName).join(", ")}).` } : {}),
           ...(droppedSuggestedStops.length ? { droppedSuggestedStops: droppedSuggestedStops.map(cleanStopName) } : {}),
+          ...(missingRequiredIds.length > 0 ? { unscheduledRequiredStops: missingRequiredIds.map(cleanStopName) } : {}),
           ...(flexApplied ? { flexApplied: flexMessage } : {}),
           ...(returnAdvisory ? { returnAdvisory: returnAdvisory.message } : {}),
           // Without the reasons the model re-proposes blindly; tell it which day broke which rule so one repair is enough.
@@ -1695,7 +1765,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             problems: result.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.slice(0, 6).map(issue => ({ check: check.key, day: issue.day ?? null, code: issue.code, message: issue.message }))),
             repairHint: "Có vi phạm. Đọc problems rồi chỉnh đúng ngày bị nêu (máy chủ đã thử bớt điểm kém nổi bật nhất; nếu vẫn chưa đạt thì thay điểm xa nhất của ngày đó bằng điểm gần tuyến hơn) và gọi proposeItinerary lại một lần; đừng đổi các ngày không bị nêu. Nếu vẫn không đạt, nói thẳng với người dùng nguyên nhân và đề xuất điều chỉnh.",
           } : {}),
-          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận. Máy chủ đã sắp thứ tự và chia ngày theo tuyến đường; giới thiệu đúng thứ tự trong lịch.${survivingAddedStops.length ? ` Máy chủ đã thêm ${survivingAddedStops.map(cleanStopName).join(", ")} để lấp thời gian trống.` : ""}${unmetOvernightNote}${returnAdvisory ? ` QUAN TRỌNG — LƯU Ý GIỜ VỀ (KHÔNG CHẶN LƯU): ${returnAdvisory.message} Hãy nêu ngắn gọn 1 câu về giờ về dự kiến so với giờ mong muốn, khẳng định CHUYẾN VẪN LƯU ĐƯỢC (tuyệt đối KHÔNG gạ thêm ngày hay nhận là AI lên sai lịch), rồi mời chọn giữ lịch hoặc chỉnh nhẹ.` : ""}${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi song song trong cùng một bước searchHotels (stays gồm các khu nghỉ đêm, gộp đêm liên tiếp cùng điểm cuối ngày) cùng estimateCosts / planAccessLeg (nếu không phụ thuộc nhau) để panel cập nhật nhanh." : " Có thể gọi song song các công cụ độc lập như searchPlaces (chỗ nghỉ) và estimateCosts trong cùng một bước."}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
+          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận. Máy chủ đã sắp thứ tự và chia ngày theo tuyến đường; giới thiệu đúng thứ tự trong lịch.${survivingAddedStops.length ? ` Máy chủ đã thêm ${survivingAddedStops.map(cleanStopName).join(", ")} để lấp thời gian trống.` : ""}${missingRequiredNote}${unmetOvernightNote}${returnAdvisory ? ` QUAN TRỌNG — LƯU Ý GIỜ VỀ (KHÔNG CHẶN LƯU): ${returnAdvisory.message} Hãy nêu ngắn gọn 1 câu về giờ về dự kiến so với giờ mong muốn, khẳng định CHUYẾN VẪN LƯU ĐƯỢC (tuyệt đối KHÔNG gạ thêm ngày hay nhận là AI lên sai lịch), rồi mời chọn giữ lịch hoặc chỉnh nhẹ.` : ""}${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi song song trong cùng một bước searchHotels (stays gồm các khu nghỉ đêm, gộp đêm liên tiếp cùng điểm cuối ngày) cùng estimateCosts / planAccessLeg (nếu không phụ thuộc nhau) để panel cập nhật nhanh." : " Có thể gọi song song các công cụ độc lập như searchPlaces (chỗ nghỉ) và estimateCosts trong cùng một bước."}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
       } catch (error) {
         // A plan the server rejected for its input (wrong day count, unknown id) is a correction, not one of the turn's tries.
         if (error instanceof AppError && error.code === "INVALID_AI_PLAN") {

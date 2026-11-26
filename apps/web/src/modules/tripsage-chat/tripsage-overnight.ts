@@ -230,6 +230,56 @@ export function mergeOvernightAreaConstraints(
 }
 
 /**
+ * D2 (B1): Only accepts `overnightAreas` constraints backed by traveler text (deterministic extraction
+ * across conversation history / latest message, including overnight resolution chips) or already
+ * persisted traveler constraints that were not cancelled in the latest message.
+ * Model-invented overnight constraints (e.g. invented to shorten a return drive) are rejected.
+ */
+export function filterEvidencedOvernightConstraints(input: {
+  requested: readonly OvernightAreaConstraint[];
+  existing?: readonly OvernightAreaConstraint[];
+  userTexts: readonly string[];
+}): {
+  accepted: OvernightAreaConstraint[];
+  rejected: OvernightAreaConstraint[];
+} {
+  const normalizedRequested = input.requested
+    .map(item => ({ afterDay: item.afterDay, area: normalizeOvernightAreaName(item.area) || item.area.trim() }))
+    .filter(item => item.area.length >= 2);
+  if (normalizedRequested.length === 0) {
+    return { accepted: [], rejected: [] };
+  }
+
+  let evidencedFromText: OvernightAreaConstraint[] = [];
+  let survivingExisting: OvernightAreaConstraint[] = [...(input.existing ?? [])];
+  for (const text of input.userTexts) {
+    const delta = extractOvernightConstraintsFromText(text);
+    if (delta.clearAll || delta.add.length > 0 || delta.removeAreas.length > 0) {
+      evidencedFromText = mergeOvernightAreaConstraints(evidencedFromText, delta);
+      survivingExisting = mergeOvernightAreaConstraints(survivingExisting, delta);
+    }
+  }
+
+  const allowedPool = [...survivingExisting, ...evidencedFromText];
+  const accepted: OvernightAreaConstraint[] = [];
+  const rejected: OvernightAreaConstraint[] = [];
+  for (const item of normalizedRequested) {
+    const matched = allowedPool.some(
+      allowed => allowed.afterDay === item.afterDay && sameAreaFold(allowed.area, item.area),
+    );
+    if (matched) accepted.push(item);
+    else rejected.push(item);
+  }
+
+  const dedupAccepted = new Map<number, OvernightAreaConstraint>();
+  for (const item of accepted) dedupAccepted.set(item.afterDay, item);
+  return {
+    accepted: [...dedupAccepted.values()].sort((a, b) => a.afterDay - b.afterDay),
+    rejected,
+  };
+}
+
+/**
  * Deterministic arrangement: makes day `afterDay` end at a stop in or within 15 km (road) of `wantedArea`
  * by reordering stops within that day or swapping its last stop with a matching stop from another day.
  * Never changes total stops, day lengths, pace limits, or required stops.
