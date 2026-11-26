@@ -1299,12 +1299,21 @@ function CompanionGroupContent({
                       };
                     }),
                   });
+                  const previousDayOutboundOnly = Boolean(
+                    prevGroupDay
+                    && prevGroupDay.visits.length === 0
+                    && (
+                      currentGroup.meetingPoint?.plan?.legs.some((l) => l.day === prevGroupDay.dayIndex && l.kind === "OUTBOUND")
+                      || prevGroupDay.dayIndex === 1
+                    ),
+                  );
                   const routeLabel = resolveDayRouteLabel({
                     dayIndex: day.dayIndex,
                     originLabel:
                       formatTravelerOriginLabel(currentGroup.meetingPoint?.origin?.label, false) ||
                       currentGroup.meetingPoint?.origin?.label,
                     previousOvernightArea,
+                    previousDayOutboundOnly,
                     overnightArea: canonicalOvernightArea ?? eveningPlan?.overnightArea ?? null,
                     stops,
                     previousDayStops: (prevGroupDay?.visits ?? []).map((v) => ({

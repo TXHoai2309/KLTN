@@ -1694,10 +1694,19 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 const cleanOriginLabel =
                   formatTravelerOriginLabel(trip.journey?.journey.origin?.label, hasAccessLeg) ||
                   trip.journey?.journey.origin?.label;
+                const previousDayOutboundOnly = Boolean(
+                  prevTripDay
+                  && prevTripDay.visits.length === 0
+                  && (
+                    trip.journey?.plan?.legs.some((l) => l.day === prevTripDay.dayIndex && l.kind === "OUTBOUND")
+                    || (prevTripDay.dayIndex === 1 && Boolean(trip.journey?.journey.origin))
+                  ),
+                );
                 const routeLabel = resolveDayRouteLabel({
                   dayIndex: day.dayIndex,
                   originLabel: cleanOriginLabel,
                   previousOvernightArea,
+                  previousDayOutboundOnly,
                   overnightArea: canonicalOvernightArea ?? eveningPlan?.overnightArea ?? null,
                   stops,
                   previousDayStops: (prevTripDay?.visits ?? []).map((visit) => ({

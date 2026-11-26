@@ -592,10 +592,19 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
       proposal.requirement.journey?.origin?.label,
       hasAccessLeg,
     );
+    const previousDayOutboundOnly = Boolean(
+      previousPlannerDay
+      && previousPlannerDay.stops.length === 0
+      && (
+        proposal.journeyPlan?.legs.some((l) => l.day === previousPlannerDay.day && l.kind === "OUTBOUND")
+        || (previousPlannerDay.day === 1 && Boolean(proposal.requirement.journey?.origin))
+      ),
+    );
     const routeLabel = resolveDayRouteLabel({
       dayIndex: activePlannerDay.day,
       originLabel: cleanOriginLabel || proposal.requirement.journey?.origin?.label,
       previousOvernightArea,
+      previousDayOutboundOnly,
       overnightArea: canonicalOvernightArea ?? eveningPlan?.overnightArea ?? null,
       stops,
       previousDayStops: (previousPlannerDay?.stops ?? []).map((s) => ({

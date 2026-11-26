@@ -808,4 +808,67 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     expect(formatTravelLegLine(waitLeg)).toContain("+5 phút chụp ảnh");
     expect(formatTravelLegLine(waitLeg)).toContain("chờ mở cửa 35 phút");
   });
+
+  it("S7: starts the day immediately after an outbound-only day from its overnight area ('TP Hà Giang' fallback when overnightStays is absent)", () => {
+    // Demo case: Day 1 has 0 stops (OUTBOUND leg to Dốc Bắc Sum), no overnightStays for Day 1 -> Day 2 starts from TP Hà Giang
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 2,
+        originLabel: "Hà Nội",
+        previousOvernightArea: null,
+        previousDayStops: [],
+        stops: [
+          { destinationId: "d-bac-sum", name: "Dốc Bắc Sum" },
+          { destinationId: "d-chin-khoanh", name: "Dốc Chín Khoanh" },
+        ],
+        legs: [
+          { kind: "OUTBOUND", day: 1, from: { kind: "ORIGIN" }, to: { kind: "ATTRACTION", destinationId: "d-bac-sum" } },
+          { kind: "TRANSFER", day: 2, from: { kind: "ATTRACTION", destinationId: "d-bac-sum" }, to: { kind: "ATTRACTION", destinationId: "d-chin-khoanh" } },
+        ],
+        stopNamesById: { "d-bac-sum": "Dốc Bắc Sum", "d-chin-khoanh": "Dốc Chín Khoanh" },
+      }),
+    ).toBe("TP Hà Giang → Dốc Chín Khoanh");
+
+    // When overnightStays explicitly specifies Day 1's overnight area, honor it over the TP Hà Giang fallback
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 2,
+        originLabel: "Hà Nội",
+        previousOvernightArea: "Quản Bạ",
+        previousDayStops: [],
+        stops: [
+          { destinationId: "d-bac-sum", name: "Dốc Bắc Sum" },
+          { destinationId: "d-chin-khoanh", name: "Dốc Chín Khoanh" },
+        ],
+        legs: [
+          { kind: "OUTBOUND", day: 1, from: { kind: "ORIGIN" }, to: { kind: "ATTRACTION", destinationId: "d-bac-sum" } },
+          { kind: "TRANSFER", day: 2, from: { kind: "ATTRACTION", destinationId: "d-bac-sum" }, to: { kind: "ATTRACTION", destinationId: "d-chin-khoanh" } },
+        ],
+      }),
+    ).toBe("Quản Bạ → Dốc Chín Khoanh");
+
+    // Also works when legs are absent (e.g. companion view with hidden origin) via previousDayOutboundOnly
+    expect(
+      resolveDayRouteLabel({
+        dayIndex: 2,
+        previousOvernightArea: null,
+        previousDayOutboundOnly: true,
+        previousDayStops: [],
+        stops: [
+          { destinationId: "d-bac-sum", name: "Dốc Bắc Sum" },
+          { destinationId: "d-chin-khoanh", name: "Dốc Chín Khoanh" },
+        ],
+      }),
+    ).toBe("TP Hà Giang → Dốc Chín Khoanh");
+
+    // Verify all 3 timeline views pass previousDayOutboundOnly consistently
+    for (const relPath of [
+      "src/app/trips/trips-view.tsx",
+      "src/components/tripsage-chat/tripsage-plan-panel.tsx",
+      "src/components/trip-companions/companion-group-view.tsx",
+    ]) {
+      const src = readFileSync(resolve(process.cwd(), relPath), "utf8");
+      expect(src, relPath).toContain("previousDayOutboundOnly");
+    }
+  });
 });

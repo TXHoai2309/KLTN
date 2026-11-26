@@ -195,6 +195,8 @@ export function resolveDayRouteLabel(input: {
   dayIndex: number;
   originLabel?: string | null;
   previousOvernightArea?: string | null;
+  /** True when the immediately preceding day had 0 sightseeing stops and only an outbound transit leg (S7). */
+  previousDayOutboundOnly?: boolean;
   /** Current day's canonical overnight area (from `journeyPlan.overnightStays`), used when a day only has an outbound leg to another day's stop (D3 / B5). */
   overnightArea?: string | null;
   stops: readonly { destinationId: string; name: string }[];
@@ -220,7 +222,18 @@ export function resolveDayRouteLabel(input: {
   }
   const dayStopIds = new Set(input.stops.map((stop) => stop.destinationId));
   const originText = cleanName(input.originLabel);
-  const prevOvernight = input.dayIndex > 1 ? cleanName(input.previousOvernightArea) : null;
+  const prevDayIndex = input.dayIndex - 1;
+  const prevDayHasOutboundOnly =
+    input.dayIndex > 1
+    && (input.previousDayStops?.length ?? -1) === 0
+    && (
+      input.previousDayOutboundOnly === true
+      || (input.legs ?? []).some((leg) => leg.day === prevDayIndex && leg.kind === "OUTBOUND")
+    );
+  const prevOvernight =
+    input.dayIndex > 1
+      ? (cleanName(input.previousOvernightArea) ?? (prevDayHasOutboundOnly ? "TP Hà Giang" : null))
+      : null;
   const currentOvernight = cleanName(input.overnightArea);
   const endpointLabel = (endpoint: { kind: "ORIGIN" } | { kind: "ATTRACTION"; destinationId: string }): string | null =>
     endpoint.kind === "ORIGIN" ? (originText ?? "Điểm xuất phát") : cleanName(lookup[endpoint.destinationId]);
