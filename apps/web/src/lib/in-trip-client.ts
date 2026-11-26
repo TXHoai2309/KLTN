@@ -16,7 +16,7 @@ import type {
   InTripApplyPayload,
   InTripPreviewOutcome,
 } from "@/modules/in-trip/in-trip-session";
-import type { TripValidation, ValidationFinding } from "@/modules/trip-validation/trip-validation";
+import { tripValidationSchema, type TripValidation } from "@/modules/trip-validation/trip-validation";
 import { TRANSPORT_VALUES } from "@/modules/trip-requirement/trip-requirement-contract";
 
 export const IN_TRIP_REPLAN_TIMEOUT_MS = 20_000;
@@ -137,30 +137,8 @@ const errorEnvelopeSchema = z.object({
   }).strict(),
 }).strict();
 
-const validationGroupNames = ["openingHours", "minimumDuration", "travelTime", "scheduleConflict"] as const;
-const validationGroupStatusSchema = z.enum(["SATISFIED", "VIOLATION", "INSUFFICIENT_DATA"]);
-const validationFindingSchema = z.object({
-  group: z.enum(validationGroupNames),
-  status: z.enum(["VIOLATION", "INSUFFICIENT_DATA"]),
-  reasonCode: z.string(),
-  message: z.string(),
-  affectedVisitId: z.string().optional(),
-  fromVisitId: z.string().optional(),
-  toVisitId: z.string().optional(),
-  visitIds: z.tuple([z.string(), z.string()]).optional(),
-}).strict() satisfies z.ZodType<ValidationFinding>;
-const validationSchema = z.object({
-  timeReference: z.string(),
-  groups: z.object({
-    openingHours: z.object({ status: validationGroupStatusSchema, findings: z.array(validationFindingSchema) }).strict(),
-    minimumDuration: z.object({ status: validationGroupStatusSchema, findings: z.array(validationFindingSchema) }).strict(),
-    travelTime: z.object({ status: validationGroupStatusSchema, findings: z.array(validationFindingSchema) }).strict(),
-    scheduleConflict: z.object({ status: validationGroupStatusSchema, findings: z.array(validationFindingSchema) }).strict(),
-  }).strict(),
-  canConfirm: z.boolean(),
-}).strict() satisfies z.ZodType<TripValidation>;
 const inTripPreviewDataSchema = z.object({
-  validation: validationSchema,
+  validation: tripValidationSchema,
   checkedAt: z.iso.datetime(),
   completedVisitIds: z.array(idSchema),
 }).strict();
@@ -170,10 +148,10 @@ const inTripApplyDataSchema = z.object({
   baseRevision: z.iso.datetime(),
   kind: z.literal("IN_TRIP"),
   candidate: editCandidateSchema,
-  validation: validationSchema,
+  validation: tripValidationSchema,
 }).strict() satisfies z.ZodType<InTripApplyData>;
 const inTripDetailsSchema = z.object({
-  validation: validationSchema.optional(),
+  validation: tripValidationSchema.optional(),
   checkedAt: z.iso.datetime().optional(),
 }).passthrough();
 

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { checkTravelTime } from "./travel-time";
 import { checkMinimumVisitDuration, checkOpeningHours, type VisitCheckStatus } from "./visit-constraints";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
@@ -41,6 +42,50 @@ export type TripValidation = {
   /** Non-blocking flexible advisories (e.g. ADR-57 late return arrival or flexible meal timing). */
   advisories?: ValidationAdvisory[];
 };
+
+const validationGroupNames = [
+  "openingHours",
+  "minimumDuration",
+  "travelTime",
+  "scheduleConflict",
+] as const satisfies readonly ValidationGroupName[];
+
+export const validationGroupStatusSchema = z.enum(["SATISFIED", "VIOLATION", "INSUFFICIENT_DATA"]);
+
+export const validationFindingSchema = z.object({
+  group: z.enum(validationGroupNames),
+  status: z.enum(["VIOLATION", "INSUFFICIENT_DATA"]),
+  reasonCode: z.string(),
+  message: z.string(),
+  affectedVisitId: z.string().optional(),
+  fromVisitId: z.string().optional(),
+  toVisitId: z.string().optional(),
+  visitIds: z.tuple([z.string(), z.string()]).optional(),
+}).strict() satisfies z.ZodType<ValidationFinding>;
+
+export const validationAdvisorySchema = z.object({
+  reasonCode: z.string(),
+  message: z.string(),
+  affectedVisitId: z.string().optional(),
+}).strict() satisfies z.ZodType<ValidationAdvisory>;
+
+const validationGroupResultSchema = z.object({
+  status: validationGroupStatusSchema,
+  findings: z.array(validationFindingSchema),
+}).strict();
+
+/** Shared client/server schema for `TripValidation` so new optional fields (like `advisories`) never break client parsing. */
+export const tripValidationSchema = z.object({
+  timeReference: z.string(),
+  groups: z.object({
+    openingHours: validationGroupResultSchema,
+    minimumDuration: validationGroupResultSchema,
+    travelTime: validationGroupResultSchema,
+    scheduleConflict: validationGroupResultSchema,
+  }).strict(),
+  canConfirm: z.boolean(),
+  advisories: z.array(validationAdvisorySchema).optional(),
+}).strict() satisfies z.ZodType<TripValidation>;
 
 export type InTripOriginLeg = {
   toVisitId: string;
@@ -199,5 +244,6 @@ export function validateInTripContext(
     timeReference: context.now.toISOString(),
     groups,
     canConfirm: base.canConfirm && groupNames.every((group) => groups[group].status === "SATISFIED"),
+    ...(base.advisories ? { advisories: base.advisories } : {}),
   };
 }

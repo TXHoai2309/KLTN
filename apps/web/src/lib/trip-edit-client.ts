@@ -26,41 +26,17 @@ import {
   uncheckedItemSchema,
   type AcknowledgedUnchecked,
 } from "@/modules/trip-save/unchecked-checks";
-import type {
-  TripValidation,
-  ValidationFinding,
-  ValidationGroupName,
+import {
+  tripValidationSchema,
+  type TripValidation,
 } from "@/modules/trip-validation/trip-validation";
 
-const groupNames = [
-  "openingHours",
-  "minimumDuration",
-  "travelTime",
-  "scheduleConflict",
-] as const satisfies readonly ValidationGroupName[];
-
-const groupStatusSchema = z.enum(["SATISFIED", "VIOLATION", "INSUFFICIENT_DATA"]);
-const findingSchema = z.object({
-  group: z.enum(groupNames),
-  status: z.enum(["VIOLATION", "INSUFFICIENT_DATA"]),
-  reasonCode: z.string(),
-  message: z.string(),
-  affectedVisitId: z.string().optional(),
-  fromVisitId: z.string().optional(),
-  toVisitId: z.string().optional(),
-  visitIds: z.tuple([z.string(), z.string()]).optional(),
-}).strict() satisfies z.ZodType<ValidationFinding>;
-
-const validationSchema = z.object({
-  timeReference: z.string(),
-  groups: z.object({
-    openingHours: z.object({ status: groupStatusSchema, findings: z.array(findingSchema) }).strict(),
-    minimumDuration: z.object({ status: groupStatusSchema, findings: z.array(findingSchema) }).strict(),
-    travelTime: z.object({ status: groupStatusSchema, findings: z.array(findingSchema) }).strict(),
-    scheduleConflict: z.object({ status: groupStatusSchema, findings: z.array(findingSchema) }).strict(),
-  }).strict(),
-  canConfirm: z.boolean(),
-}).strict() satisfies z.ZodType<TripValidation>;
+function formatInvalidSchemaPaths(error: z.ZodError): string {
+  const paths = Array.from(
+    new Set(error.issues.map((issue) => (issue.path.length > 0 ? issue.path.join(".") : "(root)"))),
+  ).slice(0, 12);
+  return paths.join(", ");
+}
 
 const previewLegMetricSchema = z.object({
   dayIndex: z.number().int().positive(),
@@ -92,7 +68,7 @@ const previewJourneySummarySchema = z.object({
 const previewResultSchema = z.object({
   baseRevision: z.iso.datetime(),
   candidate: editCandidateSchema,
-  validation: validationSchema,
+  validation: tripValidationSchema,
   eligibleForConfirmation: z.boolean(),
   legs: z.array(previewLegMetricSchema).optional(),
   journeySummary: previewJourneySummarySchema.optional(),
@@ -105,7 +81,7 @@ const applyResultSchema = z.object({
   baseRevision: z.iso.datetime(),
   kind: z.enum(["MANUAL", "AI", "IN_TRIP"]),
   candidate: editCandidateSchema,
-  validation: validationSchema,
+  validation: tripValidationSchema,
 }).strict() satisfies z.ZodType<ApplyEditResult>;
 
 const successEnvelopeSchema = z.object({
@@ -168,9 +144,11 @@ export function decideTripEditPreviewResponse(
 ): TripEditPreviewOutcome {
   if (status === 200) {
     const parsed = successEnvelopeSchema.safeParse(body);
-    return parsed.success
-      ? { kind: "PREVIEWED", result: parsed.data.data }
-      : failed(502, "INVALID_RESPONSE", "Phản hồi kiểm tra hành trình không hợp lệ.");
+    if (parsed.success) {
+      return { kind: "PREVIEWED", result: parsed.data.data };
+    }
+    console.warn("[trip-edit-client] Invalid preview response fields:", formatInvalidSchemaPaths(parsed.error));
+    return failed(502, "INVALID_RESPONSE", "Phản hồi kiểm tra hành trình không hợp lệ.");
   }
 
   const parsed = errorEnvelopeSchema.safeParse(body);
@@ -256,7 +234,7 @@ function unknownApplyOutcome(): MutationOutcome<ApplyEditResult> {
 /** Read the authoritative validation result attached to a known apply rejection. */
 export function parseTripEditApplyValidation(details: unknown): TripValidation | null {
   if (typeof details !== "object" || details === null || !("validation" in details)) return null;
-  const parsed = validationSchema.safeParse(details.validation);
+  const parsed = tripValidationSchema.safeParse(details.validation);
   return parsed.success ? parsed.data : null;
 }
 
@@ -396,17 +374,6 @@ const aiDiffSchema = z.object({
   }).strict(),
 }).strict();
 
-const aiValidationSchema = z.object({
-  timeReference: z.string(),
-  groups: z.object({
-    openingHours: z.object({ status: groupStatusSchema, findings: z.array(findingSchema) }).strict(),
-    minimumDuration: z.object({ status: groupStatusSchema, findings: z.array(findingSchema) }).strict(),
-    travelTime: z.object({ status: groupStatusSchema, findings: z.array(findingSchema) }).strict(),
-    scheduleConflict: z.object({ status: groupStatusSchema, findings: z.array(findingSchema) }).strict(),
-  }).strict(),
-  canConfirm: z.boolean(),
-}).strict() satisfies z.ZodType<TripValidation>;
-
 const editPlaceDetailSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -429,7 +396,7 @@ const adviceSuggestionCardSchema = z.object({
   diffSummaryLines: z.array(z.string()),
   candidate: editCandidateSchema,
   diff: aiDiffSchema,
-  validation: aiValidationSchema,
+  validation: tripValidationSchema,
   changedVisitIds: z.object({
     added: z.array(z.string()),
     updated: z.array(z.string()),
@@ -449,7 +416,7 @@ const aiEditResponseSchema = z.discriminatedUnion("status", [
     candidate: editCandidateSchema,
     intent: aiIntentSchema,
     diff: aiDiffSchema,
-    validation: aiValidationSchema,
+    validation: tripValidationSchema,
     aiSummary: z.string().optional(),
     changedVisitIds: z.object({
       added: z.array(z.string()),
@@ -478,7 +445,7 @@ const aiEditResponseSchema = z.discriminatedUnion("status", [
     status: z.literal("ADVISED"),
     intent: aiIntentSchema,
     advice: z.string().min(1),
-    validation: aiValidationSchema,
+    validation: tripValidationSchema,
     aiSummary: z.string().min(1),
     saveEligibility: z.enum(["PASS", "NEEDS_UNCHECKED_ACK", "BLOCKED"]).optional(),
     suggestions: z.array(adviceSuggestionCardSchema).max(4).optional(),
@@ -553,9 +520,19 @@ function buildAiRequestBody(input: AiTripEditInput): string {
 function decideAiJsonResponse(status: number, body: unknown): AiTripEditOutcome {
   if (status === 200) {
     const parsed = aiSuccessEnvelopeSchema.safeParse(body);
-    return parsed.success
-      ? { kind: "RESULT", result: parsed.data.data as import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult }
-      : { kind: "FAILED", status: 502, code: "AI_INVALID_RESPONSE", message: "Phản hồi đề xuất bằng AI không hợp lệ. Hãy thử lại." };
+    if (parsed.success) {
+      return {
+        kind: "RESULT",
+        result: parsed.data.data as import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult,
+      };
+    }
+    console.warn("[trip-edit-client] Invalid AI JSON response fields:", formatInvalidSchemaPaths(parsed.error));
+    return {
+      kind: "FAILED",
+      status: 502,
+      code: "AI_INVALID_RESPONSE",
+      message: "Phản hồi không hợp lệ, hãy thử lại.",
+    };
   }
 
   const parsedError = errorEnvelopeSchema.safeParse(body);
@@ -729,6 +706,7 @@ export async function streamAiTripEdit(
     });
     const reader = parsedStream.getReader();
     let finalResult: import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult | null = null;
+    let invalidResultError: Extract<AiTripEditOutcome, { kind: "FAILED" }> | null = null;
 
     try {
       while (true) {
@@ -761,6 +739,18 @@ export async function streamAiTripEdit(
           const validated = aiEditResponseSchema.safeParse(chunk.data);
           if (validated.success) {
             finalResult = validated.data as import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult;
+            invalidResultError = null;
+          } else {
+            console.warn(
+              "[trip-edit-client] Invalid data-trip-assistant-result fields:",
+              formatInvalidSchemaPaths(validated.error),
+            );
+            invalidResultError = {
+              kind: "FAILED",
+              status: 502,
+              code: "AI_INVALID_RESPONSE",
+              message: "Phản hồi không hợp lệ, hãy thử lại.",
+            };
           }
         }
       }
@@ -772,6 +762,7 @@ export async function streamAiTripEdit(
     if (stopped) return { kind: "STOPPED", partialText };
     if (timedOut) return { kind: "TIMEOUT" };
     if (finalResult) return { kind: "RESULT", result: finalResult };
+    if (invalidResultError) return invalidResultError;
     return { kind: "INTERRUPTED", partialText };
   } catch {
     if (stopped) return { kind: "STOPPED", partialText };

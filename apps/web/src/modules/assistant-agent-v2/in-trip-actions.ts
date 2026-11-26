@@ -12,7 +12,7 @@ import { inTripLocationSchema, normalizeInTripLocation } from "../in-trip/in-tri
 import { previewInTrip } from "../in-trip/in-trip-validation";
 import { applyEdit, type ApplyEditRequest, type ApplyEditResult } from "../trip-edit/apply-edit";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
-import type { TripValidation } from "../trip-validation/trip-validation";
+import { tripValidationSchema, type TripValidation } from "../trip-validation/trip-validation";
 import { mandatoryEndpointSchema } from "../in-trip/mandatory-endpoint";
 import { splitCompletedRemaining } from "../in-trip/split-trip";
 import { tripDayDate } from "../trip-validation/trip-proposal-contract";
@@ -30,9 +30,7 @@ export const inTripDiffSchema = z.object({ added: z.array(positioned), removed: 
   updated: z.array(z.object({ visitId: z.string(), before: positioned, after: positioned, changedFields: z.array(z.enum(["dayIndex", "order", "destinationId", "startMinute", "plannedDurationMinutes"])) }).strict()),
   tripChanges: z.object({ startDate: z.object({ before: z.string().nullable(), after: z.string().nullable() }).optional(), durationDays: z.object({ before: z.number(), after: z.number() }).optional(), transport: z.object({ before: z.enum(["CAR", "MOTORCYCLE"]), after: z.enum(["CAR", "MOTORCYCLE"]) }).optional() }).strict(),
 }).strict();
-const finding = z.object({ group: z.enum(["openingHours", "minimumDuration", "travelTime", "scheduleConflict"]), status: z.enum(["VIOLATION", "INSUFFICIENT_DATA"]), reasonCode: z.string(), message: z.string(), affectedVisitId: z.string().optional(), fromVisitId: z.string().optional(), toVisitId: z.string().optional(), visitIds: z.tuple([z.string(), z.string()]).optional() }).strict();
-const group = z.object({ status: z.enum(["SATISFIED", "VIOLATION", "INSUFFICIENT_DATA"]), findings: z.array(finding) }).strict();
-export const inTripValidationSchema: z.ZodType<TripValidation> = z.object({ timeReference: z.string(), groups: z.object({ openingHours: group, minimumDuration: group, travelTime: group, scheduleConflict: group }).strict(), canConfirm: z.boolean() }).strict().refine(v => v.canConfirm === Object.values(v.groups).every(g => g.status === "SATISFIED"));
+export const inTripValidationSchema: z.ZodType<TripValidation> = tripValidationSchema.refine(v => v.canConfirm === Object.values(v.groups).every(g => g.status === "SATISFIED"));
 export const savedTripSnapshotSchema = z.object({ journeyDisclosure: z.enum(["ORIGIN_LEGS_NOT_INCLUDED", "SAVED_JOURNEY_PRESENT"]).optional(), tripId: z.string(), baseRevision: z.iso.datetime(), candidate: editCandidateSchema, destinationLabels: z.record(z.string(), z.string()), completedVisitIds: z.array(z.string()), remainingVisitIds: z.array(z.string()) }).strict();
 export type SavedTripSnapshot = z.infer<typeof savedTripSnapshotSchema>;
 export const inTripReplanInputSchema = z.object({ baseRevision: z.iso.datetime(), need: z.string().trim().min(1).max(500), location: inTripLocationSchema.nullable(), resolution: editResolutionSchema.optional(), scopeDays: z.array(z.number().int().min(1).max(14)).max(14).optional() }).strict();
