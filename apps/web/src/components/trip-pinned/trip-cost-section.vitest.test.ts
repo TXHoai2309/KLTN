@@ -36,7 +36,8 @@ describe("TripCostEstimateSection (D4 / B9 / ADR-58)", () => {
 
     expect(html).toContain('data-testid="trip-cost-section"');
     expect(html).toContain("Chi phí ước tính");
-    expect(html).toContain("Ước tính tại ngày 21/11/2026, chưa phải báo giá.");
+    expect(html).toContain("Theo bảng giá tham khảo cập nhật 21/11/2026, chưa phải báo giá. Ứng dụng không đặt chỗ.");
+    expect(html).not.toContain("Ước tính tại ngày 21/11/2026");
     expect(html).toContain("9.444.000đ");
     expect(html).toContain("Homestay phòng riêng");
     expect(html).not.toContain('data-testid="trip-cost-stale-badge"');

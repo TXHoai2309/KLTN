@@ -165,7 +165,7 @@ export function TripCostEstimateSection({
         </SectionHeading>
         <p className="trip-pinned-muted">
           {referenceDateText
-            ? `Ước tính tại ngày ${referenceDateText}, chưa phải báo giá. Ứng dụng không đặt chỗ.`
+            ? `Theo bảng giá tham khảo cập nhật ${referenceDateText}, chưa phải báo giá. Ứng dụng không đặt chỗ.`
             : "Ước tính, chưa phải báo giá. Ứng dụng không đặt chỗ."}
         </p>
       </header>
