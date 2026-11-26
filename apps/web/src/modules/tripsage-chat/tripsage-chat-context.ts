@@ -378,3 +378,36 @@ export function buildTripsageChatBody(input: {
     ...(input.conversationId ? { conversationId: input.conversationId } : {}),
   };
 }
+
+const OUT_OF_SCOPE_TOURIST_DESTINATIONS_RE =
+  /\b(?:sa\s*pa|m[oộ]c\s+ch[aâ]u|đ[aà]\s+l[aạ]t|ph[uú]\s+qu[oố]c|ninh\s+b[iì]nh|tr[aà]ng\s+an|h[aạ]\s+long|c[aá]t\s+b[aà]|h[oộ]i\s+an|nha\s+trang|m[uù]\s+cang\s+ch[aả]i|t[aà]\s+x[uù]a|y\s+t[yý]|cao\s+b[aằ]ng|b[aả]n\s+gi[oố]c|ba\s+b[eể]|mai\s+ch[aâ]u|p[uù]\s+lu[oô]ng|fansipan|l[aà]o\s+cai)\b/iu;
+
+/** D7 (B11): true when a quick-reply chip assumes an existing itinerary (e.g. "Bỏ … khỏi lịch", "Giữ Cột cờ…") before any plan exists. */
+export function isItineraryActionChipWithoutPlan(reply: string): boolean {
+  const trimmed = reply.trim();
+  if (!trimmed) return false;
+  if (
+    /(?:kh[oỏ]i\s+l[iị]ch|trong\s+l[iị]ch|b[oớ]t\s+đi[eể]m|đ[oổ]i\s+đi[eể]m\s+trong\s+l[iị]ch|x[oó]a\s+đi[eể]m|remove\s+from\s+(?:the\s+)?itinerary|keep\s+in\s+(?:the\s+)?itinerary)/iu.test(
+      trimmed,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /^gi[uữ]\s+/iu.test(trimmed)
+    && !/^gi[uữ]\s+(?:nguy[eê]n|b[aả]n\s+nh[aá]p|xe|tuy[eế]n|ch[aặ]ng|l[iị]ch|\d+\s+ng[aà]y)/iu.test(trimmed)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** D7 (B12): true when a quick-reply chip promotes a destination outside Hà Giang (e.g. "Ưu tiên nhẹ nhàng ở Sa Pa"). */
+export function isOutOfScopeDestinationChip(reply: string): boolean {
+  const trimmed = reply.trim();
+  if (!trimmed || !OUT_OF_SCOPE_TOURIST_DESTINATIONS_RE.test(trimmed)) return false;
+  if (/^(?:t[uừ]|xu[aấ]t\s+ph[aá]t\s+t[uừ]|kh[oở]i\s+h[aà]nh\s+t[uừ]|đi\s+(?:t[aà]u|xe|m[aá]y\s+bay)\s+t[uừ])/iu.test(trimmed)) {
+    return false;
+  }
+  return true;
+}

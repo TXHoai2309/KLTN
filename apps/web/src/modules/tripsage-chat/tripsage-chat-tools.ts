@@ -24,7 +24,7 @@ import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabel
 import { addCalendarDaysIso, itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, resolveMissingPriceChips, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
-import { formatDocumentSourceTitle, quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
+import { formatDocumentSourceTitle, isItineraryActionChipWithoutPlan, isOutOfScopeDestinationChip, quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
   computeMinimumSelfDriveDays,
   detectDateRangeDurationConflict,
@@ -983,6 +983,22 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             message: `Người dùng đã nêu ngày (${stated.date}). Không mở lượt riêng chỉ để hỏi xác nhận lại ngày: hãy ghi startDate bằng recordTripInfo và gọi proposeItinerary ngay trong lượt này, rồi kèm chip 'Đổi ngày'.`,
           };
         }
+      }
+      // D7 (B11): never emit itinerary-editing chips ("Bỏ … khỏi lịch", "Giữ …") before an itinerary exists.
+      if (!latestDays && replies.some(isItineraryActionChipWithoutPlan)) {
+        return {
+          ok: false as const,
+          code: "NO_ITINERARY_FOR_ACTION_CHIPS",
+          message: "Hội thoại chưa có bản lịch trình nào nên không tạo nút thao tác trên lịch ('Bỏ … khỏi lịch', 'Giữ … trong lịch', 'Bớt điểm'). Hãy đổi sang nút khám phá hoặc bắt đầu lập lịch (ví dụ 'Gợi ý điểm ngắm cảnh nhẹ hơn', 'Lên lịch có Lũng Cú, không leo đỉnh').",
+        };
+      }
+      // D7 (B12): never emit dead-end chips for tourist destinations outside Hà Giang (e.g. Sa Pa).
+      if (replies.some(isOutOfScopeDestinationChip)) {
+        return {
+          ok: false as const,
+          code: "OUT_OF_SCOPE_DESTINATION_CHIP",
+          message: "Ứng dụng chỉ phục vụ du lịch Hà Giang: không tạo nút gợi ý cho địa điểm ngoài Hà Giang (như Sa Pa, Mộc Châu, Cao Bằng…). Hãy đổi sang nút Hà Giang tương ứng (ví dụ 'Lên lịch Hà Giang nhẹ nhàng').",
+        };
       }
       const hasMealReply = replies.some(r => /qu[aá]n\s+[aă]n|t[iì]m\s+th[eê]m\s+qu[aá]n/iu.test(r));
       const { info: currentInfo } = withTripInfoDefaults(tripInfo);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { computeBudgetSavingsChips, estimateTripCost } from "./tripsage-cost";
-import { reconcileQuickRepliesWithQuestion, resolveFallbackQuickReplies } from "./tripsage-chat-service";
+import { reconcileQuickRepliesWithQuestion, resolveFallbackQuickReplies, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
+import { createTripsageChatTools } from "./tripsage-chat-tools";
+import { isItineraryActionChipWithoutPlan, isOutOfScopeDestinationChip } from "./tripsage-chat-context";
 
 describe("Point 3 — question-chip alignment & sensible budget savings chips", () => {
   it("L2: replaces mismatched violation chips when closing question asks how to reach the trip hub", () => {
@@ -118,5 +120,65 @@ describe("Point 3 — question-chip alignment & sensible budget savings chips", 
     expect(carShorten).toBeTruthy();
     expect(motoShorten).toBeTruthy();
     expect(carShorten!.estimatedSavingsVnd).toBeGreaterThan(motoShorten!.estimatedSavingsVnd + 1_500_000);
+  });
+
+  it("D7 (B11, B12, B13): rejects itinerary-action chips before any plan exists, blocks out-of-scope destination chips (Sa Pa), and guides consistent list formatting", async () => {
+    // Unit predicates
+    expect(isItineraryActionChipWithoutPlan("Bỏ Cột cờ khỏi lịch")).toBe(true);
+    expect(isItineraryActionChipWithoutPlan("Giữ Cột cờ, không leo lên đỉnh")).toBe(true);
+    expect(isItineraryActionChipWithoutPlan("Giữ 2 ngày, bỏ ngủ Đồng Văn")).toBe(false);
+    expect(isItineraryActionChipWithoutPlan("Giữ xe khách, chốt giá sau")).toBe(false);
+    expect(isItineraryActionChipWithoutPlan("Lên lịch có Lũng Cú")).toBe(false);
+
+    expect(isOutOfScopeDestinationChip("Ưu tiên nhẹ nhàng ở Sa Pa")).toBe(true);
+    expect(isOutOfScopeDestinationChip("Khám phá Mộc Châu 2 ngày")).toBe(true);
+    expect(isOutOfScopeDestinationChip("Lên lịch Hà Giang nhẹ nhàng")).toBe(false);
+    expect(isOutOfScopeDestinationChip("Từ Lào Cai đi Hà Giang")).toBe(false);
+
+    // Tool-level guard in suggestReplies when no itinerary exists
+    const tools = createTripsageChatTools({
+      planning: { candidates: async () => [], routes: { route: async () => ({ status: "INSUFFICIENT_DATA" }) as never } },
+      emitItinerary: () => {},
+      latestUserText: "Cột cờ Lũng Cú có bao nhiêu bậc thang?",
+    });
+
+    const b11 = await tools.suggestReplies.execute!(
+      { replies: ["Giữ Cột cờ, không leo lên đỉnh", "Bỏ Cột cờ khỏi lịch"] },
+      { toolCallId: "t-b11", messages: [], context: {} },
+    ) as { ok: boolean; code?: string };
+    expect(b11.ok).toBe(false);
+    expect(b11.code).toBe("NO_ITINERARY_FOR_ACTION_CHIPS");
+
+    const b12 = await tools.suggestReplies.execute!(
+      { replies: ["Ưu tiên nhẹ nhàng ở Sa Pa", "Hỏi về chợ phiên Hà Giang"] },
+      { toolCallId: "t-b12", messages: [], context: {} },
+    ) as { ok: boolean; code?: string };
+    expect(b12.ok).toBe(false);
+    expect(b12.code).toBe("OUT_OF_SCOPE_DESTINATION_CHIP");
+
+    const validDiscovery = await tools.suggestReplies.execute!(
+      { replies: ["Gợi ý điểm ngắm cảnh nhẹ hơn", "Lên lịch Hà Giang nhẹ nhàng"] },
+      { toolCallId: "t-ok", messages: [], context: {} },
+    ) as { ok: boolean };
+    expect(validDiscovery.ok).toBe(true);
+
+    // Post-turn reconcile safety net replaces B11 & B12 chips cleanly
+    const reconciled = reconcileQuickRepliesWithQuestion({
+      text: "Sa Pa có cáp treo còn Hà Giang hợp đi cung đường núi.\n\nBạn muốn khám phá thêm phần nào?",
+      emittedReplies: ["Ưu tiên nhẹ nhàng ở Sa Pa", "Bỏ Cột cờ khỏi lịch", "Xem chợ phiên Hà Giang"],
+      hasOriginCandidates: false,
+      itinerary: null,
+      cost: null,
+      accessLeg: null,
+      tripInfo: null,
+    });
+    expect(reconciled).toEqual([
+      "Lên lịch Hà Giang nhẹ nhàng",
+      "Gợi ý điểm ngắm cảnh nhẹ hơn",
+      "Xem chợ phiên Hà Giang",
+    ]);
+
+    // B13 prompt guidance for consistent bullet formatting
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("định dạng đồng nhất cho mọi mục tương đương");
   });
 });
