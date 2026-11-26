@@ -44,9 +44,53 @@ function originPrimaryKey(label: string): string {
   return foldOriginName(cleanOriginCandidateLabel(firstSegment));
 }
 
+const FACILITY_PREFIX_RE = /^(?:cong(?:\s+(?:vao|ra|chinh|sau|so\s*\d+))?|bai\s+(?:gui|do)\s+xe(?:\s+may|\s+o\s+to)?|nha\s+cho|quay\s+ve|tram(?:\s+xe\s+buyt)?|doi\s+dien|van\s+phong(?:\s+nha\s+xe)?)\s+/u;
+const GENERIC_PLACE_TOKENS = new Set([
+  "ben", "xe", "khach", "bus", "station", "terminal", "cong", "vao", "ra", "chinh", "sau",
+  "bai", "gui", "do", "may", "o", "to", "nha", "cho", "quay", "ve", "tram", "buyt",
+  "doi", "dien", "duong", "pho", "ngo", "phuong", "xa", "quan", "huyen", "thanh", "tp", "thi", "tran", "tinh",
+]);
+
+function originCoreKey(primaryKey: string): string {
+  const tokens = primaryKey.split(" ").filter(token => token.length >= 2 && !GENERIC_PLACE_TOKENS.has(token));
+  return tokens.join(" ");
+}
+
+function tokensSubsetOf(shorter: string, longer: string): boolean {
+  const shortTokens = shorter.split(" ").filter(token => token.length >= 2);
+  if (shortTokens.length < 2) return false;
+  const longSet = new Set(longer.split(" ").filter(token => token.length >= 2));
+  return shortTokens.every(token => longSet.has(token));
+}
+
+function isSameNearbyPlace(repKey: string, itemKey: string): boolean {
+  if (!repKey || !itemKey) return false;
+  if (repKey === itemKey) return true;
+  if (Math.min(repKey.length, itemKey.length) >= 6 && (repKey.includes(itemKey) || itemKey.includes(repKey))) {
+    return true;
+  }
+  // e.g. "ben xe giap bat" vs "ben xe khach giap bat" or "bai gui xe ben xe giap bat"
+  if (tokensSubsetOf(repKey, itemKey) || tokensSubsetOf(itemKey, repKey)) {
+    return true;
+  }
+  // e.g. "ben xe giap bat" vs "giap bat bus station" within <= 2 km
+  const repCore = originCoreKey(repKey);
+  const itemCore = originCoreKey(itemKey);
+  return repCore.length >= 6 && repCore === itemCore;
+}
+
+function candidateLabelQuality(label: string): number {
+  let score = 0;
+  if (!LEADING_PLATFORM_TAG_RE.test(label)) score += 4;
+  const primary = originPrimaryKey(label);
+  if (!FACILITY_PREFIX_RE.test(primary)) score += 2;
+  if (!/\bbus\s+station\b/u.test(primary)) score += 1;
+  return score;
+}
+
 /**
- * D6: Collapses multiple map nodes/gates belonging to the same landmark or station within `<= 2 km`
- * (e.g., OSM nodes `(A) Bến Xe Giáp Bát` and `Bến Xe Giáp Bát`) into one canonical candidate.
+ * D6: Collapses multiple map nodes/gates/nearby variants belonging to the same landmark or station within `<= 2 km`
+ * (e.g., OSM nodes `(A) Bến Xe Giáp Bát`, `Bến xe khách Giáp Bát`, `Bãi gửi xe Bến xe Giáp Bát`) into one canonical candidate.
  */
 export function deduplicateOriginResults<T extends { label: string; latitude: number; longitude: number }>(
   results: readonly T[],
@@ -57,21 +101,16 @@ export function deduplicateOriginResults<T extends { label: string; latitude: nu
     const match = clusters.find(({ representative }) => {
       if (representative.latitude === item.latitude && representative.longitude === item.longitude) return true;
       if (haversine(representative, item) > ORIGIN_DUPLICATE_RADIUS_KM) return false;
-      const repKey = originPrimaryKey(representative.label);
-      if (!repKey || !itemKey) return false;
-      return (
-        repKey === itemKey
-        || (Math.min(repKey.length, itemKey.length) >= 6 && (repKey.includes(itemKey) || itemKey.includes(repKey)))
-      );
+      return isSameNearbyPlace(originPrimaryKey(representative.label), itemKey);
     });
     if (!match) {
       clusters.push({ representative: item, merged: false });
       continue;
     }
     match.merged = true;
-    const repHasTag = LEADING_PLATFORM_TAG_RE.test(match.representative.label);
-    const itemHasTag = LEADING_PLATFORM_TAG_RE.test(item.label);
-    if (repHasTag && !itemHasTag) {
+    const repScore = candidateLabelQuality(match.representative.label);
+    const itemScore = candidateLabelQuality(item.label);
+    if (itemScore > repScore) {
       match.representative = item;
     }
   }

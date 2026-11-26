@@ -40,6 +40,7 @@ import {
   MAX_ORIGIN_CANDIDATES,
   namesOrAgreesOrigin,
   permitsOriginConfirmation,
+  resolveUniqueOriginMatch,
   sameOriginPlace,
   shouldPreserveConfirmedSpecificOrigin,
   statesSoleOrigin,
@@ -845,7 +846,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const prevMatch = prevPool.find(cand =>
           permitsOriginConfirmation(latest, cand, prevPool, { fromPreviousTurn: true })
           || (sameOriginPlace(cand.label, query) && !prevPool.some(other => other.id !== cand.id && sameOriginPlace(other.label, query))),
-        );
+        ) ?? resolveUniqueOriginMatch(latest, query, prevPool);
         if (prevMatch) {
           const confirmed = applyConfirmedOrigin(prevMatch);
           if (confirmed.ok) {
@@ -887,9 +888,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           source: result.source,
         }));
       }
-      // The traveler typed one place and the search found exactly that one: no second round-trip (ADR-46).
-      if (signedList.length === 1 && (statesSoleOrigin(latest, signedList[0]!) || namesOrAgreesOrigin(latest, query))) {
-        const confirmed = applyConfirmedOrigin(signedList[0]!);
+      // The traveler typed a clear place and either 1 result or 1 unique matching place was found: no second round-trip (ADR-46).
+      const uniqueMatch = resolveUniqueOriginMatch(latest, query, signedList);
+      if (uniqueMatch) {
+        const cleanedMatch = { ...uniqueMatch, label: cleanOriginCandidateLabel(uniqueMatch.label) || uniqueMatch.label };
+        const confirmed = applyConfirmedOrigin(cleanedMatch);
         if (confirmed.ok) {
           await syncCostIfTracked();
           return { ...confirmed, note: "Điểm xuất phát đã được xác nhận vì người dùng vừa nêu đúng địa điểm này; không hỏi lại. Nếu đã biết số ngày (kể cả chưa chốt ngày đi cụ thể), hãy lập lịch NGAY trong lượt này." };

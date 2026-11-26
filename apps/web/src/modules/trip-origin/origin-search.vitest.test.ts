@@ -150,5 +150,20 @@ describe("explicit search HTTP", () => {
     expect(res).toHaveLength(1);
     expect(res![0]!.label).not.toMatch(/^\(A\)\s*/u);
     expect(res![0]!.label).toContain("Bến Xe Giáp Bát");
+
+    const variants = await searchNominatim(
+      "Bến xe Giáp Bát",
+      config,
+      new AbortController().signal,
+      async () =>
+        Response.json([
+          { display_name: "Bãi gửi xe Bến xe Giáp Bát, Hoàng Mai, Hà Nội", lat: "20.9801", lon: "105.8415" },
+          { display_name: "Bến xe khách Giáp Bát, Hoàng Mai, Hà Nội", lat: "20.9804", lon: "105.8418" },
+          { display_name: "Giap Bat Bus Station, Hanoi", lat: "20.9806", lon: "105.8419" },
+          { display_name: "Bến xe Giáp Bát, Giải Phóng, Hà Nội", lat: "20.9809", lon: "105.8421" },
+        ]),
+    );
+    expect(variants).toHaveLength(1);
+    expect(variants![0]!.label).not.toMatch(/^Bãi gửi xe/u);
   });
 });

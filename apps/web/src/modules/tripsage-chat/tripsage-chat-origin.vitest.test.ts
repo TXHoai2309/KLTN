@@ -496,4 +496,177 @@ describe("one-turn origin confirmation (ADR-46)", () => {
     expect(JSON.stringify(turn3.model.doStreamCalls[1]!.prompt)).toContain("preservedSpecificOrigin");
     expect(parts(turn3.sse).some(p => p.type === "data-journey")).toBe(false);
   });
+
+  it("Bug 1 repro: confirms stated origin even when unrelated clauses contain 'có thể' / 'nhưng' / 'hay' / 'còn' or provider returns nearby variants", async () => {
+    const screenshotPrompt =
+      "Tôi định đi khoảng tuần cuối giáp tết dương lịch á, tôi định đi 5 ngày với người yêu, 2 cặp tổng 4 người nhé, tối ưu chi phí nhất có thể, chúng tôi xuất phát từ bến xe giáp bát ( hà nội ), ưu tiên trải nghiệm khám phá nhiều, đi những nơi có thể chụp ảnh và nổi tiếng của hà giang";
+
+    expect(statesSoleOrigin(screenshotPrompt, { label: "Bến xe Giáp Bát, Hoàng Mai, Hà Nội" })).toBe(true);
+    expect(statesSoleOrigin("xuất phát từ Cầu Giấy, nhưng muốn tối ưu chi phí", { label: "Quận Cầu Giấy, Hà Nội" })).toBe(true);
+    expect(statesSoleOrigin("đi 4 hay 5 ngày, xuất phát từ Hải Phòng, còn ăn uống thì tự túc", { label: "Thành phố Hải Phòng" })).toBe(true);
+
+    // Provider returns Google/Stadia-style nearby variants + another station
+    const variantLookup: OriginLookup = vi.fn(async () => ({
+      status: "RESULTS" as const,
+      cached: false,
+      results: [
+        { label: "Bến xe Giáp Bát", latitude: 20.9801, longitude: 105.8415, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+        { label: "Bến xe khách Giáp Bát", latitude: 20.9805, longitude: 105.8418, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+        { label: "Bãi gửi xe Bến xe Giáp Bát", latitude: 20.9809, longitude: 105.8421, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+        { label: "Bến xe Nước Ngầm", latitude: 20.9628, longitude: 105.8404, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+      ],
+    }));
+
+    const turn = await chat(
+      screenshotPrompt,
+      [
+        { tool: "findOrigin", input: { query: "Bến xe Giáp Bát, Hà Nội" } },
+        { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
+        { text: "Đã chốt Bến xe Giáp Bát và lên lịch 5 ngày." },
+      ],
+      { tripInfo: { ...TRIP_INFO_FIXTURE, assumedFields: ["origin"] } },
+      { originSearch: () => variantLookup },
+    );
+    const turnParts = parts(turn.sse);
+    expect(turnParts.some(p => p.type === "data-origin-candidates")).toBe(false);
+    const journey = journeyPartSchema.parse(turnParts.find(p => p.type === "data-journey")!.data).journey;
+    expect(journey.origin?.confirmed).toBe(true);
+    expect(journey.origin?.label).toBe("Bến xe Giáp Bát");
+    expect(turnParts.some(p => p.type === "data-itinerary")).toBe(true);
+
+    // Region qualifier disambiguates same-name places across provinces ("Hoàng Mai (Hà Nội)" vs "Hoàng Mai, Nghệ An")
+    const crossProvinceLookup: OriginLookup = vi.fn(async () => ({
+      status: "RESULTS" as const,
+      cached: false,
+      results: [
+        { label: "Quận Hoàng Mai, Hà Nội", latitude: 20.9742, longitude: 105.855, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+        { label: "Thị xã Hoàng Mai, Nghệ An", latitude: 19.2544, longitude: 105.712, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+      ],
+    }));
+    const disambiguated = await chat(
+      "Mình xuất phát từ Hoàng Mai (Hà Nội), đi 3 ngày nhé",
+      [
+        { tool: "findOrigin", input: { query: "Hoàng Mai, Hà Nội" } },
+        { text: "Đã chốt Hoàng Mai, Hà Nội." },
+      ],
+      {},
+      { originSearch: () => crossProvinceLookup },
+    );
+    expect(parts(disambiguated.sse).some(p => p.type === "data-origin-candidates")).toBe(false);
+    const hmJourney = journeyPartSchema.parse(parts(disambiguated.sse).find(p => p.type === "data-journey")!.data).journey;
+    expect(hmJourney.origin?.label).toBe("Quận Hoàng Mai, Hà Nội");
+
+    // Without region qualifier, genuine cross-province ambiguity STILL pauses and asks
+    const ambiguous = await chat(
+      "Mình xuất phát từ Hoàng Mai",
+      [
+        { tool: "findOrigin", input: { query: "Hoàng Mai" } },
+        { text: "Bạn ở Hoàng Mai nào?" },
+      ],
+      {},
+      { originSearch: () => crossProvinceLookup },
+    );
+    expect(parts(ambiguous.sse).some(p => p.type === "data-origin-candidates")).toBe(true);
+    expect(parts(ambiguous.sse).some(p => p.type === "data-journey")).toBe(false);
+  });
+
+  it("Bug 1 repro: follow-up reply with conversational particle ('bến xe giáp bát đó') confirms candidate from previous turn", () => {
+    const pool = [
+      { id: "oc-1-1", label: "Bến xe Giáp Bát, Đường Giải Phóng, Hoàng Mai, Hà Nội" },
+      { id: "oc-1-2", label: "Bến xe Nước Ngầm, Hoàng Mai, Hà Nội" },
+    ];
+    expect(permitsOriginConfirmation("bến xe giáp bát đó", pool[0]!, pool, { fromPreviousTurn: true })).toBe(true);
+    expect(permitsOriginConfirmation("bến xe giáp bát đó", pool[1]!, pool, { fromPreviousTurn: true })).toBe(false);
+
+    // Even when two candidates share 'Bến xe Giáp Bát' prefix and only one is exact
+    const nearPool = [
+      { id: "oc-1-1", label: "Bến xe Giáp Bát" },
+      { id: "oc-1-2", label: "Cổng sau Bến xe Giáp Bát" },
+    ];
+    expect(permitsOriginConfirmation("bến xe giáp bát đó", nearPool[0]!, nearPool, { fromPreviousTurn: true })).toBe(true);
+  });
+
+  it("S2 (a): auto-confirms Cầu Giấy on the family self-drive brief without asking again", async () => {
+    const familyBrief = "Nhà mình 2 vợ chồng với 1 bé 7 tuổi, tự lái ô tô từ Hà Nội (nhà ở Cầu Giấy), muốn đi Hà Giang 3 ngày 2 đêm từ 11/12.";
+    expect(statesSoleOrigin(familyBrief, { label: "Quận Cầu Giấy, Hà Nội" })).toBe(true);
+    expect(statesSoleOrigin(familyBrief, { label: "Cầu Giấy, Hà Nội" })).toBe(true);
+
+    const cauGiayLookup: OriginLookup = vi.fn(async () => ({
+      status: "RESULTS" as const,
+      cached: false,
+      results: [
+        { label: "Quận Cầu Giấy, Hà Nội", latitude: 21.0362, longitude: 105.7906, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+        { label: "Phường Quan Hoa, Cầu Giấy, Hà Nội", latitude: 21.0372, longitude: 105.8004, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+        { label: "Công viên Cầu Giấy, Hà Nội", latitude: 21.0285, longitude: 105.7916, source: "GOOGLE_PLACES" as const, confirmed: false as const },
+      ],
+    }));
+
+    const turn = await chat(
+      familyBrief,
+      [
+        { tool: "findOrigin", input: { query: "Cầu Giấy, Hà Nội" } },
+        { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
+        { text: "Mình đã chốt điểm xuất phát tại Cầu Giấy và lên lịch 3 ngày 2 đêm." },
+      ],
+      {},
+      { originSearch: () => cauGiayLookup },
+    );
+    const turnParts = parts(turn.sse);
+    expect(turnParts.some(p => p.type === "data-origin-candidates")).toBe(false);
+    const journey = journeyPartSchema.parse(turnParts.find(p => p.type === "data-journey")!.data).journey;
+    expect(journey.origin?.confirmed).toBe(true);
+    expect(journey.origin?.label).toBe("Quận Cầu Giấy, Hà Nội");
+    expect(turnParts.some(p => p.type === "data-itinerary")).toBe(true);
+  });
+
+  it("S2 (b): tapping 'Đúng, Cầu Giấy' chip after bot asks confirms immediately without looping", async () => {
+    const singlePool = [{ id: "oc-1-1", label: "Quận Cầu Giấy, Hà Nội" }];
+    expect(permitsOriginConfirmation("Đúng, Cầu Giấy", singlePool[0]!, singlePool, { fromPreviousTurn: true })).toBe(true);
+
+    const multiPool = [
+      { id: "oc-1-1", label: "Quận Cầu Giấy, Hà Nội" },
+      { id: "oc-1-2", label: "Công viên Cầu Giấy, Hà Nội" },
+    ];
+    expect(permitsOriginConfirmation("Đúng, Cầu Giấy", multiPool[0]!, multiPool, { fromPreviousTurn: true })).toBe(true);
+    expect(permitsOriginConfirmation("Đúng, Cầu Giấy", multiPool[1]!, multiPool, { fromPreviousTurn: true })).toBe(false);
+    // Guard: "dùng" (use) must never be misread as "đúng" (yes)
+    expect(statesSoleOrigin("dùng xe máy đi Cầu Giấy", { label: "Quận Cầu Giấy, Hà Nội" })).toBe(false);
+
+    const token = signOriginCandidates({
+      userId: USER_ID,
+      candidates: [
+        { id: "oc-1-1", label: "Quận Cầu Giấy, Hà Nội", latitude: 21.0362, longitude: 105.7906, source: "GOOGLE_PLACES" },
+        { id: "oc-1-2", label: "Công viên Cầu Giấy, Hà Nội", latitude: 21.0285, longitude: 105.7916, source: "GOOGLE_PLACES" },
+      ],
+      secret: SECRET,
+      nowMs: planningNow.getTime(),
+    })!;
+
+    // Path 1: model calls confirmOrigin
+    const confirmTurn = await chat(
+      "Đúng, Cầu Giấy",
+      [
+        { tool: "confirmOrigin", input: { candidateId: "oc-1-1" } },
+        { text: "Đã chốt Quận Cầu Giấy, Hà Nội." },
+      ],
+      { originCandidatesToken: token },
+    );
+    expect(parts(confirmTurn.sse).some(p => p.type === "data-origin-candidates")).toBe(false);
+    expect(journeyPartSchema.parse(parts(confirmTurn.sse).find(p => p.type === "data-journey")!.data).journey.origin?.label).toBe("Quận Cầu Giấy, Hà Nội");
+
+    // Path 2: even if model mistakenly calls findOrigin again on Turn 2, server confirms from previous candidates instead of looping
+    const reSearch = vi.fn<OriginLookup>();
+    const findAgainTurn = await chat(
+      "Đúng, Cầu Giấy",
+      [
+        { tool: "findOrigin", input: { query: "Cầu Giấy" } },
+        { text: "Đã chốt Quận Cầu Giấy, Hà Nội." },
+      ],
+      { originCandidatesToken: token },
+      { originSearch: () => reSearch },
+    );
+    expect(reSearch).not.toHaveBeenCalled();
+    expect(parts(findAgainTurn.sse).some(p => p.type === "data-origin-candidates")).toBe(false);
+    expect(journeyPartSchema.parse(parts(findAgainTurn.sse).find(p => p.type === "data-journey")!.data).journey.origin?.label).toBe("Quận Cầu Giấy, Hà Nội");
+  });
 });
