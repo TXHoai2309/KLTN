@@ -10,7 +10,7 @@ import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { arrangeOvernightAreas, unmetOvernightAreas, type UnmetOvernight } from "./planning-trip-structure";
 import { planningSelectionSchema, type PlanningSelection, type PlanningNeeds, type PlanningGenerated, type PlanningEdit } from "./planning-contract";
-import { journeyDrivingWarnings, optimizeJourneyForWeather, planJourney } from "../trip-origin/journey-planner";
+import { journeyDrivingWarnings, optimizeJourneyForWeather, planJourney, type JourneyBalancePreferences } from "../trip-origin/journey-planner";
 import type { ForecastOptions } from "../trip-weather/forecast";
 import { optimizeScheduleForWeather, WEATHER_PREFERENCE_WARNING } from "../trip-planner/planner-weather-preference";
 
@@ -51,15 +51,16 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
   return selection.data.days.map(day => day.map(id => eligible.get(id)!));
 }
 
-export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }, forecast?: ForecastOptions, options?: { allowBoundaryRepartition?: boolean }): Promise<PlannerResult> {
+export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }, forecast?: ForecastOptions, options?: { allowBoundaryRepartition?: boolean; journeyPreferences?: JourneyBalancePreferences }): Promise<PlannerResult> {
   const requirement = assertTripRequirementClear(needs.requirement, now);
   const selected = assertPlanningSelection(selection, needs, candidates, now);
   const allowedDayIndices = scope ? scope.affectedDays.map(d => d - 1) : undefined;
   const allowBoundaryRepartition = options?.allowBoundaryRepartition ?? !scope;
+  const journeyPreferences = options?.journeyPreferences;
   if (requirement.journey) {
     // A scoped edit retains requested day membership. Whole-brief generation may
     // try the bounded boundary-day partitions, through the same form scheduler.
-    const journey = await planJourney(requirement, selected, routes, 10_000, allowBoundaryRepartition);
+    const journey = await planJourney(requirement, selected, routes, 10_000, allowBoundaryRepartition, undefined, false, journeyPreferences);
     let { checks, stopStatuses } = validatePlannerDays(requirement, journey.days, selected.flat(), journey.travelOnlyDays);
     const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
     if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
@@ -77,6 +78,7 @@ export async function scheduleSelection(needs: PlanningNeeds, selection: Plannin
       allowBoundaryRepartition,
       forecast,
       allowedDayIndices,
+      journeyPreferences,
     });
     if (jOpt.adjusted) {
       weatherAdjusted = true;

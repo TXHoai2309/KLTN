@@ -1,5 +1,6 @@
+import { HA_GIANG_CITY_CENTER, isMainLoopOvernightArea, resolveOvernightAnchorTown } from "../../lib/overnight-anchor";
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
-import { planJourney } from "../trip-origin/journey-planner";
+import { DAILY_DRIVING_WARNING_HOURS, planJourney, type JourneyBalancePreferences } from "../trip-origin/journey-planner";
 import { interestScore, isFeaturedDestination, type PlannerCandidate } from "./planner-candidates";
 import type { PlannerDay, TravelLeg } from "./planner-contract";
 import { balancePlannerDays } from "./planner-day-balance";
@@ -150,7 +151,17 @@ function estimateProvider(
 }
 
 export const MIN_FILL_SAFETY_MARGIN_MINUTES = 45;
-type Fit = { days: PlannerCandidate[][]; violations: number; insufficient: number; idle: number; dayIdle: number[] };
+type Fit = {
+  days: PlannerCandidate[][];
+  violations: number;
+  insufficient: number;
+  emptyDays: number;
+  idle: number;
+  dayIdle: number[];
+  returnEndMinute: number | null;
+  penultimateHgKm: number | null;
+  day1LongDrive: boolean;
+};
 
 function splitEven(chain: readonly PlannerCandidate[], dayCount: number): PlannerCandidate[][] {
   return Array.from({ length: dayCount }, (_, index) => chain.slice(Math.round(index * chain.length / dayCount), Math.round((index + 1) * chain.length / dayCount)));
@@ -173,6 +184,13 @@ function idleMinutes(requirement: TripRequirementInput, days: readonly PlannerDa
   }, 0);
 }
 
+function penultimateHaGiangKm(days: readonly PlannerDay[]): number | null {
+  if (days.length < 2) return null;
+  const lastStop = days.at(-2)?.stops.at(-1)?.destination;
+  if (!lastStop) return null;
+  return haversine(lastStop, HA_GIANG_CITY_CENTER);
+}
+
 /** Evaluate a fixed day partition (no boundary repartition) under cached DB roads / estimates (D2 / Q6). */
 async function fitFixedDays(
   requirement: TripRequirementInput,
@@ -180,20 +198,26 @@ async function fitFixedDays(
   travelLookup?: TravelTimeLookup,
   windingFactor = DEFAULT_WINDING_FACTOR,
   coordinateRoute?: RouteProvider["coordinateRoute"],
+  journeyPreferences?: JourneyBalancePreferences,
 ): Promise<Fit> {
   const count = (checks: { status: string }[], status: string) => checks.filter(check => check.status === status).length;
   const chain = days.flat();
   const provider = estimateProvider(requirement.transport, travelLookup, windingFactor, coordinateRoute);
   if (requirement.journey) {
-    const result = await planJourney(requirement, days, provider, 5_000, false, undefined, false);
+    const result = await planJourney(requirement, days, provider, 5_000, false, undefined, false, journeyPreferences);
     const byId = new Map(chain.map(candidate => [candidate.id, candidate]));
     const checks = validatePlannerDays(requirement, result.days, chain, result.travelOnlyDays).checks;
+    const day1Seconds = result.days[0]?.travelSeconds ?? 0;
     return {
       days: result.days.map(day => day.stops.map(stop => byId.get(stop.destination.id)!)),
       violations: count(checks, "VIOLATION") + Number(result.check.status === "VIOLATION"),
       insufficient: count(checks, "INSUFFICIENT_DATA") + Number(result.check.status === "INSUFFICIENT_DATA"),
+      emptyDays: result.days.filter(day => day.journeyDayKind === "EMPTY").length,
       idle: idleMinutes(requirement, result.days),
       dayIdle: dayIdleList(requirement, result.days),
+      returnEndMinute: result.journeyPlan.legs.find(leg => leg.kind === "RETURN")?.endMinute ?? null,
+      penultimateHgKm: penultimateHaGiangKm(result.days),
+      day1LongDrive: day1Seconds > DAILY_DRIVING_WARNING_HOURS[requirement.transport] * 3600,
     };
   }
   const routes = new Map<string, TravelLeg>();
@@ -206,8 +230,12 @@ async function fitFixedDays(
     days: days.map(day => [...day]),
     violations: count(checks, "VIOLATION"),
     insufficient: count(checks, "INSUFFICIENT_DATA"),
+    emptyDays: days.filter(day => day.length === 0).length,
     idle: idleMinutes(requirement, scheduled),
     dayIdle: dayIdleList(requirement, scheduled),
+    returnEndMinute: null,
+    penultimateHgKm: penultimateHaGiangKm(scheduled),
+    day1LongDrive: false,
   };
 }
 
@@ -218,32 +246,47 @@ async function fitDays(
   travelLookup?: TravelTimeLookup,
   windingFactor = DEFAULT_WINDING_FACTOR,
   coordinateRoute?: RouteProvider["coordinateRoute"],
+  journeyPreferences?: JourneyBalancePreferences,
 ): Promise<Fit> {
   const count = (checks: { status: string }[], status: string) => checks.filter(check => check.status === status).length;
   const provider = estimateProvider(requirement.transport, travelLookup, windingFactor, coordinateRoute);
   if (requirement.journey) {
-    const result = await planJourney(requirement, splitEven(chain, requirement.durationDays), provider, 5_000, true, undefined, true);
+    const result = await planJourney(requirement, splitEven(chain, requirement.durationDays), provider, 5_000, true, undefined, true, journeyPreferences);
     const byId = new Map(chain.map(candidate => [candidate.id, candidate]));
     const checks = validatePlannerDays(requirement, result.days, chain, result.travelOnlyDays).checks;
+    const day1Seconds = result.days[0]?.travelSeconds ?? 0;
     return {
       days: result.days.map(day => day.stops.map(stop => byId.get(stop.destination.id)!)),
       violations: count(checks, "VIOLATION") + Number(result.check.status === "VIOLATION"),
       insufficient: count(checks, "INSUFFICIENT_DATA") + Number(result.check.status === "INSUFFICIENT_DATA"),
+      emptyDays: result.days.filter(day => day.journeyDayKind === "EMPTY").length,
       idle: idleMinutes(requirement, result.days),
       dayIdle: dayIdleList(requirement, result.days),
+      returnEndMinute: result.journeyPlan.legs.find(leg => leg.kind === "RETURN")?.endMinute ?? null,
+      penultimateHgKm: penultimateHaGiangKm(result.days),
+      day1LongDrive: day1Seconds > DAILY_DRIVING_WARNING_HOURS[requirement.transport] * 3600,
     };
   }
   const routes = new Map<string, TravelLeg>();
   for (const [index, to] of chain.entries()) if (index) routes.set(to.id, await provider.route({ from: chain[index - 1]!, to, transport: requirement.transport }, AbortSignal.abort()));
-  const days = balancePlannerDays(requirement, splitEven(chain, requirement.durationDays), routes);
+  const days = balancePlannerDays(
+    requirement,
+    splitEven(chain, requirement.durationDays),
+    routes,
+    journeyPreferences ? { gentleFamily: journeyPreferences.gentleFamily, explicitOvernightDays: journeyPreferences.explicitOvernightDays } : undefined,
+  );
   const scheduled = schedulePlannerDays(requirement, days, routes);
   const checks = validatePlannerDays(requirement, scheduled, chain).checks;
   return {
     days,
     violations: count(checks, "VIOLATION"),
     insufficient: count(checks, "INSUFFICIENT_DATA"),
+    emptyDays: days.filter(day => day.length === 0).length,
     idle: idleMinutes(requirement, scheduled),
     dayIdle: dayIdleList(requirement, scheduled),
+    returnEndMinute: null,
+    penultimateHgKm: penultimateHaGiangKm(scheduled),
+    day1LongDrive: false,
   };
 }
 
@@ -285,13 +328,15 @@ export async function arrangeTripRoute(input: {
   prioritizeIds?: ReadonlySet<string>;
   /** 0-based day indices whose final stop is locked by a traveler-stated overnight constraint (Q6). */
   lockedDayEndIndices?: ReadonlySet<number>;
+  /** Soft preferences for S6 (gentle/family overnight) and S14 (relax-on-add-day spread & return pull). */
+  journeyPreferences?: JourneyBalancePreferences;
   fill?: boolean;
   budgetMs?: number;
   travelLookup?: TravelTimeLookup;
   windingFactor?: number;
   coordinateRoute?: RouteProvider["coordinateRoute"];
 }): Promise<ArrangedTrip> {
-  const { requirement, travelLookup } = input;
+  const { requirement, travelLookup, journeyPreferences } = input;
   const deadline = Date.now() + (input.budgetMs ?? 2_000);
   const coordCache = new Map<string, ReturnType<NonNullable<RouteProvider["coordinateRoute"]>>>();
   const memoizedCoordinateRoute: RouteProvider["coordinateRoute"] | undefined = input.coordinateRoute
@@ -320,13 +365,22 @@ export async function arrangeTripRoute(input: {
     const hit = travelLookup && a.id && b.id ? travelLookup(a.id, b.id, requirement.transport) : null;
     return hit ? hit.durationSeconds : (legKm(a, b) / MAX_AVERAGE_KMH[requirement.transport]) * 3600;
   };
+  const allowFillCandidate = (candidate: PlannerCandidate) => {
+    if (!usableForFill(candidate)) return false;
+    // S6: for gentle/family trips, avoid auto-filling off-main-loop stops (e.g. Bắc Mê) unless explicitly prioritized.
+    if (journeyPreferences?.gentleFamily && !input.prioritizeIds?.has(candidate.id)) {
+      const anchor = resolveOvernightAnchorTown(candidate);
+      if (anchor && !isMainLoopOvernightArea(anchor.area)) return false;
+    }
+    return true;
+  };
 
   // D2 / Q6: when real traveler-stated overnight constraints lock specific day-end stops, keep those
   // constrained days fixed and fill free time (or newly added empty days) in unconstrained days.
   if (input.lockedDayEndIndices && input.lockedDayEndIndices.size > 0) {
     let currentDays = input.days.map(day => [...day]);
     if (!currentDays.flat().length) return { days: currentDays, added, stretched: new Map() };
-    let fit = await fitFixedDays(requirement, currentDays, travelLookup, windingFactor, memoizedCoordinateRoute);
+    let fit = await fitFixedDays(requirement, currentDays, travelLookup, windingFactor, memoizedCoordinateRoute, journeyPreferences);
     const inDays = (candidate: PlannerCandidate) => currentDays.some(day => day.some(stop => stop.id === candidate.id));
     while (input.fill && timed && !fit.violations && currentDays.flat().length < limit && Date.now() < deadline) {
       const openDayIndices = currentDays
@@ -341,7 +395,7 @@ export async function arrangeTripRoute(input: {
 
       const proposals: { candidate: PlannerCandidate; dayIdx: number; insertAt: number; priority: number; fillsEmpty: number; ratio: number }[] = [];
       for (const candidate of input.pool) {
-        if (!usableForFill(candidate) || inDays(candidate) || input.excludedIds?.has(candidate.id)) continue;
+        if (!allowFillCandidate(candidate) || inDays(candidate) || input.excludedIds?.has(candidate.id)) continue;
         const priority = input.prioritizeIds?.has(candidate.id) ? 1 : 0;
         for (const dayIdx of openDayIndices) {
           const day = currentDays[dayIdx]!;
@@ -384,7 +438,7 @@ export async function arrangeTripRoute(input: {
         const trialDays = currentDays.map((day, idx) =>
           idx === prop.dayIdx ? [...day.slice(0, prop.insertAt), prop.candidate, ...day.slice(prop.insertAt)] : [...day],
         );
-        const trial = await fitFixedDays(requirement, trialDays, travelLookup, windingFactor, memoizedCoordinateRoute);
+        const trial = await fitFixedDays(requirement, trialDays, travelLookup, windingFactor, memoizedCoordinateRoute, journeyPreferences);
         const isLastDay = prop.dayIdx === currentDays.length - 1;
         const marginOk = isLastDay
           ? (trial.dayIdle[prop.dayIdx] ?? 0) >= 0
@@ -404,7 +458,63 @@ export async function arrangeTripRoute(input: {
 
   let chain = orderRoundTrip(input.days.flat(), origin, orderOpts);
   if (!chain.length) return { days: input.days.map(day => [...day]), added, stretched: new Map() };
-  let fit = await fitDays(requirement, chain, travelLookup, windingFactor, memoizedCoordinateRoute);
+  let fit = await fitDays(requirement, chain, travelLookup, windingFactor, memoizedCoordinateRoute, journeyPreferences);
+
+  // S14: when adding a day to relax the schedule, also test bounded loop orderings that finish closer to
+  // TP Hà Giang (without creating a long Day-1 drive or major detour) so the penultimate night sits nearer
+  // TP Hà Giang and the final return drive finishes earlier.
+  if (journeyPreferences?.relaxSpreadAndPullReturn && chain.length >= 2 && timed) {
+    const chainKm = (seq: readonly PlannerCandidate[]) =>
+      seq.reduce((sum, stop, idx) => sum + (idx ? legKm(seq[idx - 1]!, stop) : origin ? legKm(origin, stop) : 0), 0)
+      + (origin && seq.length ? legKm(seq.at(-1)!, origin) : 0);
+    const baseKm = chainKm(chain);
+    let closestIdx = 0;
+    let closestDist = Infinity;
+    chain.forEach((stop, idx) => {
+      const d = haversine(stop, HA_GIANG_CITY_CENTER);
+      if (d < closestDist) {
+        closestDist = d;
+        closestIdx = idx;
+      }
+    });
+    const candidates: PlannerCandidate[][] = [];
+    if (closestIdx < chain.length - 1) {
+      candidates.push([...chain.slice(closestIdx + 1), ...chain.slice(0, closestIdx + 1)]);
+      const tailStop = chain[closestIdx]!;
+      const rest = chain.filter((_, idx) => idx !== closestIdx);
+      if (rest.length > 0) {
+        const restOrdered = orderRoundTrip(rest, origin, orderOpts);
+        candidates.push([...restOrdered, tailStop]);
+      }
+    }
+    const seenKeys = new Set([chain.map(s => s.id).join(",")]);
+    const isBetterRelaxFit = (trial: Fit, current: Fit) => {
+      if (trial.violations !== current.violations) return trial.violations < current.violations;
+      if (trial.insufficient !== current.insufficient) return trial.insufficient < current.insufficient;
+      if (trial.emptyDays !== current.emptyDays) return trial.emptyDays < current.emptyDays;
+      if (trial.day1LongDrive !== current.day1LongDrive) return !trial.day1LongDrive;
+      const curRet = current.returnEndMinute ?? Number.POSITIVE_INFINITY;
+      const triRet = trial.returnEndMinute ?? Number.POSITIVE_INFINITY;
+      if (Math.abs(triRet - curRet) >= 15) return triRet < curRet;
+      const curHg = current.penultimateHgKm ?? Number.POSITIVE_INFINITY;
+      const triHg = trial.penultimateHgKm ?? Number.POSITIVE_INFINITY;
+      if (Math.abs(triHg - curHg) >= 5) return triHg < curHg;
+      return trial.idle < current.idle;
+    };
+    for (const candidateChain of candidates) {
+      if (Date.now() >= deadline) break;
+      const key = candidateChain.map(s => s.id).join(",");
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      if (baseKm > 0 && chainKm(candidateChain) > baseKm * 1.25) continue;
+      const trial = await fitDays(requirement, candidateChain, travelLookup, windingFactor, memoizedCoordinateRoute, journeyPreferences);
+      if (isBetterRelaxFit(trial, fit)) {
+        chain = candidateChain;
+        fit = trial;
+      }
+    }
+  }
+
   // Clocks are unknown without a departure time, so fitting cannot tell what fits: order only.
   const inChain = (candidate: PlannerCandidate) => chain.some(stop => stop.id === candidate.id);
   while (input.fill && timed && !fit.violations && fit.idle >= MIN_FILL_SAFETY_MARGIN_MINUTES && chain.length < limit && Date.now() < deadline) {
@@ -416,7 +526,7 @@ export async function arrangeTripRoute(input: {
       }
       return Math.max(0, fit.days.length - 1);
     };
-    const options = input.pool.filter(candidate => usableForFill(candidate) && !inChain(candidate) && !input.excludedIds?.has(candidate.id))
+    const options = input.pool.filter(candidate => allowFillCandidate(candidate) && !inChain(candidate) && !input.excludedIds?.has(candidate.id))
       .map(candidate => {
         let detourSeconds = Infinity;
         let bestAt = 0;
@@ -441,7 +551,7 @@ export async function arrangeTripRoute(input: {
     for (const option of options.slice(0, 4)) {
       if (Date.now() >= deadline) break;
       const next = orderRoundTrip([...chain, option.candidate], origin, orderOpts);
-      const trial = await fitDays(requirement, next, travelLookup, windingFactor, memoizedCoordinateRoute);
+      const trial = await fitDays(requirement, next, travelLookup, windingFactor, memoizedCoordinateRoute, journeyPreferences);
       // D4: every day whose stop list gained the new stop must retain >= 45 minutes of margin.
       const dayKeepsMargin = trial.days.every((day, idx) => {
         const gainedCandidate = day.some(stop => stop.id === option.candidate.id);
@@ -467,7 +577,7 @@ export async function arrangeTripRoute(input: {
     // Up to 1.5× the suggested visit, at most 30 minutes more: a longer stay, not a different trip.
     for (const stop of longer) stretched.set(stop.id, Math.min(Math.round(stop.suggestedDurationMinutes! * 1.5 / 5) * 5, stop.suggestedDurationMinutes! + 30));
     const stretch = (stop: PlannerCandidate) => stretched.has(stop.id) ? { ...stop, suggestedDurationMinutes: stretched.get(stop.id)! } : stop;
-    const trial = stretched.size ? await fitDays(requirement, chain.map(stretch), travelLookup, windingFactor, memoizedCoordinateRoute) : null;
+    const trial = stretched.size ? await fitDays(requirement, chain.map(stretch), travelLookup, windingFactor, memoizedCoordinateRoute, journeyPreferences) : null;
     if (trial && !trial.violations && trial.insufficient <= fit.insufficient && trial.idle < fit.idle) fit = { ...trial, days: trial.days.map(day => day.map(stop => chain.find(item => item.id === stop.id)!)) };
     else stretched.clear();
   }

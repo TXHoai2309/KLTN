@@ -6,6 +6,25 @@ export const OVERNIGHT_CHECKIN_DETOUR_MIN_KM = 1.0;
 export const MAX_OVERNIGHT_CENTER_DISTANCE_KM = 45;
 const MOUNTAIN_TORTUOSITY = 1.35;
 
+/** Fixed TP Hà Giang town center coordinates used as the gateway anchor for S6/S14 overnight preferences. */
+export const HA_GIANG_CITY_CENTER = OVERNIGHT_TOWN_CENTERS["TP Hà Giang"]!;
+
+/** Overnight town centers along the main QL4C Hà Giang Loop (excludes off-loop towns like Bắc Mê, Hoàng Su Phì, Du Già). */
+export const MAIN_LOOP_OVERNIGHT_AREAS: ReadonlySet<string> = new Set([
+  "TP Hà Giang",
+  "Quản Bạ",
+  "Yên Minh",
+  "Đồng Văn",
+  "Mèo Vạc",
+  "Lũng Cú",
+]);
+
+/** True when an overnight town center belongs to the main QL4C Hà Giang Loop (S6). */
+export function isMainLoopOvernightArea(area: string | null | undefined): boolean {
+  if (!area) return false;
+  return MAIN_LOOP_OVERNIGHT_AREAS.has(area.trim());
+}
+
 const EARTH_RADIUS_KM = 6371;
 
 export function distanceBetweenKm(

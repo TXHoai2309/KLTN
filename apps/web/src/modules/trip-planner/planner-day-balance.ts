@@ -1,14 +1,25 @@
+import { isMainLoopOvernightArea, resolveOvernightAnchorTown } from "../../lib/overnight-anchor";
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import type { PlannerCandidate } from "./planner-candidates";
 import type { TravelLeg } from "./planner-contract";
 import { dateForDay, MAX_STOPS_PER_DAY, PLANNING_WINDOW, schedulePlannerDays, visitDuration } from "./planner-engine";
 import { haversine } from "./planner-geography";
 
-type Partition = { days: PlannerCandidate[][]; violations: number; emptyDays: number; load: number; spread: number };
-const compare = (a: Partition, b: Partition) => a.violations - b.violations || a.emptyDays - b.emptyDays || a.load - b.load || a.spread - b.spread;
+type Partition = { days: PlannerCandidate[][]; violations: number; emptyDays: number; offLoopNights: number; load: number; spread: number };
+const compare = (a: Partition, b: Partition) =>
+  a.violations - b.violations
+  || a.emptyDays - b.emptyDays
+  || a.offLoopNights - b.offLoopNights
+  || a.load - b.load
+  || a.spread - b.spread;
 
 /** Reuse the same directed chain and its verified evidence; only day boundaries move. */
-export function balancePlannerDays(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], routes: ReadonlyMap<string, TravelLeg>): PlannerCandidate[][] {
+export function balancePlannerDays(
+  requirement: TripRequirementInput,
+  selected: readonly PlannerCandidate[][],
+  routes: ReadonlyMap<string, TravelLeg>,
+  options?: { gentleFamily?: boolean; explicitOvernightDays?: ReadonlySet<number> },
+): PlannerCandidate[][] {
   const stops = selected.flat(), cap = MAX_STOPS_PER_DAY;
   if (!stops.length || stops.slice(1).some((stop, index) => {
     const leg = routes.get(stop.id);
@@ -16,7 +27,7 @@ export function balancePlannerDays(requirement: TripRequirementInput, selected: 
   })) return selected.map(day => [...day]);
   const memo = new Map<string, Partition | null>();
   const solve = (dayIndex: number, offset: number): Partition | null => {
-    if (dayIndex === requirement.durationDays) return offset === stops.length ? { days: [], violations: 0, emptyDays: 0, load: 0, spread: 0 } : null;
+    if (dayIndex === requirement.durationDays) return offset === stops.length ? { days: [], violations: 0, emptyDays: 0, offLoopNights: 0, load: 0, spread: 0 } : null;
     const key = `${dayIndex}:${offset}`;
     if (memo.has(key)) return memo.get(key)!;
     let best: Partition | null = null;
@@ -32,9 +43,15 @@ export function balancePlannerDays(requirement: TripRequirementInput, selected: 
       const elapsed = lastDeparture == null
         ? today.reduce((sum, stop) => sum + visitDuration(stop)! + Math.ceil((routes.get(stop.id)?.durationSeconds ?? 0) / 60), 0)
         : lastDeparture - PLANNING_WINDOW.startMinute;
+      let offLoopNight = 0;
+      if (options?.gentleFamily && dayIndex < requirement.durationDays - 1 && !options.explicitOvernightDays?.has(dayIndex) && today.length > 0) {
+        const anchor = resolveOvernightAnchorTown(today.at(-1)!);
+        if (anchor && !isMainLoopOvernightArea(anchor.area)) offLoopNight = 1;
+      }
       const partition: Partition = {
         days: [today, ...rest.days], violations: violations + rest.violations,
         emptyDays: Number(count === 0) + rest.emptyDays,
+        offLoopNights: offLoopNight + rest.offLoopNights,
         load: elapsed ** 2 + rest.load,
         spread: today.reduce((sum, stop, index) => sum + (index ? haversine(today[index - 1]!, stop) ** 2 : 0), 0) + rest.spread,
       };
