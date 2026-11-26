@@ -58,7 +58,7 @@ import {
 } from "./assistant-unified-history";
 import { TripsageAccessLegCard } from "./tripsage-access-leg-card";
 import { TripsageChatNotice } from "./tripsage-chat-notice";
-import { isAssistantTurnTextDone, TripsageStreamedText } from "./tripsage-streamed-text";
+import { isAssistantTurnTextDone, shouldRecoverFinishedTurn, TripsageStreamedText } from "./tripsage-streamed-text";
 import { isProposalOutdated, readConversationState, STALE_ITINERARY_MESSAGE } from "./tripsage-conversation-state";
 import { TripsageCostCard } from "./tripsage-cost-card";
 import { parseItineraryPart } from "./tripsage-itinerary-view";
@@ -216,16 +216,16 @@ export function TripsageChatClient({
     transport,
     // The notice text is generic; keep the real cause (name and short message only, never the request) visible for debugging.
     onError: err => console.warn("[tripsage-chat] stream error", err.name, err.message.slice(0, 200)),
-    onFinish: ({ message, isAbort, isDisconnect, isError }) => {
+    onFinish: ({ message, isAbort, isDisconnect, isError, finishReason }) => {
       if (isAbort && internalRecoveryAbortRef.current) {
         internalRecoveryAbortRef.current = false;
         return;
       }
-      if (isAbort || isDisconnect) {
+      if (isAbort) {
         pendingAutoFlushRef.current = false;
         return;
       }
-      if (isError) {
+      if (isError && !isDisconnect) {
         const classified = classifyChatError(errorRef.current);
         const canRecover = classified?.kind === "INTERRUPTED" && Boolean(bodyRef.current.conversationId);
         if (!canRecover) {
@@ -233,8 +233,29 @@ export function TripsageChatClient({
         }
         return;
       }
-      const hasAnyText = message.parts.some(part => part.type === "text" && part.text.trim().length > 0);
-      if (!hasAnyText) {
+      const rawText = message.parts.map(part => (part.type === "text" ? part.text : "")).join("");
+      const cleanedText = extractSuggestRepliesDirectives(rawText).text.trim();
+      const hasAnyText = cleanedText.length > 0;
+      const shouldRecover = shouldRecoverFinishedTurn({
+        isAbort,
+        isDisconnect,
+        isError,
+        stopRequested: stopRequestedRef.current,
+        finishReason,
+        hasVisibleText: hasAnyText,
+        hasConversationId: Boolean(bodyRef.current.conversationId),
+      });
+      if (shouldRecover) {
+        setRecoveryFailed(false);
+        setNeedsServerSync(true);
+        return;
+      }
+      if (isDisconnect) {
+        pendingAutoFlushRef.current = false;
+        return;
+      }
+      const splitBody = splitTrailingQuestion(cleanedText).body.trim();
+      if (!hasAnyText || !splitBody) {
         setFinishedTextIds(prev => {
           if (prev.has(message.id)) return prev;
           const next = new Set(prev);
@@ -273,7 +294,8 @@ export function TripsageChatClient({
   });
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  // True while the saved answer is being fetched back after the stream dropped: the user sees progress, not a red error.
+  // True while the saved answer is being fetched back after the stream dropped or closed prematurely: the user sees progress, not a blank bubble or red error.
+  const [needsServerSync, setNeedsServerSync] = useState(false);
   const [recoveryFailed, setRecoveryFailed] = useState(false);
   // ADR-47 & Point 6: items pinned from cards, plus server-verified saved trip scoped to (conversationId, proposalId).
   const [pinned, setPinned] = useState<PinnedItem[]>([]);
@@ -305,9 +327,14 @@ export function TripsageChatClient({
   errorRef.current = error;
   sentUserTurnsRef.current = messages.filter(message => message.role === "user").length;
   const saveLocked = isTripSaveNavigationLocked(saveState);
-  const rawNotice = chatStatus === "error" ? classifyChatError(error) : null;
+  const rawNotice = chatStatus === "error"
+    ? classifyChatError(error)
+    : needsServerSync && recoveryFailed
+      ? classifyChatError(new Error("tripsage stream disconnected"))
+      : null;
   const interrupted = rawNotice?.kind === "INTERRUPTED";
-  const recovering = interrupted && !!activeConversationId && !recoveryFailed;
+  const needsRecovery = interrupted || needsServerSync;
+  const recovering = needsRecovery && !!activeConversationId && !recoveryFailed;
   const notice = recovering ? null : rawNotice;
   const busy = chatStatus === "submitted" || chatStatus === "streaming";
   const inputLocked = saveLocked || loadingConversation || recovering;
@@ -484,10 +511,10 @@ export function TripsageChatClient({
     });
   }, [savedTripId, state.accessLeg]);
 
-  // A cut or stalled connection does not stop the server: it finishes the turn and saves it. Poll the saved conversation
-  // immediately and swap it in (same data as a reload) instead of leaving the user on "connection lost" or hung stream.
+  // A cut, stalled, or prematurely closed connection does not stop the server: it finishes the turn and saves it. Poll the saved conversation
+  // immediately and swap it in (same data as a reload) instead of leaving the user on a blank bubble, "connection lost", or hung stream.
   useEffect(() => {
-    if (!interrupted || !activeConversationId) return;
+    if (!needsRecovery || !activeConversationId) return;
     setRecoveryFailed(false);
     const conversationId = activeConversationId;
     const sentUserTurns = sentUserTurnsRef.current;
@@ -502,7 +529,12 @@ export function TripsageChatClient({
         if (cancelled) return;
         const detail = await fetchAssistantConversationDetail(conversationId).catch(() => null);
         const stored = detail?.messages ?? [];
-        if (stored.at(-1)?.role === "assistant" && stored.filter(message => message.role === "user").length === sentUserTurns) {
+        const latestStored = stored.at(-1);
+        if (
+          latestStored?.role === "assistant"
+          && latestStored.parts.length > 0
+          && stored.filter(message => message.role === "user").length === sentUserTurns
+        ) {
           const uiMessages = storedMessagesToUiMessages(stored);
           const lastId = uiMessages.at(-1)?.id;
           if (lastId) {
@@ -513,7 +545,9 @@ export function TripsageChatClient({
               return next;
             });
           }
+          streamedMessageIdsRef.current.clear();
           setPlanProgress(null);
+          setNeedsServerSync(false);
           setMessages(uiMessages);
           clearError();
           return;
@@ -527,7 +561,7 @@ export function TripsageChatClient({
     void poll();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interrupted, activeConversationId]);
+  }, [needsRecovery, activeConversationId]);
 
   // Safety probe: if the server already saved the finished reply while the SSE stream hung or buffered without closing,
   // hydrate the persisted turn in-place so the traveler never has to press F5.
@@ -546,9 +580,11 @@ export function TripsageChatClient({
         if (cancelled) return;
         const stored = detail?.messages ?? [];
         const expectedUsers = sentUserTurnsRef.current;
+        const latestStored = stored.at(-1);
         if (
           expectedUsers > 0 &&
-          stored.at(-1)?.role === "assistant" &&
+          latestStored?.role === "assistant" &&
+          latestStored.parts.length > 0 &&
           stored.filter(message => message.role === "user").length === expectedUsers
         ) {
           const uiMessages = storedMessagesToUiMessages(stored);
@@ -562,8 +598,11 @@ export function TripsageChatClient({
             });
           }
           internalRecoveryAbortRef.current = true;
-          void stop();
+          await stop();
+          if (cancelled) return;
+          streamedMessageIdsRef.current.clear();
           setPlanProgress(null);
+          setNeedsServerSync(false);
           setMessages(uiMessages);
           clearError();
           return;
@@ -717,6 +756,8 @@ export function TripsageChatClient({
     setPinned([]);
     setPinMessage(null);
     setPlanProgress(null);
+    setNeedsServerSync(false);
+    setRecoveryFailed(false);
     setLoadingConversation(true);
     setHistoryNotice(null);
     try {
@@ -773,6 +814,8 @@ export function TripsageChatClient({
     setDraft("");
     setChosenLodgings({});
     setPlanProgress(null);
+    setNeedsServerSync(false);
+    setRecoveryFailed(false);
     streamedMessageIdsRef.current.clear();
     setFinishedTextIds(new Set());
     setPinned([]); setSavedRecord(null); setPinMessage(null);
@@ -873,6 +916,8 @@ export function TripsageChatClient({
     internalRecoveryAbortRef.current = false;
     lastStreamActivityRef.current = Date.now();
     pendingAutoFlushRef.current = true;
+    setNeedsServerSync(false);
+    setRecoveryFailed(false);
     setPlanProgress(null);
     void sendMessage({ text });
     if (typeof window !== "undefined") {
@@ -906,6 +951,8 @@ export function TripsageChatClient({
   function handleStop() {
     stopRequestedRef.current = true;
     pendingAutoFlushRef.current = false;
+    setNeedsServerSync(false);
+    setRecoveryFailed(false);
     if (queuedRef.current.length > 0) {
       const restored = restoreQueueToDraft(queuedRef.current, draft);
       queuedRef.current = [];
@@ -916,6 +963,17 @@ export function TripsageChatClient({
       }
     }
     void stop();
+  }
+
+  function handleRegenerate() {
+    if (saveLocked) return;
+    stopRequestedRef.current = false;
+    internalRecoveryAbortRef.current = false;
+    lastStreamActivityRef.current = Date.now();
+    setNeedsServerSync(false);
+    setRecoveryFailed(false);
+    setPlanProgress(null);
+    void regenerate();
   }
 
   function submit(event: FormEvent) {
@@ -1175,6 +1233,7 @@ export function TripsageChatClient({
                         : { body: text, question: null };
                     const isTextDone = isAssistantTurnTextDone({
                       hasBody: Boolean(body),
+                      hasText: Boolean(text.trim()),
                       isLatestMessage: isLastMessage,
                       live,
                       recovering,
@@ -1182,6 +1241,13 @@ export function TripsageChatClient({
                       finished: finishedTextIds.has(message.id),
                     });
                     if (!text && !planEntry && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg && !showInlineSave) return null;
+                    if (
+                      message.role === "assistant"
+                      && !body
+                      && !(isTextDone && (planEntry || cost || accessLeg || sources.length || resultParts.length || showInlineSave || question || budgetSavingsChips.length || replies.length))
+                    ) {
+                      return null;
+                    }
                     return message.role === "user" ? (
                       <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                     ) : (
@@ -1299,7 +1365,7 @@ export function TripsageChatClient({
                   <TripsagePlanProgress
                     snapshot={planProgress}
                     interrupted
-                    onRetryStream={saveLocked ? undefined : () => void regenerate()}
+                    onRetryStream={saveLocked ? undefined : handleRegenerate}
                   />
                 ) : !interrupted && planProgress && hasPlanProgressErrors(planProgress) ? (
                   <TripsagePlanProgress
@@ -1321,7 +1387,7 @@ export function TripsageChatClient({
                 <span>Đang hoàn tất câu trả lời</span>
               </div>
             )}
-            <TripsageChatNotice notice={notice} onResend={saveLocked ? undefined : () => void regenerate()} />
+            <TripsageChatNotice notice={notice} onResend={saveLocked ? undefined : handleRegenerate} />
             {!messages.length && !activeConversationId && candidateStops.length > 0 && (
               <div className="tripsage-preselected-bar" data-testid="assistant-preselected-stops" role="group" aria-label="Điểm bắt buộc trong lịch">
                 <span className="tripsage-preselected-label">Điểm bắt buộc ({selectedStops.length}/4):</span>

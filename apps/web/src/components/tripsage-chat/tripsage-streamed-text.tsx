@@ -32,6 +32,8 @@ export function computeStreamedTextAdvance(input: {
 /** Pure visibility gate so chips, summary cards, and result cards wait until the turn's text finishes revealing. */
 export function isAssistantTurnTextDone(input: {
   hasBody: boolean;
+  /** True when the turn has non-empty text even if `splitTrailingQuestion` moved all of it into `question` (leaving `hasBody: false`). */
+  hasText?: boolean;
   isLatestMessage: boolean;
   live: boolean;
   /** True while the browser is polling to recover the finished answer after a dropped stream ("Đang hoàn tất câu trả lời"). */
@@ -42,6 +44,9 @@ export function isAssistantTurnTextDone(input: {
   if (input.live) return false;
   if (input.isLatestMessage && input.recovering) return false;
   if (!input.hasBody) {
+    // When the entire single-line reply was lifted into `question`, TripsageStreamedText does not mount
+    // (and therefore cannot fire `onDone`), so once streaming and recovery have finished it is immediately done.
+    if (input.hasText) return true;
     // Bug 8: if a data part (e.g. data-itinerary) arrived before any text during a live turn,
     // keep cards/chips hidden until the turn finishes with text (or explicitly settles via `finished`).
     return !(input.isLatestMessage && input.wasStreamedLive && !input.finished);
@@ -49,6 +54,26 @@ export function isAssistantTurnTextDone(input: {
   if (!input.isLatestMessage) return true;
   if (!input.wasStreamedLive) return true;
   return input.finished;
+}
+
+/**
+ * Pure decision helper for post-stream recovery: returns true when `useChat.onFinish` settled without a user stop
+ * yet the SSE stream ended prematurely (disconnect, missing `finishReason`, or empty visible reply) while a saved
+ * conversation exists on the server so the client can hydrate the persisted reply without requiring F5.
+ */
+export function shouldRecoverFinishedTurn(input: {
+  isAbort: boolean;
+  isDisconnect: boolean;
+  isError: boolean;
+  stopRequested: boolean;
+  finishReason: string | undefined;
+  hasVisibleText: boolean;
+  hasConversationId: boolean;
+}): boolean {
+  if (!input.hasConversationId || input.isAbort || input.stopRequested) return false;
+  if (input.isDisconnect) return true;
+  if (input.isError) return false;
+  return input.finishReason === undefined || !input.hasVisibleText;
 }
 
 /**
@@ -94,13 +119,26 @@ export function TripsageStreamedText({
   }, [flushNow, text.length, onDone]);
 
   // Mark the exact timestamp when the stream transitions from live -> finished to cap catch-up to <= 280ms.
+  // Also install a wall-clock timer fallback so throttled/background tabs where rAF pauses still reveal full text and fire onDone.
   useEffect(() => {
     if (!live && animated.current && !finishStartRef.current) {
       finishStartRef.current = { time: performance.now(), shown: shownRef.current };
     } else if (live) {
       finishStartRef.current = null;
     }
-  }, [live]);
+    if (live || flushNow || shownRef.current >= text.length) return;
+    const timer = setTimeout(() => {
+      animated.current = false;
+      finishStartRef.current = null;
+      shownRef.current = target.current;
+      setShown(target.current);
+      if (!notified.current) {
+        notified.current = true;
+        onDone?.();
+      }
+    }, STREAM_FINISH_BUDGET_MS + 120);
+    return () => clearTimeout(timer);
+  }, [live, flushNow, text.length, onDone]);
 
   useEffect(() => {
     if (!animated.current || flushNow) {

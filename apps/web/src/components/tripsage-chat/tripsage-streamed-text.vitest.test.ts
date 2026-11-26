@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeStreamedTextAdvance,
   isAssistantTurnTextDone,
+  shouldRecoverFinishedTurn,
   STREAM_FINISH_BUDGET_MS,
   TripsageStreamedText,
 } from "./tripsage-streamed-text";
@@ -173,5 +174,128 @@ describe("Bug E: streamed text catch-up budget and chip/card gating", () => {
         finished: false,
       }),
     ).toBe(true);
+  });
+
+  it("Bug 2 repro: single-line question lifted into trailing question must NOT leave finishedTextIds unset and render blank bubble", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const clientSrc = readFileSync(resolve(process.cwd(), "src/components/tripsage-chat/tripsage-chat-client.tsx"), "utf8");
+    // The render path must either keep single-line replies rendered or settle finishedTextIds when body becomes empty
+    const { splitTrailingQuestion } = await import("./tripsage-chat-client");
+    const singleLine = "Bạn chọn nhãn điểm xuất phát nào?";
+    const split = splitTrailingQuestion(singleLine);
+    expect(split).toEqual({ body: "", question: singleLine });
+    // On finish, if the entire reply was lifted into `question` (leaving `body === ""`),
+    // TripsageStreamedText never mounts, so the turn MUST still be marked text-done once not live!
+    expect(
+      isAssistantTurnTextDone({
+        hasBody: Boolean(split.body),
+        hasText: Boolean(singleLine.trim()),
+        isLatestMessage: true,
+        live: false,
+        recovering: false,
+        wasStreamedLive: true,
+        finished: false,
+      }),
+    ).toBe(true);
+    // And client must handle premature clean-EOF / disconnect recovery without requiring F5
+    expect(clientSrc).toContain("finishReason");
+    expect(clientSrc).toContain("shouldRecoverFinishedTurn");
+    expect(clientSrc).toContain("await stop();");
+
+    // Premature clean EOF (missing finishReason) or disconnect or zero-text turn triggers recovery
+    expect(
+      shouldRecoverFinishedTurn({
+        isAbort: false,
+        isDisconnect: false,
+        isError: false,
+        stopRequested: false,
+        finishReason: undefined,
+        hasVisibleText: false,
+        hasConversationId: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRecoverFinishedTurn({
+        isAbort: false,
+        isDisconnect: true,
+        isError: true,
+        stopRequested: false,
+        finishReason: undefined,
+        hasVisibleText: false,
+        hasConversationId: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRecoverFinishedTurn({
+        isAbort: false,
+        isDisconnect: false,
+        isError: false,
+        stopRequested: false,
+        finishReason: "stop",
+        hasVisibleText: false,
+        hasConversationId: true,
+      }),
+    ).toBe(true);
+    // Normal completed turn with text does NOT trigger redundant recovery
+    expect(
+      shouldRecoverFinishedTurn({
+        isAbort: false,
+        isDisconnect: false,
+        isError: false,
+        stopRequested: false,
+        finishReason: "stop",
+        hasVisibleText: true,
+        hasConversationId: true,
+      }),
+    ).toBe(false);
+    // Explicit user stop never triggers recovery
+    expect(
+      shouldRecoverFinishedTurn({
+        isAbort: true,
+        isDisconnect: false,
+        isError: false,
+        stopRequested: true,
+        finishReason: undefined,
+        hasVisibleText: false,
+        hasConversationId: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("S1 (c): triggers DB recovery when stream finishes without error yet contains zero visible text", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const clientSrc = readFileSync(resolve(process.cwd(), "src/components/tripsage-chat/tripsage-chat-client.tsx"), "utf8");
+
+    // Clean finish with finishReason="stop" and no visible text MUST trigger server sync recovery
+    expect(
+      shouldRecoverFinishedTurn({
+        isAbort: false,
+        isDisconnect: false,
+        isError: false,
+        stopRequested: false,
+        finishReason: "stop",
+        hasVisibleText: false,
+        hasConversationId: true,
+      }),
+    ).toBe(true);
+
+    // Without a persisted conversationId (first unsaved failure), recovery cannot poll DB
+    expect(
+      shouldRecoverFinishedTurn({
+        isAbort: false,
+        isDisconnect: false,
+        isError: false,
+        stopRequested: false,
+        finishReason: "stop",
+        hasVisibleText: false,
+        hasConversationId: false,
+      }),
+    ).toBe(false);
+
+    // Client onFinish wires shouldRecoverFinishedTurn -> setNeedsServerSync(true) -> fetchAssistantConversationDetail
+    expect(clientSrc).toContain("setNeedsServerSync(true);");
+    expect(clientSrc).toContain("fetchAssistantConversationDetail(conversationId)");
   });
 });

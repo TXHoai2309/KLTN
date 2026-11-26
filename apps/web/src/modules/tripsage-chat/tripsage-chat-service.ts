@@ -1006,11 +1006,26 @@ export function streamTripsageChat(input: {
         );
       const privateInputs = new Set<string>();
       const sourceStreamFilters = new Map<string, ReturnType<typeof createInlineSourceStreamFilter>>();
+      let flushTailIndex = 0;
       const extractedDirectiveReplies: string[] = [];
       const collectFilterReplies = (filter: ReturnType<typeof createInlineSourceStreamFilter>) => {
         if (extractedDirectiveReplies.length > 0) return;
         const found = filter.takeReplies();
         if (found.length > 0) extractedDirectiveReplies.push(...found);
+      };
+      const flushRemainingSourceFilters = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {
+        for (const filter of sourceStreamFilters.values()) {
+          const tail = filter.end();
+          collectFilterReplies(filter);
+          if (tail) {
+            textChunks.push(tail);
+            const tailId = `flush-tail-${++flushTailIndex}`;
+            controller.enqueue({ type: "text-start", id: tailId } as UIMessageChunk);
+            controller.enqueue({ type: "text-delta", id: tailId, delta: tail } as UIMessageChunk);
+            controller.enqueue({ type: "text-end", id: tailId } as UIMessageChunk);
+          }
+        }
+        sourceStreamFilters.clear();
       };
       const shaped = result.toUIMessageStream({ onError: failureText }).pipeThrough(new TransformStream<UIMessageChunk, UIMessageChunk>({
         transform(chunk, controller) {
@@ -1070,6 +1085,10 @@ export function streamTripsageChat(input: {
           if (chunk.type === "tool-output-available") return controller.enqueue({ ...chunk, output: { ok: (chunk.output as { ok?: unknown } | null)?.ok === true } } as UIMessageChunk);
           if (chunk.type === "tool-output-error") return controller.enqueue({ ...chunk, errorText: FAILURE_TEXT } as UIMessageChunk);
           if (chunk.type === "finish-step") stepsDone += 1;
+          // Flush any trailing text still buffered in sourceStreamFilters before terminating the message with `finish`.
+          if (chunk.type === "finish") {
+            flushRemainingSourceFilters(controller);
+          }
           // Reaching the step cap ends the turn; say so before the stream finishes.
           if (chunk.type === "finish" && stepsDone >= limits.maxSteps) {
             writeNotice(
@@ -1096,12 +1115,7 @@ export function streamTripsageChat(input: {
             return;
           }
           if (!streamErrored) {
-            for (const filter of sourceStreamFilters.values()) {
-              const tail = filter.end();
-              collectFilterReplies(filter);
-              if (tail) textChunks.push(tail);
-            }
-            sourceStreamFilters.clear();
+            flushRemainingSourceFilters(controller);
             const directiveOut = extractSuggestRepliesDirectives(textChunks.join(""));
             if (extractedDirectiveReplies.length === 0 && directiveOut.replies.length > 0) {
               extractedDirectiveReplies.push(...directiveOut.replies);

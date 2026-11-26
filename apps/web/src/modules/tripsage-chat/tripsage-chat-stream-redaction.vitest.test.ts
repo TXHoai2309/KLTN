@@ -278,4 +278,31 @@ describe("flight and hotel provider boundaries", () => {
     const chunks = parts(sse).filter(part => part.type === "data-flights" || part.type === "data-hotels") as { id?: string }[];
     expect(chunks.map(part => part.id)).toEqual(["flights-1", "hotels-1", "flights-2", "hotels-2"]);
   });
+
+  it("S1 (d): flushes trailing text buffered in sourceStreamFilters down to the SSE stream before finish", async () => {
+    // Emit a delta prefix that matches `couldStartSourceLabel` ("Tài liệu") without a trailing newline
+    // and WITHOUT a text-end chunk so createInlineSourceStreamFilter holds it until finish/flush.
+    const heldTail = "Tài liệu";
+    const model = new MockLanguageModelV4({
+      doStream: async () => ({
+        stream: simulateReadableStream({
+          chunks: [
+            { type: "stream-start", warnings: [] },
+            { type: "text-start", id: "t-unclosed" },
+            { type: "text-delta", id: "t-unclosed", delta: heldTail },
+            // Intentionally omit text-end so sourceStreamFilters still owns the buffered tail at finish/flush.
+            { type: "finish", finishReason: { unified: "stop", raw: "stop" }, usage },
+          ] as never[],
+        }),
+      }),
+    });
+    const sse = await run(model);
+    const streamParts = parts(sse) as { type: string; id?: string; delta?: string }[];
+    const flushDeltas = streamParts.filter(part => part.type === "text-delta" && part.id?.startsWith("flush-tail-"));
+    expect(flushDeltas.map(part => part.delta).join("")).toBe(heldTail);
+    const flushIdx = streamParts.findIndex(part => part.type === "text-delta" && part.id?.startsWith("flush-tail-"));
+    const finishIdx = streamParts.findIndex(part => part.type === "finish");
+    expect(flushIdx).toBeGreaterThan(-1);
+    expect(finishIdx).toBeGreaterThan(flushIdx);
+  });
 });
