@@ -109,3 +109,29 @@ describe("L3 — getDestinationInfo exposes the catalog's best visit time and vi
     expect(await run(tools, "getDestinationInfo", { destinationId: "dest-plain" })).toMatchObject({ ok: true, bestVisitTime: null, visitNotes: null });
   });
 });
+
+describe("L2 — season questions retry the monthly calendar with a short per-month query", () => {
+  it("falls back to 'Lịch mùa Hà Giang tháng N' when the long query finds nothing", async () => {
+    const queries: string[] = [];
+    const december = "Tháng 12 – Săn mây, hoa cải vàng và mùa đông vùng biên. Thời tiết: Lạnh sâu (6–16°C), dễ có sương muối. Cảnh sắc nổi bật: Hoa tam giác mạch cuối mùa, hoa cải vàng.";
+    const tools = createTripsageChatTools({
+      planning: { candidates: async () => [], routes: {} as never },
+      emitItinerary: () => {},
+      latestUserText: "sắp tới hà giang có gì đẹp không em nhỉ",
+      knowledge: async query => {
+        queries.push(query);
+        // The long abstract query only scores below the relevance floor; the short monthly query matches the calendar.
+        return query.startsWith("Lịch mùa Hà Giang tháng 12")
+          ? [{ title: "Lịch mùa Hà Giang theo tháng", text: december, score: 0.61 }]
+          : [{ title: "Lịch mùa Hà Giang theo tháng", text: december, score: 0.3 }];
+      },
+    });
+    const res = await run(tools, "lookupLocalKnowledge", { question: "Cảnh sắc và thời tiết Hà Giang trong 2–6 tuần tới, cuối tháng 11 đến tháng 12" }) as { excerpts: { title: string; text: string }[] };
+    expect(queries).toEqual([
+      "Cảnh sắc và thời tiết Hà Giang trong 2–6 tuần tới, cuối tháng 11 đến tháng 12",
+      "Lịch mùa Hà Giang tháng 11: cảnh sắc, thời tiết, trải nghiệm",
+      "Lịch mùa Hà Giang tháng 12: cảnh sắc, thời tiết, trải nghiệm",
+    ]);
+    expect(res.excerpts.map(e => e.title)).toEqual(["Lịch mùa Hà Giang theo tháng"]);
+  });
+});

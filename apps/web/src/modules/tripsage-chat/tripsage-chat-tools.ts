@@ -78,6 +78,7 @@ import {
   detectReplyLanguage,
   expandedKnowledgeLabel,
   filterRelevantKnowledgeExcerpts,
+  foldText,
   isMedicalEmergencyQuery,
   type AmbiguousPlaceResolution,
   type KnowledgeCandidate,
@@ -2189,7 +2190,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       }
       if (!context.knowledge) return { ok: false as const, code: "KNOWLEDGE_UNAVAILABLE", message: `Chưa có tài liệu địa phương phù hợp trong hệ thống. Hãy trả lời bằng hiểu biết chung ('${kbLabel}') và không viện dẫn tài liệu địa phương.` };
       try {
-        const sanitized = (await context.knowledge(question, options?.abortSignal))
+        const knowledge = context.knowledge;
+        const retrieve = async (query: string) => (await knowledge(query, options?.abortSignal))
           .slice(0, 4)
           .map(item => ({
             title: sanitizeDocumentTitle(item.title),
@@ -2197,9 +2199,24 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             ...(typeof item.score === "number" ? { score: item.score } : {}),
           }))
           .filter(item => item.title.length > 0);
+        const sanitized = await retrieve(question);
         const resolvedSinglePlace = context.ambiguityResolution?.kind === "SINGLE" ? context.ambiguityResolution.place : "";
         const relevanceQuery = [context.latestUserText ?? "", resolvedSinglePlace, question].filter(Boolean).join(" ");
-        const excerpts = filterRelevantKnowledgeExcerpts(relevanceQuery, sanitized);
+        let excerpts = filterRelevantKnowledgeExcerpts(relevanceQuery, sanitized);
+        // L2: a long, abstract season query ("2–6 tuần tới … tháng 11 đến tháng 12") embeds far from the monthly calendar;
+        // when it finds nothing, retry with one short query per named month (at most 2) and keep what passes the same filter.
+        const months = [...new Set([...foldText(question).matchAll(/\bthang\s*(\d{1,2})\b/gu)].map(match => Number(match[1])).filter(m => m >= 1 && m <= 12))].slice(0, 2);
+        if (!excerpts.length && months.length) {
+          const seen = new Set<string>();
+          for (const month of months) {
+            for (const item of filterRelevantKnowledgeExcerpts(relevanceQuery, await retrieve(`Lịch mùa Hà Giang tháng ${month}: cảnh sắc, thời tiết, trải nghiệm`))) {
+              if (seen.has(item.text)) continue;
+              seen.add(item.text);
+              excerpts.push(item);
+            }
+          }
+          excerpts = excerpts.slice(0, 4);
+        }
         if (excerpts.length) {
           if (context.recordKnowledgeCandidates) {
             context.recordKnowledgeCandidates(excerpts);
