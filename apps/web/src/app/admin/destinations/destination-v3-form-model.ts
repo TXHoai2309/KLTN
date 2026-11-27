@@ -17,6 +17,8 @@ export function destinationDraft(dto?: DestinationDto) {
         ? ""
         : String(dto.minimumDurationMinutes),
     isOutdoor: dto?.isOutdoor ?? false,
+    bestVisitTime: dto?.profile?.bestVisitTime ?? "",
+    visitNotes: dto?.profile?.visitNotes ?? "",
     openingDays: dto?.openingDays ?? unknownSchedule(),
     sources: (dto?.profile?.sources ?? []).map((s) => ({
       id: s.id,
@@ -52,6 +54,8 @@ export function destinationDraftPayload(
       payload[key] = draft[key].trim() ? Number(draft[key]) : null;
   if (!dto || draft.isOutdoor !== baseline.isOutdoor)
     payload.isOutdoor = draft.isOutdoor;
+  for (const key of ["bestVisitTime", "visitNotes"] as const)
+    if (draft[key] !== baseline[key]) payload[key] = draft[key].trim() || null;
   if (
     JSON.stringify(draft.openingDays) !== JSON.stringify(baseline.openingDays)
   )

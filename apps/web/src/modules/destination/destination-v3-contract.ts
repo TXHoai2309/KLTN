@@ -27,6 +27,9 @@ const fields = {
     destinationInputSchema.shape.suggestedDurationMinutes,
   minimumDurationMinutes: destinationInputSchema.shape.minimumDurationMinutes,
   isOutdoor: z.boolean(),
+  // L4: editorial visit guidance shown to the chat assistant; null clears it.
+  bestVisitTime: z.string().trim().max(2000).nullable(),
+  visitNotes: z.string().trim().max(4000).nullable(),
   openingDays: destinationInputSchema.shape.openingDays,
   sources: z
     .array(source)

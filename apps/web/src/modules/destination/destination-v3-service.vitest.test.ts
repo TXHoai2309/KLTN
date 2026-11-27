@@ -164,6 +164,18 @@ describe("V3 service transactions with TEST persistence adapter (not PostgreSQL)
     ])
       expect(after[k]).toEqual(before[k]);
   });
+  it("L4: saves and clears best visit time / visit notes without touching other fields", async () => {
+    const { f, id } = await legacy();
+    const before = structuredClone(f.rows().get(id));
+    await writeDestination(headers, { formVersion: "V3", bestVisitTime: "9h–14h khi trời quang", visitNotes: "Ngắm từ đèo; đi thuyền." }, "visit-1", id, f.deps);
+    const saved = f.rows().get(id);
+    expect(saved.bestVisitTime).toBe("9h–14h khi trời quang");
+    expect(saved.visitNotes).toBe("Ngắm từ đèo; đi thuyền.");
+    for (const k of ["description", "sources", "openingDays", "ticketPrice"]) expect(saved[k]).toEqual(before[k]);
+    await writeDestination(headers, { formVersion: "V3", visitNotes: null }, "visit-2", id, f.deps);
+    expect(f.rows().get(id).visitNotes).toBeNull();
+    expect(f.rows().get(id).bestVisitTime).toBe("9h–14h khi trời quang");
+  });
   it("source update preserves ID/reviewer; ownership forgery fails atomically", async () => {
     const { f, id } = await legacy();
     const source = f.rows().get(id).sources[0];

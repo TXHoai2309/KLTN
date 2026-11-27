@@ -530,6 +530,32 @@ export default function DestinationForm({ id }: { id: string | null }) {
                   <small>Bật để cảnh báo khi lịch trình xếp điểm này sau giờ hoàng hôn.</small>
                 </span>
               </label>
+              <label htmlFor="dv3-best-visit-time" className="af-label">
+                Thời điểm nên ghé <span className="af-label-optional">(không bắt buộc)</span>
+              </label>
+              <textarea
+                id="dv3-best-visit-time"
+                className="af-textarea"
+                rows={2}
+                maxLength={2000}
+                placeholder="Ví dụ: 9h–14h khi trời quang; sáng sớm mùa đông dễ có sương mù."
+                value={draft.bestVisitTime}
+                disabled={disabled}
+                onChange={(e) => change("bestVisitTime", e.target.value)}
+              />
+              <label htmlFor="dv3-visit-notes" className="af-label">
+                Ghi chú tham quan <span className="af-label-optional">(không bắt buộc)</span>
+              </label>
+              <textarea
+                id="dv3-visit-notes"
+                className="af-textarea"
+                rows={3}
+                maxLength={4000}
+                placeholder="Các kiểu trải nghiệm, lưu ý an toàn… Trợ lý AI dùng nội dung này khi tư vấn."
+                value={draft.visitNotes}
+                disabled={disabled}
+                onChange={(e) => change("visitNotes", e.target.value)}
+              />
               <details
                 className="dv3-disclosure"
                 open={

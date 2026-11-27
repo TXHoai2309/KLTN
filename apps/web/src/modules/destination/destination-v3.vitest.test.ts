@@ -121,6 +121,23 @@ describe("Destination V3 safe form contract", () => {
       expectedUpdatedAt: d.updatedAt,
     });
   });
+  it("L4: visit guidance edits send trimmed text, clearing sends null, and the patch contract accepts them", () => {
+    const d = dto();
+    const payload = destinationDraftPayload(
+      { ...destinationDraft(d), bestVisitTime: "  9h–14h khi trời quang  ", visitNotes: "Ngắm từ đèo; đi thuyền qua hẻm Tu Sản." },
+      d,
+    );
+    expect(payload).toEqual({
+      formVersion: "V3",
+      expectedUpdatedAt: d.updatedAt,
+      bestVisitTime: "9h–14h khi trời quang",
+      visitNotes: "Ngắm từ đèo; đi thuyền qua hẻm Tu Sản.",
+    });
+    expect(destinationV3PatchSchema.safeParse(payload).success).toBe(true);
+    const withNotes = { ...d, profile: { ...d.profile!, visitNotes: "cũ" } };
+    expect(destinationDraftPayload({ ...destinationDraft(withNotes), visitNotes: "   " }, withNotes).visitNotes).toBeNull();
+    expect(destinationV3PatchSchema.safeParse({ formVersion: "V3", visitNotes: "x".repeat(4001) }).success).toBe(false);
+  });
   it("description edit sends only edited prose and does not carry hidden replacements", () => {
     const d = dto();
     expect(
