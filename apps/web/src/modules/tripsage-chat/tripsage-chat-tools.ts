@@ -1244,7 +1244,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   };
 
   const getDestinationInfo = tool({
-    description: "Đọc thông tin có sẵn của MỘT điểm đến trong danh mục KLTN: giờ mở cửa theo thứ trong tuần hoặc ngày cụ thể, thời lượng gợi ý, và giá vé (nếu có trong dữ liệu). Gọi công cụ này TRƯỚC khi trả lời câu hỏi về giờ mở cửa hoặc giá vé. Nguồn là dữ liệu điểm đến; nếu thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa.",
+    description: "Đọc thông tin có sẵn của MỘT điểm đến trong danh mục KLTN: giờ mở cửa theo thứ trong tuần hoặc ngày cụ thể, thời lượng gợi ý, giá vé, thời điểm nên ghé (bestVisitTime) và ghi chú trải nghiệm (visitNotes) nếu có trong dữ liệu. Gọi công cụ này TRƯỚC khi trả lời câu hỏi về giờ mở cửa, giá vé hoặc nên ghé sáng/chiều/giờ nào. Nguồn là dữ liệu điểm đến; nếu thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa.",
     inputSchema: z.object({
       destinationId: z.string().trim().min(1).max(160).describe("Mã ngắn code (D1, D2…), id điểm đến từ lịch/listDestinations, hoặc tên điểm đến trong danh mục."),
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Ngày cụ thể YYYY-MM-DD (tùy chọn)."),
@@ -1298,7 +1298,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           weeklyHours: weeklyHours.map(d => d.summary),
           ticketPrice,
           ticketPriceNote: ticketPrice ? "Theo dữ liệu điểm đến trong danh mục KLTN." : "chưa có giá vé trong dữ liệu",
-          note: "Trả lời bằng đúng giờ mở cửa từ dữ liệu này và ghi rõ nguồn là dữ liệu điểm đến. Nếu ticketPrice là null thì nói rõ 'chưa có giá vé trong dữ liệu', TUYỆT ĐỐI KHÔNG bịa giá vé. Nếu câu hỏi người dùng mơ hồ về điểm (ví dụ 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào trong lịch hoặc hỏi lại kèm suggestReplies tên các điểm.",
+          // L3: editorial best time / visit notes; null means the catalog has none (say so, or mark advice as general knowledge).
+          bestVisitTime: found.bestVisitTime ?? null,
+          visitNotes: found.visitNotes ?? null,
+          note: "Trả lời bằng đúng giờ mở cửa từ dữ liệu này và ghi rõ nguồn là dữ liệu điểm đến. Khi tư vấn khung giờ ghé: dùng bestVisitTime/visitNotes nếu có (kèm lý do như sương mù, ánh sáng, giờ mở cửa) và nói là theo dữ liệu điểm đến; nếu null thì khung giờ chỉ là gợi ý chung, phải ghi rõ là gợi ý tham khảo, không phải thông tin đã xác minh. Nếu visitNotes nêu nhiều kiểu trải nghiệm (ví dụ ngắm từ trên đèo và đi thuyền) thì tách rõ từng kiểu. Nếu ticketPrice là null thì nói rõ 'chưa có giá vé trong dữ liệu', TUYỆT ĐỐI KHÔNG bịa giá vé. Nếu câu hỏi người dùng mơ hồ về điểm (ví dụ 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào trong lịch hoặc hỏi lại kèm suggestReplies tên các điểm.",
         };
       } catch (error) {
         return failure(error);

@@ -4,6 +4,7 @@ import type { TripDetail, TripSummary } from "../trip-read/trip-read-service";
 import { infoToolInstructions } from "./tripsage-chat-service";
 import { createTripsageChatTools } from "./tripsage-chat-tools";
 import { createTripsageInfoTools, type TripsageMyTrips } from "./tripsage-info-tools";
+import { candidate as makePlannerCandidate } from "../trip-planner/__fixtures__/planner-fixtures";
 
 const NOW = () => new Date("2026-11-26T03:00:00Z"); // 10:00 in Vietnam
 const options = { toolCallId: "t", messages: [] } as never;
@@ -88,5 +89,23 @@ describe("wiring", () => {
     expect(infoToolInstructions(undefined)).toBe("");
     expect(infoToolInstructions({ weather: true })).toContain("getWeatherForecast");
     expect(infoToolInstructions({ weather: true })).not.toContain("listMyTrips");
+  });
+});
+
+describe("L3 — getDestinationInfo exposes the catalog's best visit time and visit notes", () => {
+  it("returns bestVisitTime / visitNotes when present and null when the catalog has none", async () => {
+    const nhoQue = makePlannerCandidate("dest-nho-que", {
+      name: "Sông Nho Quế", area: "Mèo Vạc",
+      bestVisitTime: "9h–14h khi trời quang, nắng chiếu xuống hẻm vực",
+      visitNotes: "Hai trải nghiệm: ngắm từ đèo Mã Pì Lèng; đi thuyền qua hẻm Tu Sản.",
+    });
+    const plain = makePlannerCandidate("dest-plain", { name: "Dốc Thẩm Mã", area: "Yên Minh" });
+    const tools = createTripsageChatTools({ planning: { candidates: async () => [nhoQue, plain], routes: {} as never }, emitItinerary: () => {} });
+    expect(await run(tools, "getDestinationInfo", { destinationId: "dest-nho-que" })).toMatchObject({
+      ok: true,
+      bestVisitTime: "9h–14h khi trời quang, nắng chiếu xuống hẻm vực",
+      visitNotes: "Hai trải nghiệm: ngắm từ đèo Mã Pì Lèng; đi thuyền qua hẻm Tu Sản.",
+    });
+    expect(await run(tools, "getDestinationInfo", { destinationId: "dest-plain" })).toMatchObject({ ok: true, bestVisitTime: null, visitNotes: null });
   });
 });

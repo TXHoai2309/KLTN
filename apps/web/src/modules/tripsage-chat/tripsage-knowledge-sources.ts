@@ -682,6 +682,9 @@ function flattenMessageTextContent(content: unknown): string {
  * Resolves place deictic pronouns ("chỗ đó", "ở đấy", "nơi này", "that place", "there")
  * strictly from the latest 2–3 user/assistant text turns — never from `data-sources` (C5).
  */
+const PLURAL_OR_SAME_QUESTION_REFERENCE_RE =
+  /\b(?:nhung|cac|may)\s+(?:diem|cho|noi|dia\s+diem|dia\s+danh)\s+(?:do|day|nay|kia|nao)\b/u;
+
 export function resolveAmbiguousPlaceReference(input: {
   latestUserText: string | null | undefined;
   recentMessages?: readonly { role: string; content: unknown }[];
@@ -689,6 +692,9 @@ export function resolveAmbiguousPlaceReference(input: {
 }): AmbiguousPlaceResolution {
   const latest = input.latestUserText?.trim() ?? "";
   if (!hasPlaceDeictic(latest)) return { kind: "NONE" };
+  // L1: a plural reference ("những điểm đó") or one pointing back to "… nào" in the same question
+  // ("ghé những điểm nào … những điểm đó") is not one earlier place; resolving it narrowed "Hà Giang" to "Đồng Văn".
+  if (PLURAL_OR_SAME_QUESTION_REFERENCE_RE.test(foldText(latest))) return { kind: "NONE" };
 
   const patterns = buildPlacePatterns(input.catalogPlaceNames);
   if (extractPlacesFromSingleTurn(latest, patterns).length > 0) {

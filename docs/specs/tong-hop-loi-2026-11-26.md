@@ -183,3 +183,25 @@ Lý do: hỏi "thời tiết Hà Giang mấy ngày sắp tới" thì trợ lý `
 - `listMyTrips` / `getMyTrip` — chỉ đọc chuyến đã lưu của người đang đăng nhập (dùng `listMyTrips` / `getMyTrip` của `trip-read-service`, chủ chuyến xác định từ phiên đăng nhập của request, model không truyền được người dùng); trả lịch từng ngày, chỗ nghỉ đã chọn, chi phí ước tính. Tối đa 3 lần/lượt. Không có tool ghi (lưu/sửa vẫn qua nút bấm, ADR-47).
 - File: `tripsage-info-tools.ts` (mới), `tripsage-chat-tools.ts`, `tripsage-chat-service.ts` (`infoToolInstructions` nối mô tả vào prompt khi tool được bật), `tripsage-chat-http.ts`, `tripsage-chat-runtime.ts`, `app/api/ai/chat/route.ts`. Test: `tripsage-info-tools.vitest.test.ts`.
 - Giới hạn: chưa hiện thẻ thời tiết dạng giao diện trong chat (trả lời bằng chữ từ số liệu tool).
+
+---
+
+## 9. Bài học từ hội thoại `0c28d203-5266-4a6b-8f02-04366b539cb3` + nhận xét ChatGPT (2026-11-27)
+
+Nguồn: ảnh chụp hội thoại của chủ dự án và file "Kiểm chứng thông tin du lịch.pdf" (ChatGPT chấm 6.3/10 và 6.7/10: đúng kiến thức, nhưng hiểu sai phạm vi, thiếu chiều sâu theo mùa/giờ).
+
+| Mục | Hiện tượng | Nguyên nhân (đã kiểm chứng) | Hướng sửa |
+|---|---|---|---|
+| **L1** | "Nếu đi Hà Giang nhất định phải ghé những điểm nào và nên ghé sáng hay chiều **những điểm đó**" ⇒ bot mở đầu "Mình hiểu bạn đang hỏi về **Đồng Văn**" | Không phải RAG như ChatGPT đoán. `hasPlaceDeictic` bắt "điểm đó" là đại từ chỉ nơi; `resolveAmbiguousPlaceReference` không thấy địa danh trong câu (Hà Giang là tỉnh, không nằm trong mẫu địa danh), lục 2–3 lượt trước thấy đúng một nơi "Đồng Văn" ⇒ `SINGLE` (đã tái hiện bằng test). Prompt `tripsage-chat-service.ts:350` bắt model "PHẢI mở đầu bằng 'Mình hiểu bạn đang hỏi về Đồng Văn'". | (a) Đại từ trỏ ngược trong **cùng câu** ("những điểm nào … những điểm đó") ⇒ `NONE`; (b) câu có phạm vi rõ ("Hà Giang", "cả chuyến", "toàn tỉnh") ⇒ `NONE`; (c) bỏ chữ "PHẢI mở đầu" — chỉ dùng tham chiếu khi thật sự mơ hồ, nói nhẹ "nếu bạn đang hỏi về X…". Test hồi quy đúng câu này. |
+| **L2** | "Sắp tới Hà Giang có gì đẹp" ⇒ nói hoa đào tháng 1–2, thiếu tam giác mạch cuối mùa, hoa cải, săn mây tháng 12 | Model biết ngày hôm nay nhưng tài liệu RAG đã duyệt thiếu "lịch mùa"; prompt không yêu cầu trả lời theo khoảng thời gian từ hôm nay. | (a) Chủ dự án bổ sung tài liệu RAG "Lịch mùa Hà Giang theo tháng" (hoa, mây, lúa, lễ hội, thời tiết); (b) prompt: "sắp tới / tháng này" ⇒ trả lời cho 2–6 tuần tới tính từ hôm nay, sau đó mới nhắc mùa khác; (c) dùng `getWeatherForecast` (mục 8) cho phần thời tiết. |
+| **L3** | Khung giờ ghé chỉ "sáng / đầu giờ chiều", thiếu lý do (sương, ánh sáng, giờ mở cửa) | DB đã có trường `bestVisitTime`, `visitNotes` (content profile) nhưng tool chat `getDestinationInfo` chỉ trả giờ mở cửa + vé, không trả trường này. | (a) Đưa `bestVisitTime` / `visitNotes` vào `getDestinationInfo` / `listDestinations`; (b) chủ dự án điền nội dung cho ~20 điểm chính (có nguồn); (c) prompt: khung giờ phải kèm lý do và tách "có nguồn" với "gợi ý suy luận". |
+| **L4** | Sông Nho Quế chưa tách "ngắm từ đèo" và "đi thuyền" | Thiếu dữ liệu trải nghiệm theo điểm. | Ghi vào `visitNotes` của điểm; RAG mô tả 2 trải nghiệm. |
+
+Điểm tốt nên giữ (ChatGPT cũng ghi nhận): không bịa, nói rõ phần "hiểu biết chung", có trích nguồn.
+
+Ghi chú: phần L1 là lỗi code, sửa được ngay; L2–L4 phần lớn là **nội dung dữ liệu** (RAG / content profile) cần chủ dự án bổ sung, code chỉ cần đưa trường có sẵn vào tool và chỉnh prompt.
+
+**L1, L3, L4 — đã sửa (Claude, 2026-11-27). L2 chờ chủ dự án bổ sung tài liệu RAG "Lịch mùa Hà Giang theo tháng".**
+- **L1:** `resolveAmbiguousPlaceReference` (`tripsage-knowledge-sources.ts`) trả `NONE` khi đại từ là số nhiều ("những/các/mấy điểm/chỗ/nơi … đó/này/kia/nào") — không còn quy "những điểm đó" về một nơi ở lượt trước. "chỗ đó" số ít vẫn giải nghĩa như cũ. Test thêm 3 ca (đúng câu hội thoại `0c28d203`) trong `tripsage-knowledge-sources.vitest.test.ts`.
+- **L3:** `retrievePlannerCandidates` lấy thêm `bestVisitTime`, `visitNotes`; `getDestinationInfo` trả 2 trường (null nếu chưa có) và hướng dẫn: khung giờ phải kèm lý do; không có dữ liệu thì ghi rõ là gợi ý tham khảo. Test trong `tripsage-info-tools.vitest.test.ts`.
+- **L4:** phần code: khi `visitNotes` nêu nhiều kiểu trải nghiệm thì tách rõ từng kiểu. Phần dữ liệu: Sông Nho Quế trên production chưa có `bestVisitTime`/`visitNotes` — chủ dự án nhập qua trang quản trị điểm đến (bản nháp nội dung trong tin nhắn bàn giao, cần đối chiếu nguồn trước khi lưu).

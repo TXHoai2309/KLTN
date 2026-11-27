@@ -626,5 +626,18 @@ describe("Point 2 — knowledge source relevance & actual-usage filtering", () =
         ],
       }),
     ).toEqual({ kind: "SINGLE", place: "Phố cổ Đồng Văn" });
+
+    // 5) L1: a plural reference back to "những điểm nào" in the same question is not one earlier place
+    const recent = [
+      { role: "user", content: "sắp tới hà giang có gì đẹp không em nhỉ" },
+      { role: "assistant", content: "Cuối tháng 11 vẫn có thể còn hoa tam giác mạch; còn cảnh núi đá Đồng Văn thì mỗi mùa lại có nét riêng." },
+    ];
+    expect(resolveAmbiguousPlaceReference({
+      latestUserText: "Nếu đi Hà Giang nhất định phải ghé những điểm nào và nên ghé sáng hay chiều những điểm đó",
+      recentMessages: recent,
+    })).toEqual({ kind: "NONE" });
+    expect(resolveAmbiguousPlaceReference({ latestUserText: "mấy chỗ đó đi buổi tối có vui không?", recentMessages: recent })).toEqual({ kind: "NONE" });
+    // A single "chỗ đó" still resolves, even when the question also asks "chỗ nào".
+    expect(resolveAmbiguousPlaceReference({ latestUserText: "chỗ đó gần chỗ nào ăn tối ngon?", recentMessages: recent })).toEqual({ kind: "SINGLE", place: "Đồng Văn" });
   });
 });
