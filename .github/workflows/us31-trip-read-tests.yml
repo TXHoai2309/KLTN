@@ -1,0 +1,45 @@
+
+name: Sprint 4 - US31 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - kduy
+    paths:
+      - '.github/workflows/us31-trip-read-tests.yml'
+      - 'apps/web/src/modules/trip-read/**'
+      - 'apps/web/src/app/trips/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test-us31:
+    name: Run US31 Trip Read Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run US31 tests
+        working-directory: apps/web
+        run: |
+          npx --no-install vitest run \
+            --config vitest.config.mts \
+            src/modules/trip-read/trip-read.vitest.test.ts \
+            src/modules/trip-read/trip-read-http.vitest.test.ts \
+            src/app/trips/trips-view.vitest.test.ts \
+            src/modules/trip-read/trip-management.vitest.test.ts \
+            src/modules/trip-read/trip-management-client.vitest.test.ts

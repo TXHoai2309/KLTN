@@ -1,0 +1,71 @@
+
+name: Sprint 3 - US21 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - kduy
+
+permissions:
+  contents: read
+
+jobs:
+  test-us21:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup npm
+        run: npm install -g npm@11.16.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://us21_test:us21_test@127.0.0.1:5432/us21_test?sslmode=disable
+        run: npm run db:generate --workspace=@KLTN/db
+
+      - name: Run US21 unit tests
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -o pipefail
+          npx vitest run --config vitest.config.mts \
+            src/modules/ai/qa-contract.vitest.test.ts \
+            src/modules/ai/qa-http.vitest.test.ts \
+            src/modules/ai/qa-service.vitest.test.ts \
+            src/modules/ai/qa-retrieval.vitest.test.ts \
+            src/modules/ai/qa-generation.vitest.test.ts \
+            src/modules/ai/qa-public-safety.vitest.test.ts \
+            src/modules/ai/qa-panel-wire.vitest.test.ts \
+            src/components/assistant/assistant-http-transport.vitest.test.ts \
+            2>&1 | tee ../../us21-unit.log
+
+      - name: Run QA PostgreSQL integration
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/test-qa-postgres.mjs \
+            2>&1 | tee ../../us21-postgres.log
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: US21-Test-Evidence
+          path: |
+            us21-unit.log
+            us21-postgres.log
+          if-no-files-found: warn

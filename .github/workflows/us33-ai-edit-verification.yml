@@ -1,0 +1,56 @@
+name: Sprint 4 - US33 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, kduy]
+    paths:
+      - "apps/web/src/modules/trip-edit/**"
+      - "apps/web/src/app/api/trips/[id]/edits/ai/**"
+      - "apps/web/src/app/trips/[id]/edit/**"
+      - ".github/workflows/us33-ai-edit-verification.yml"
+  pull_request:
+    paths:
+      - "apps/web/src/modules/trip-edit/**"
+      - "apps/web/src/app/api/trips/[id]/edits/ai/**"
+      - "apps/web/src/app/trips/[id]/edit/**"
+      - ".github/workflows/us33-ai-edit-verification.yml"
+
+jobs:
+  verify-us33:
+    name: Run US-33 AI Edit Automated Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (root monorepo)
+        run: bun install --frozen-lockfile || npm ci
+
+      - name: Run US-33 Vitest Suite
+        working-directory: apps/web
+        run: |
+          npx vitest run --config vitest.config.mts \
+            src/modules/trip-edit/us33-test.vitest.test.ts \
+            src/modules/trip-edit/ai-edit-http.vitest.test.ts \
+            src/modules/trip-edit/ai-edit-service.vitest.test.ts \
+            src/modules/trip-edit/ai-edit-session.vitest.test.ts \
+            src/modules/trip-edit/ai-edit-client.vitest.test.ts \
+            --reporter=verbose | tee us33-ci-report.txt
+
+      - name: Upload US-33 Test Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us33-verification-evidence
+          path: apps/web/us33-ci-report.txt
+          retention-days: 30
