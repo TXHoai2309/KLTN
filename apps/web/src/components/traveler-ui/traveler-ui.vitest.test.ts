@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { Plus, Trash2 } from "lucide-react";
 
 import { TravelerButton, travelerButtonClassName } from "./traveler-button";
-import { TravelerDayTabs, travelerDayColorVar } from "./traveler-day-tabs";
+import { TravelerDayTabs, dayTabDateLabel, travelerDayColorVar } from "./traveler-day-tabs";
 
 const ROOT = resolve(process.cwd(), "../..");
 const GLOBALS_CSS = readFileSync(resolve(ROOT, "packages/ui/src/styles/globals.css"), "utf8");
@@ -140,6 +140,26 @@ describe("Ticket 01: Traveler UI tokens, buttons, day tabs, and trips.css compli
     expect(html).toContain("· 3");
     expect(html).toContain("--tv-tab-color:var(--tv-day-1)");
     expect(html).toContain('aria-selected="true"');
+  });
+
+  it("dated trip tabs show weekday/date with the stop count on a second line", () => {
+    expect(dayTabDateLabel("2026-11-28")).toBe("T7 28/11");
+    expect(dayTabDateLabel("2026-11-29")).toBe("CN 29/11");
+    expect(dayTabDateLabel("2026-12-01")).toBe("T3 1/12");
+    expect(dayTabDateLabel("not-a-date")).toBeNull();
+    const html = renderToStaticMarkup(
+      createElement(TravelerDayTabs, {
+        activeId: "day-1",
+        onSelect: () => {},
+        tabs: [
+          { id: "day-1", label: "Ngày 1", count: 0, dayNumber: 1, kind: "trip", date: "2026-11-28" },
+          { id: "day-2", label: "Ngày 2", count: 5, dayNumber: 2, kind: "trip", date: null },
+        ],
+      }),
+    );
+    expect(html).toContain("T7 28/11 · 0 điểm");
+    expect(html).toContain("tv-day-tab--dated");
+    expect(html).toContain("· 5"); // undated tab keeps the inline count
   });
 
   it("Bug 4: moves active underline and aria-selected strictly to Ngày đi, Ngày 1..N, Ngày về (including 0 and -1 keys) with visible travel underline", () => {

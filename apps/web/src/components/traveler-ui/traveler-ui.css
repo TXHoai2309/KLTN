@@ -289,6 +289,27 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Dated tab: label over "T7 28/11 · N điểm" — grows in height only, not width. */
+.tv-day-tabs .tv-day-tab.tv-day-tab--dated {
+  height: auto;
+  min-height: 40px;
+  padding-block: 4px;
+}
+
+.tv-day-tab-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.tv-day-tab-sub {
+  color: var(--tv-ink-3);
+  font-size: 11.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Quick link (e.g. "Xem nhanh") — design §3.1 Link & §3.3 */
 .tv-quick-link {
   display: inline-flex;

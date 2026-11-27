@@ -331,6 +331,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         label: `Ngày ${day.day}`,
         count: day.stops.length,
         dayNumber: day.day,
+        date: day.date ?? null,
         kind: "trip",
       });
     }

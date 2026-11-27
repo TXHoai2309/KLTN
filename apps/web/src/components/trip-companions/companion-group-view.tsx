@@ -358,6 +358,7 @@ function CompanionGroupContent({
       label: `Ngày ${day.dayIndex}`,
       count: day.visits.length,
       dayNumber: day.dayIndex,
+      date: day.localDate,
       kind: "trip",
     }));
     return [allItem, ...dayItems];

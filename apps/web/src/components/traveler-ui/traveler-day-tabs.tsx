@@ -7,11 +7,22 @@ export function travelerDayColorVar(dayNumber: number): string {
   return `--tv-day-${index}`;
 }
 
+const WEEKDAY_VI = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+
+export function dayTabDateLabel(iso: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return null;
+  const weekday = WEEKDAY_VI[new Date(Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!)).getUTCDay()];
+  return `${weekday} ${+m[3]!}/${+m[2]!}`;
+}
+
 export interface TravelerDayTabItem {
   id: string;
   label: string;
   count?: number;
   dayNumber?: number;
+  /** ISO yyyy-mm-dd; when set, the tab shows a second line "T7 28/11 · N điểm". */
+  date?: string | null;
   kind?: "all" | "travel" | "trip";
   controlsId?: string;
   tabId?: string;
@@ -67,6 +78,7 @@ export function TravelerDayTabs({
     >
       {tabs.map((tab, index) => {
         const isActive = String(tab.id) === normalizedActiveId;
+        const dateLabel = tab.kind === "trip" && tab.date ? dayTabDateLabel(tab.date) : null;
         const colorVar =
           tab.kind === "trip" && tab.dayNumber != null
             ? `var(${travelerDayColorVar(tab.dayNumber)})`
@@ -96,15 +108,27 @@ export function TravelerDayTabs({
             aria-controls={tab.controlsId}
             tabIndex={useTabRole ? (isActive ? 0 : -1) : undefined}
             data-active={isActive ? "true" : "false"}
-            className={`tv-day-tab${isActive ? " is-active" : ""}`}
+            className={`tv-day-tab${isActive ? " is-active" : ""}${dateLabel ? " tv-day-tab--dated" : ""}`}
             style={style}
             onClick={() => onSelect(tab.id)}
             onKeyDown={(event) => onKeyDown(event, index)}
           >
             {tab.kind !== "all" && <span className="tv-day-tab-dot" aria-hidden="true" />}
-            <span>{tab.label}</span>
-            {typeof tab.count === "number" && (
-              <span className="tv-day-tab-count">· {tab.count}</span>
+            {dateLabel ? (
+              <span className="tv-day-tab-stack">
+                <span>{tab.label}</span>
+                <span className="tv-day-tab-sub">
+                  {dateLabel}
+                  {typeof tab.count === "number" && ` · ${tab.count} điểm`}
+                </span>
+              </span>
+            ) : (
+              <>
+                <span>{tab.label}</span>
+                {typeof tab.count === "number" && (
+                  <span className="tv-day-tab-count">· {tab.count}</span>
+                )}
+              </>
             )}
           </button>
         );

@@ -1406,6 +1406,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 label: `Ngày ${day.dayIndex}`,
                 count: day.visits.length,
                 dayNumber: day.dayIndex,
+                date: day.localDate,
                 kind: "trip",
               }),
             ),
