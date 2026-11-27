@@ -2195,7 +2195,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           .slice(0, 4)
           .map(item => ({
             title: sanitizeDocumentTitle(item.title),
-            text: clip(item.text, 700),
+            // L2: a stored chunk often spans two month sections; 700 chars cut the second month off before the model saw it.
+            text: clip(item.text, 1400),
             ...(typeof item.score === "number" ? { score: item.score } : {}),
           }))
           .filter(item => item.title.length > 0);
