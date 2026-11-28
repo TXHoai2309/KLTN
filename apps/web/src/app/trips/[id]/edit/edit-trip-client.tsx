@@ -1746,7 +1746,7 @@ export default function EditTripClient({
                   {validationGroupSummary.violationCount > 0 ? (
                     <>
                       <AlertTriangle size={14} aria-hidden="true" />
-                      <span>{validationGroupSummary.violationCount} điểm cần xem lại · Xem</span>
+                      <span>{validationGroupSummary.violationCount} lỗi cần xem lại · Xem</span>
                     </>
                   ) : (
                     <>
@@ -1842,7 +1842,7 @@ export default function EditTripClient({
                   onClick={() => handleOpenCanvas("map")}
                 >
                   <AlertTriangle size={13} aria-hidden="true" />
-                  <span>{validationGroupSummary.violationCount} điểm cần xem lại</span>
+                  <span>{validationGroupSummary.violationCount} lỗi cần xem lại</span>
                 </button>
               )}
               {editDirty && (

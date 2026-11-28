@@ -233,6 +233,8 @@ describe("Ticket 04 integrated Trip origin & journeySnapshot", () => {
     expect(failedPreview.validation.groups.travelTime.findings.map((f) => f.reasonCode)).toEqual(
       expect.arrayContaining(["JOURNEY_ARRIVAL_TOO_EARLY"]),
     );
+    const lateArrival = failedPreview.validation.groups.travelTime.findings.find((f) => f.reasonCode === "JOURNEY_ARRIVAL_TOO_EARLY");
+    expect(lateArrival?.message).toContain("muộn hơn giờ bắt đầu lượt đầu tiên");
     expect(failedPreview.validation.advisories?.map((f) => f.reasonCode)).toEqual(
       expect.arrayContaining(["RETURN_DEADLINE_MISSED"]),
     );

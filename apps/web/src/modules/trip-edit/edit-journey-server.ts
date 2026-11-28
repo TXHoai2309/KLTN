@@ -259,7 +259,7 @@ export async function evaluateEditJourney(
         group: "travelTime",
         status: "VIOLATION",
         reasonCode: "JOURNEY_ARRIVAL_TOO_EARLY",
-        message: `Dự kiến đến nơi lúc ${fromMinute(estimatedArrivalAtFirstMinute)} (tính cả ${outboundRestMinutes} phút nghỉ), sớm hơn giờ mở đầu ${fromMinute(firstEntry.visit.startMinute)}.`,
+        message: `Dự kiến đến nơi lúc ${fromMinute(estimatedArrivalAtFirstMinute)} (tính cả ${outboundRestMinutes} phút nghỉ), muộn hơn giờ bắt đầu lượt đầu tiên ${fromMinute(firstEntry.visit.startMinute)}.`,
         affectedVisitId: firstEntry.visit.visitId,
       });
     }
